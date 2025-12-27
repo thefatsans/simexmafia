@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
 
     // Berechne durchschnittliche Bewertung und aktualisiere Bilder
     const { updateProductImages } = await import('@/lib/image-updater')
-    const productsWithRating = products.map((product) => {
+    const productsWithRating = products.map((product: any) => {
       const avgRating =
         product.reviews.length > 0
           ? product.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / product.reviews.length
