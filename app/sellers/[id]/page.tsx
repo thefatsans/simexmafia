@@ -1,21 +1,70 @@
-import { notFound } from 'next/navigation'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { notFound, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ProductCard from '@/components/ProductCard'
-import { getSellerById, getSellerProducts } from '@/data/sellers'
+import { getSellerById } from '@/data/sellers'
+import { getProductsFromAPI } from '@/lib/api/products'
 import { Star, CheckCircle, TrendingUp, Package, Clock, Shield } from 'lucide-react'
+import { Product } from '@/types'
 
 export default function SellerPage({ params }: { params: { id: string } }) {
+  const router = useRouter()
   const seller = getSellerById(params.id)
+  const [sellerProducts, setSellerProducts] = useState<Product[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [totalSales, setTotalSales] = useState(0)
+  const [averagePrice, setAveragePrice] = useState(0)
+
+  useEffect(() => {
+    if (!seller) {
+      notFound()
+      return
+    }
+
+    const loadSellerProducts = async () => {
+      try {
+        // Lade alle Produkte von der API
+        const products = await getProductsFromAPI()
+        
+        // Filtere Produkte für diesen Verkäufer
+        const filtered = products.filter((product: Product) => product.seller.id === params.id)
+        setSellerProducts(filtered)
+
+        // Berechne Statistiken
+        const sales = filtered.reduce((sum, product) => sum + product.reviewCount, 0)
+        const avgPrice = filtered.length > 0
+          ? filtered.reduce((sum, product) => sum + product.price, 0) / filtered.length
+          : 0
+
+        setTotalSales(sales)
+        setAveragePrice(avgPrice)
+      } catch (error) {
+        console.error('Error loading seller products:', error)
+        setSellerProducts([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadSellerProducts()
+  }, [params.id, seller])
 
   if (!seller) {
     notFound()
+    return null
   }
 
-  const sellerProducts = getSellerProducts(params.id)
-  const totalSales = sellerProducts.reduce((sum, product) => sum + product.reviewCount, 0)
-  const averagePrice = sellerProducts.length > 0
-    ? sellerProducts.reduce((sum, product) => sum + product.price, 0) / sellerProducts.length
-    : 0
+  if (isLoading) {
+    return (
+      <div className="min-h-screen py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center text-white">Laden...</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen py-8">

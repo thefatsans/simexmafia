@@ -1,13 +1,57 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { mockSellers } from '@/data/sellers'
 import { Star, CheckCircle, TrendingUp } from 'lucide-react'
-import { getSellerProducts } from '@/data/sellers'
+import { getProductsFromAPI } from '@/lib/api/products'
+import { Product } from '@/types'
 
 export default function SellersPage() {
-  const sellersWithStats = mockSellers.map(seller => ({
-    ...seller,
-    productCount: getSellerProducts(seller.id).length,
-  }))
+  const [sellersWithStats, setSellersWithStats] = useState(
+    mockSellers.map(seller => ({
+      ...seller,
+      productCount: 0,
+    }))
+  )
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const loadSellerStats = async () => {
+      try {
+        // Lade alle Produkte von der API
+        const products = await getProductsFromAPI()
+        
+        // Zähle Produkte pro Verkäufer
+        const productCounts: Record<string, number> = {}
+        products.forEach((product: Product) => {
+          const sellerId = product.seller.id
+          productCounts[sellerId] = (productCounts[sellerId] || 0) + 1
+        })
+
+        // Aktualisiere Verkäufer mit echten Produktanzahlen
+        const updatedSellers = mockSellers.map(seller => ({
+          ...seller,
+          productCount: productCounts[seller.id] || 0,
+        }))
+
+        setSellersWithStats(updatedSellers)
+      } catch (error) {
+        console.error('Error loading seller stats:', error)
+        // Fallback zu Mock-Daten bei Fehler
+        setSellersWithStats(
+          mockSellers.map(seller => ({
+            ...seller,
+            productCount: 0,
+          }))
+        )
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadSellerStats()
+  }, [])
 
   // Sort by rating and review count
   const sortedSellers = [...sellersWithStats].sort((a, b) => {
