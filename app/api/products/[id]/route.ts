@@ -36,7 +36,7 @@ export async function GET(
           // Berechne durchschnittliche Bewertung
           const avgRating =
             product.reviews.length > 0
-              ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
+              ? product.reviews.reduce((sum: number, r) => sum + r.rating, 0) / product.reviews.length
               : product.rating
 
           return NextResponse.json({
