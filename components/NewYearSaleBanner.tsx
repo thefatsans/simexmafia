@@ -13,12 +13,13 @@ export default function NewYearSaleBanner() {
             href="/products?sale=newyear"
             className="block relative w-full group"
           >
-            <div className="relative w-full aspect-[16/9] sm:aspect-[21/9] md:aspect-[24/9] lg:aspect-[28/9]">
+            <div className="relative w-full" style={{ minHeight: '200px' }}>
               <Image
                 src="/newyear-sale-banner.png"
                 alt="Neujahr Sale - 27.12. 06:00"
-                fill
-                className="object-contain sm:object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                width={1200}
+                height={675}
+                className="w-full h-auto object-contain group-hover:scale-[1.01] transition-transform duration-300"
                 priority
                 sizes="100vw"
                 onError={() => {
