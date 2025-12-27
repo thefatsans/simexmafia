@@ -42,7 +42,7 @@ export default function CheckoutPage() {
   const [discountCode, setDiscountCode] = useState('')
   const [appliedDiscountCode, setAppliedDiscountCode] = useState<DiscountCode | null>(null)
   const [discountError, setDiscountError] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'revolut' | 'cash' | 'goofycoins'>('revolut')
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'cash' | 'goofycoins'>('paypal')
   const [mounted, setMounted] = useState(false)
   
   useEffect(() => {
@@ -279,8 +279,8 @@ export default function CheckoutPage() {
       return
     }
 
-    // Revolut-Zahlung
-    if (paymentMethod === 'revolut') {
+    // PayPal-Zahlung
+    if (paymentMethod === 'paypal') {
       try {
         // Erstelle Bestellung
         const newOrder = await createOrder({
@@ -290,23 +290,23 @@ export default function CheckoutPage() {
           serviceFee,
           discount: totalDiscount,
           total: finalTotal,
-          paymentMethod: 'revolut',
+          paymentMethod: 'paypal',
           coinsEarned,
           discountCode: appliedDiscountCode?.code,
         })
 
-        // Hole Revolut-Link aus Environment Variables
-        const revolutLink = process.env.NEXT_PUBLIC_REVOLUT_PAYMENT_LINK || ''
+        // Hole PayPal-Link aus Environment Variables
+        const paypalLink = process.env.NEXT_PUBLIC_PAYPAL_PAYMENT_LINK || ''
         
-        if (!revolutLink) {
-          showError('Revolut-Zahlungslink ist nicht konfiguriert. Bitte kontaktieren Sie uns.')
+        if (!paypalLink) {
+          showError('PayPal-Zahlungslink ist nicht konfiguriert. Bitte kontaktieren Sie uns.')
           setIsProcessing(false)
           return
         }
 
-        // Füge Order-ID als Parameter zum Revolut-Link hinzu
-        const separator = revolutLink.includes('?') ? '&' : '?'
-        const revolutLinkWithOrder = `${revolutLink}${separator}orderId=${newOrder.id}&amount=${finalTotal.toFixed(2)}`
+        // Füge Order-ID und Betrag als Parameter zum PayPal-Link hinzu
+        const separator = paypalLink.includes('?') ? '&' : '?'
+        const paypalLinkWithOrder = `${paypalLink}${separator}orderId=${newOrder.id}&amount=${finalTotal.toFixed(2)}`
 
         // Send order confirmation email
         if (user?.email && user?.firstName) {
@@ -325,12 +325,12 @@ export default function CheckoutPage() {
           })
         }
 
-        // Weiterleitung zu Revolut
-        showSuccess('Weiterleitung zu Revolut...', 2000)
-        window.location.href = revolutLinkWithOrder
+        // Weiterleitung zu PayPal
+        showSuccess('Weiterleitung zu PayPal...', 2000)
+        window.location.href = paypalLinkWithOrder
         return
       } catch (error: any) {
-        console.error('Revolut error:', error)
+        console.error('PayPal error:', error)
         showError('Fehler beim Initialisieren der Zahlung')
         setIsProcessing(false)
         return
@@ -533,19 +533,19 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setPaymentMethod('revolut')
+                      setPaymentMethod('paypal')
                     }}
                     className={`p-4 border-2 rounded-lg transition-all ${
-                      paymentMethod === 'revolut'
+                      paymentMethod === 'paypal'
                         ? 'border-purple-500 bg-purple-500/10'
                         : 'border-purple-500/30 bg-fortnite-darker hover:border-purple-500/50'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <CreditCard className={`w-5 h-5 ${paymentMethod === 'revolut' ? 'text-purple-400' : 'text-gray-400'}`} />
+                      <CreditCard className={`w-5 h-5 ${paymentMethod === 'paypal' ? 'text-purple-400' : 'text-gray-400'}`} />
                       <div className="text-left">
-                        <div className={`font-semibold ${paymentMethod === 'revolut' ? 'text-white' : 'text-gray-300'}`}>
-                          Revolut
+                        <div className={`font-semibold ${paymentMethod === 'paypal' ? 'text-white' : 'text-gray-300'}`}>
+                          PayPal
                         </div>
                         <div className="text-xs text-gray-400">Sichere Online-Zahlung</div>
                       </div>
@@ -613,11 +613,11 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {paymentMethod === 'revolut' ? (
+              {paymentMethod === 'paypal' ? (
                 <div className="space-y-4">
                   <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
                     <p className="text-gray-300 text-sm mb-2">
-                      Sie werden nach dem Klick auf "Bestellung abschließen" zu Revolut weitergeleitet, um die Zahlung sicher abzuwickeln.
+                      Sie werden nach dem Klick auf "Bestellung abschließen" zu PayPal weitergeleitet, um die Zahlung sicher abzuwickeln.
                     </p>
                     <p className="text-gray-400 text-xs">
                       Nach erfolgreicher Zahlung erhalten Sie eine Bestätigungs-E-Mail.

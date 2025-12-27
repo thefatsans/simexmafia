@@ -9,12 +9,12 @@ DATABASE_URL=postgresql://user:password@host:port/database
 - **Woher?** Deine PostgreSQL-Datenbank (z.B. Vercel Postgres, Supabase, Neon, etc.)
 - **Wichtig:** Ohne diese Variable funktioniert Prisma nicht!
 
-### 2. Revolut (für Zahlungen)
+### 2. PayPal (für Zahlungen)
 ```
-NEXT_PUBLIC_REVOLUT_PAYMENT_LINK=https://pay.revolut.com/...
+NEXT_PUBLIC_PAYPAL_PAYMENT_LINK=https://www.paypal.com/paypalme/... oder https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=...
 ```
-- **Woher?** Revolut Dashboard → Zahlungslinks erstellen
-- **Wichtig:** Für Zahlungen erforderlich! Dies ist dein Revolut-Zahlungslink
+- **Woher?** PayPal Dashboard → Zahlungslinks erstellen
+- **Wichtig:** Für Zahlungen erforderlich! Dies ist dein PayPal-Zahlungslink oder PayPal.me-Link
 
 ## 🟡 OPTIONAL (aber empfohlen)
 
@@ -62,7 +62,7 @@ NEXT_PUBLIC_AI_MODEL=gpt-3.5-turbo
 ## ✅ Checkliste:
 
 - [ ] `DATABASE_URL` gesetzt
-- [ ] `NEXT_PUBLIC_REVOLUT_PAYMENT_LINK` gesetzt
+- [ ] `NEXT_PUBLIC_PAYPAL_PAYMENT_LINK` gesetzt
 - [ ] `RESEND_API_KEY` gesetzt (optional)
 - [ ] `NEXT_PUBLIC_GOOGLE_CLIENT_ID` gesetzt (optional)
 - [ ] `NEXT_PUBLIC_SITE_URL` gesetzt
