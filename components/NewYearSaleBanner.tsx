@@ -18,7 +18,7 @@ export default function NewYearSaleBanner() {
                 src="/newyear-sale-banner.png"
                 alt="Neujahr Sale - 27.12. 06:00"
                 fill
-                className="object-cover group-hover:scale-[1.01] transition-transform duration-300"
+                className="object-contain w-full h-full group-hover:scale-[1.01] transition-transform duration-300"
                 priority
                 sizes="100vw"
                 onError={() => {
