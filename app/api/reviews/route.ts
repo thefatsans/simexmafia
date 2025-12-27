@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       select: { rating: true },
     })
 
-    const avgRating = productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length
+    const avgRating = productReviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / productReviews.length
 
     await prisma.product.update({
       where: { id: productId },
