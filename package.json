@@ -1,0 +1,50 @@
+{
+  "name": "simexmafia-website",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:update-vbucks": "tsx prisma/update-vbucks-images.ts",
+    "db:update-vbucks-official": "tsx prisma/update-vbucks-official.ts",
+    "db:update-all-images": "tsx prisma/update-all-product-images.ts",
+    "db:update-complete": "tsx prisma/update-all-products-complete.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.2.0",
+    "@prisma/client": "^7.2.0",
+    "@react-oauth/google": "^0.13.4",
+    "@stripe/react-stripe-js": "^5.4.1",
+    "@stripe/stripe-js": "^8.6.0",
+    "@types/pg": "^8.16.0",
+    "crypto-js": "^4.2.0",
+    "lucide-react": "^0.294.0",
+    "next": "^14.2.18",
+    "pg": "^8.16.3",
+    "prisma": "^7.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "stripe": "^20.1.0"
+  },
+  "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
+    "@types/node": "^20.10.6",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

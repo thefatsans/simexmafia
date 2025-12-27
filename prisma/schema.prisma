@@ -1,0 +1,241 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  firstName     String
+  lastName      String
+  passwordHash  String?
+  goofyCoins    Int      @default(0)
+  totalSpent    Float    @default(0)
+  tier          String   @default("Bronze") // Bronze, Silver, Gold, Platinum, Diamond
+  joinDate      DateTime @default(now())
+  avatar        String?
+  isAdmin       Boolean  @default(false)
+  
+  // Relations
+  orders        Order[]
+  reviews       Review[]
+  wishlistItems WishlistItem[]
+  cartItems     CartItem[]
+  inventoryItems InventoryItem[]
+  coinTransactions CoinTransaction[]
+  priceAlerts   PriceAlert[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Seller {
+  id          String   @id @default(cuid())
+  name        String
+  rating      Float    @default(0)
+  reviewCount Int      @default(0)
+  verified    Boolean  @default(false)
+  avatar      String?
+  
+  // Relations
+  products    Product[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  description   String   @db.Text
+  price         Float
+  originalPrice Float?
+  discount      Int?
+  image         String
+  category      String   // games, gift-cards, subscriptions, dlc, in-game-currency, top-ups
+  platform      String   // Steam, PlayStation, Xbox, Nintendo, etc.
+  rating        Float    @default(0)
+  reviewCount   Int      @default(0)
+  inStock       Boolean  @default(true)
+  tags          String[] // Array of tags
+  
+  // Relations
+  sellerId     String
+  seller       Seller   @relation(fields: [sellerId], references: [id])
+  reviews      Review[]
+  orderItems   OrderItem[]
+  wishlistItems WishlistItem[]
+  cartItems    CartItem[]
+  inventoryItems InventoryItem[]
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Order {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  subtotal      Float
+  serviceFee    Float    @default(0.99)
+  discount      Float    @default(0)
+  total         Float
+  paymentMethod String   // credit-card, paypal, apple-pay, google-pay
+  status        String   @default("pending") // pending, processing, completed, failed, cancelled
+  coinsEarned   Int      @default(0)
+  discountCode  String?
+  
+  // Relations
+  items         OrderItem[]
+  
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+  updatedAt     DateTime @updatedAt
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  
+  type        String   // product, sack, goofycoins
+  name        String
+  price       Float
+  quantity    Int      @default(1)
+  metadata    Json?    // Additional data (sack type, etc.)
+  
+  createdAt   DateTime @default(now())
+}
+
+model Review {
+  id              String   @id @default(cuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  rating          Int      // 1-5
+  title           String
+  comment         String   @db.Text
+  verifiedPurchase Boolean @default(false)
+  helpful         Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, productId])
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, productId])
+}
+
+model InventoryItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  source    String   // purchase, sack, reward
+  orderId   String?
+  notes     String?
+  
+  createdAt DateTime @default(now())
+}
+
+model CoinTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type        String   // earned, purchased, spent, redeemed
+  amount      Int      // Positive for earned/purchased, negative for spent
+  balance     Int      // Balance after transaction
+  description String
+  orderId     String?
+  
+  createdAt   DateTime @default(now())
+}
+
+model PriceAlert {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  targetPrice Float
+  currentPrice Float
+  active      Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Newsletter {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  active    Boolean  @default(true)
+  subscribedAt DateTime @default(now())
+  unsubscribedAt DateTime?
+}
+
+model ContactRequest {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  category  String   // general, order, payment, account, product, technical, refund
+  subject   String
+  message   String   @db.Text
+  status    String   @default("pending") // pending, in-progress, resolved
+  response  String?  @db.Text
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DiscountCode {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  type        String   // percentage, fixed
+  value       Float
+  description String?
+  minAmount   Float?
+  maxDiscount Float?
+  validFrom   DateTime
+  validUntil  DateTime?
+  usageLimit  Int?
+  usageCount  Int      @default(0)
+  active      Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
