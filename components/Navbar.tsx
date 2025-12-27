@@ -70,8 +70,8 @@ export default function Navbar() {
               <Logo width={150} height={150} showText={true} />
             </div>
             <div className="flex items-center sm:hidden">
-              <Logo width={40} height={40} showText={false} />
-              <span className="ml-2 text-base font-bold text-gray-800 dark:text-white">SimexMafia</span>
+              <Logo width={32} height={32} showText={false} />
+              <span className="ml-1.5 text-sm font-bold text-gray-800 dark:text-white">SimexMafia</span>
             </div>
           </a>
 
@@ -168,7 +168,7 @@ export default function Navbar() {
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3 flex-shrink-0 relative z-[10000] pointer-events-auto ml-auto">
+          <div className="flex items-center space-x-0.5 sm:space-x-1 md:space-x-2 lg:space-x-3 flex-shrink-0 relative z-[10000] pointer-events-auto ml-auto">
             {!mounted ? null : isAuthenticated && user ? (
               <a 
                 href="/account/goofycoins" 
@@ -191,12 +191,12 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/wishlist'
               }}
-              className="relative p-1.5 sm:p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer"
+              className="relative p-2 sm:p-2.5 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
               title="Wunschliste"
             >
-              <Heart className="w-5 h-5 sm:w-6 sm:h-6" />
+              <Heart className="w-6 h-6 sm:w-6 sm:h-6" />
               {wishlistCount > 0 && (
-                <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
+                <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full w-5 h-5 sm:w-5 sm:h-5 flex items-center justify-center">
                   {wishlistCount > 9 ? '9+' : wishlistCount}
                 </span>
               )}
@@ -208,28 +208,28 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/compare'
               }}
-              className="relative p-1.5 sm:p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer"
+              className="relative p-2 sm:p-2.5 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
               title="Produktvergleich"
             >
-              <GitCompare className="w-5 h-5 sm:w-6 sm:h-6" />
+              <GitCompare className="w-6 h-6 sm:w-6 sm:h-6" />
               {compareCount > 0 && (
-                <span className="absolute top-0 right-0 bg-purple-500 text-white text-[10px] sm:text-xs font-bold rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
+                <span className="absolute top-1 right-1 bg-purple-500 text-white text-[10px] sm:text-xs font-bold rounded-full w-5 h-5 sm:w-5 sm:h-5 flex items-center justify-center">
                   {compareCount > 9 ? '9+' : compareCount}
                 </span>
               )}
             </a>
             <button
               onClick={toggleTheme}
-              className="p-1.5 sm:p-2 text-gray-300 hover:text-purple-400 transition-colors pointer-events-auto z-[10003] cursor-pointer"
+              className="p-2 sm:p-2.5 text-gray-300 hover:text-purple-400 transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
               title={mounted ? (theme === 'dark' ? 'Light Mode aktivieren' : 'Dark Mode aktivieren') : 'Theme wechseln'}
               suppressHydrationWarning
             >
               {!mounted ? (
-                <Moon className="w-5 h-5 sm:w-6 sm:h-6" />
+                <Moon className="w-6 h-6 sm:w-6 sm:h-6" />
               ) : theme === 'dark' ? (
-                <Sun className="w-5 h-5 sm:w-6 sm:h-6" />
+                <Sun className="w-6 h-6 sm:w-6 sm:h-6" />
               ) : (
-                <Moon className="w-5 h-5 sm:w-6 sm:h-6" />
+                <Moon className="w-6 h-6 sm:w-6 sm:h-6" />
               )}
             </button>
             <a 
@@ -239,12 +239,12 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/cart'
               }}
-              className="relative p-1.5 sm:p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer"
+              className="relative p-2 sm:p-2.5 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
               title="Warenkorb"
             >
-              <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
+              <ShoppingCart className="w-6 h-6 sm:w-6 sm:h-6" />
               {cartCount > 0 && (
-                <span className="absolute top-0 right-0 bg-purple-500 text-white text-[10px] sm:text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
+                <span className="absolute top-1 right-1 bg-purple-500 text-white text-[10px] sm:text-xs rounded-full w-5 h-5 sm:w-5 sm:h-5 flex items-center justify-center">
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
@@ -306,11 +306,11 @@ export default function Navbar() {
             )}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-1.5 sm:p-2 text-gray-300 hover:text-purple-400 transition-colors pointer-events-auto relative z-[10003]"
+              className="md:hidden p-2 sm:p-2.5 text-gray-300 hover:text-purple-400 transition-colors pointer-events-auto relative z-[10003] min-w-[44px] min-h-[44px] flex items-center justify-center"
               suppressHydrationWarning
               aria-label="Menü öffnen"
             >
-              <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+              <Menu className="w-6 h-6 sm:w-6 sm:h-6" />
             </button>
           </div>
 

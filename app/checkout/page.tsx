@@ -72,9 +72,9 @@ export default function CheckoutPage() {
     return null
   }
 
-  // Berechne Subtotal basierend auf originalPrice (falls vorhanden)
+  // Berechne Subtotal basierend auf dem aktuellen Preis (price ist der reduzierte Preis bei Angeboten)
   const subtotal = cartItems.reduce((total, item) => {
-    const itemPrice = item.product.originalPrice || item.product.price
+    const itemPrice = item.product.price // price ist bereits der korrekte Preis (mit Rabatt falls vorhanden)
     return total + itemPrice * item.quantity
   }, 0)
   const serviceFee = 0.99
@@ -168,9 +168,9 @@ export default function CheckoutPage() {
 
     setIsProcessing(true)
 
-    // Erstelle Bestellung - verwende originalPrice falls vorhanden
+    // Erstelle Bestellung - verwende den aktuellen Preis (price ist der reduzierte Preis bei Angeboten)
     const orderItems: OrderItem[] = cartItems.map(item => {
-      const itemPrice = item.product.originalPrice || item.product.price
+      const itemPrice = item.product.price // price ist bereits der korrekte Preis (mit Rabatt falls vorhanden)
       return {
         id: item.product.id,
         type: 'product',
