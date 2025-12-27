@@ -1,6 +1,6 @@
 # SimexMafia - Digital Gaming Marketplace
 
-A modern, beautiful digital marketplace for gaming products, themed around the German Fortnite YouTuber Simex. Built with Next.js 14, TypeScript, and Tailwind CSS.
+a eneba inspired digital marketplace for gaming products, themed around the German Fortnite YouTuber Simex. Built with Next.js 14, TypeScript, and Tailwind CSS
 
 ## Features
 
