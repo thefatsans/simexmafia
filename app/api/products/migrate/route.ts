@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Get all sellers to map seller names to IDs
     const sellers = await prisma.seller.findMany()
-    const sellerMap = new Map(sellers.map(s => [s.name, s.id]))
+    const sellerMap = new Map(sellers.map((s: { name: string; id: string }) => [s.name, s.id]))
     
     // Default seller if seller not found
     const defaultSellerId = sellers[0]?.id || 'seller1'
