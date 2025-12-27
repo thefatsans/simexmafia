@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-12-15.clover',
-})
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -23,6 +19,11 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    // Initialize Stripe only when needed (lazy initialization)
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-12-15.clover',
+    })
 
     // Create Payment Intent
     const paymentIntent = await stripe.paymentIntents.create({
