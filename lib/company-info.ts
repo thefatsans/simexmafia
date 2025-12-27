@@ -16,7 +16,7 @@ export const companyInfo = {
   // Contact Information
   contact: {
     email: 'info@simexmafia.de',
-    phone: '+49 (0) 123 456789',
+    phone: '+49 0162/5330168',
     website: 'www.simexmafia.de',
   },
   

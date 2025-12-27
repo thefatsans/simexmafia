@@ -54,8 +54,8 @@ export default function Navbar() {
 
   return (
     <nav className="bg-fortnite-darker dark:bg-fortnite-darker bg-white dark:border-purple-500/20 border-gray-200 border-b sticky top-0 z-[9999] backdrop-blur-sm pointer-events-auto transition-colors" suppressHydrationWarning>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pointer-events-auto">
-        <div className="flex items-center gap-3 py-4 pointer-events-auto">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 pointer-events-auto">
+        <div className="flex items-center gap-2 sm:gap-3 py-2 sm:py-3 md:py-4 pointer-events-auto">
           {/* Logo */}
           <a 
             href="/" 
@@ -66,7 +66,13 @@ export default function Navbar() {
             }}
             className="group flex items-center flex-shrink-0 pointer-events-auto relative z-[10001] cursor-pointer"
           >
-            <Logo width={200} height={200} showText={true} />
+            <div className="hidden sm:block">
+              <Logo width={150} height={150} showText={true} />
+            </div>
+            <div className="flex items-center sm:hidden">
+              <Logo width={40} height={40} showText={false} />
+              <span className="ml-2 text-base font-bold text-gray-800 dark:text-white">SimexMafia</span>
+            </div>
           </a>
 
           {/* Desktop Navigation */}
@@ -162,7 +168,7 @@ export default function Navbar() {
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center space-x-3 flex-shrink-0 relative z-[10000] pointer-events-auto">
+          <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-3 flex-shrink-0 relative z-[10000] pointer-events-auto ml-auto">
             {!mounted ? null : isAuthenticated && user ? (
               <a 
                 href="/account/goofycoins" 
@@ -185,11 +191,12 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/wishlist'
               }}
-              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer"
+              className="relative p-1.5 sm:p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer"
+              title="Wunschliste"
             >
-              <Heart className="w-6 h-6" />
+              <Heart className="w-5 h-5 sm:w-6 sm:h-6" />
               {wishlistCount > 0 && (
-                <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
                   {wishlistCount > 9 ? '9+' : wishlistCount}
                 </span>
               )}
@@ -201,28 +208,28 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/compare'
               }}
-              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer"
+              className="relative p-1.5 sm:p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer"
               title="Produktvergleich"
             >
-              <GitCompare className="w-6 h-6" />
+              <GitCompare className="w-5 h-5 sm:w-6 sm:h-6" />
               {compareCount > 0 && (
-                <span className="absolute top-0 right-0 bg-purple-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute top-0 right-0 bg-purple-500 text-white text-[10px] sm:text-xs font-bold rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
                   {compareCount > 9 ? '9+' : compareCount}
                 </span>
               )}
             </a>
             <button
               onClick={toggleTheme}
-              className="p-2 text-gray-300 hover:text-purple-400 transition-colors pointer-events-auto z-[10003] cursor-pointer"
+              className="p-1.5 sm:p-2 text-gray-300 hover:text-purple-400 transition-colors pointer-events-auto z-[10003] cursor-pointer"
               title={mounted ? (theme === 'dark' ? 'Light Mode aktivieren' : 'Dark Mode aktivieren') : 'Theme wechseln'}
               suppressHydrationWarning
             >
               {!mounted ? (
-                <Moon className="w-6 h-6" />
+                <Moon className="w-5 h-5 sm:w-6 sm:h-6" />
               ) : theme === 'dark' ? (
-                <Sun className="w-6 h-6" />
+                <Sun className="w-5 h-5 sm:w-6 sm:h-6" />
               ) : (
-                <Moon className="w-6 h-6" />
+                <Moon className="w-5 h-5 sm:w-6 sm:h-6" />
               )}
             </button>
             <a 
@@ -232,12 +239,13 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/cart'
               }}
-              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer"
+              className="relative p-1.5 sm:p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto z-[10003] cursor-pointer"
+              title="Warenkorb"
             >
-              <ShoppingCart className="w-6 h-6" />
+              <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
               {cartCount > 0 && (
-                <span className="absolute top-0 right-0 bg-purple-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {cartCount}
+                <span className="absolute top-0 right-0 bg-purple-500 text-white text-[10px] sm:text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
+                  {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
             </a>
@@ -298,10 +306,11 @@ export default function Navbar() {
             )}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 text-gray-300 hover:text-purple-400 transition-colors pointer-events-auto relative z-[10003]"
+              className="md:hidden p-1.5 sm:p-2 text-gray-300 hover:text-purple-400 transition-colors pointer-events-auto relative z-[10003]"
               suppressHydrationWarning
+              aria-label="Menü öffnen"
             >
-              <Menu className="w-6 h-6" />
+              <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
 

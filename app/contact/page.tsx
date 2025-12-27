@@ -161,7 +161,7 @@ export default function ContactPage() {
                   <div>
                     <h3 className="text-white font-semibold mb-1">Telefon</h3>
                     <a
-                      href={`tel:${companyInfo.contact.phone.replace(/\s/g, '')}`}
+                      href={`tel:${companyInfo.contact.phone.replace(/\s|\//g, '')}`}
                       className="text-gray-400 hover:text-purple-400 transition-colors"
                     >
                       {companyInfo.contact.phone}

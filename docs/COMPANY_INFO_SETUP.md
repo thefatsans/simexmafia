@@ -34,7 +34,7 @@ address: {
 ```typescript
 contact: {
   email: 'info@simexmafia.de', // Ihre E-Mail-Adresse
-  phone: '+49 (0) 123 456789', // Ihre Telefonnummer
+  phone: '+49 0162/5330168', // Ihre Telefonnummer
   website: 'www.simexmafia.de', // Ihre Domain
 },
 ```

@@ -92,10 +92,10 @@ export default function HelpPage() {
                 <h3 className="text-lg font-semibold text-white mb-1">Telefon Support</h3>
                 <p className="text-gray-400 mb-2">Rufen Sie uns an (Mo-Fr, 9:00-18:00 Uhr)</p>
                 <a
-                  href="tel:+49123456789"
+                  href="tel:+4901625330168"
                   className="text-purple-400 hover:text-purple-300 transition-colors"
                 >
-                  +49 (0) 123 456 789
+                  +49 0162/5330168
                 </a>
               </div>
             </div>
