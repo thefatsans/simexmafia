@@ -8,10 +8,7 @@ import Link from 'next/link'
 import { mockUser } from '@/data/user'
 import { calculateCoinsEarned, TIER_INFO } from '@/types/user'
 import { useCart } from '@/contexts/CartContext'
-import { createOrder, processPayment, OrderItem, PaymentDetails, confirmStripePayment, Order } from '@/data/payments'
-import { Elements } from '@stripe/react-stripe-js'
-import { getStripe } from '@/lib/stripe'
-import StripePaymentForm from '@/components/StripePaymentForm'
+import { createOrder, processPayment, OrderItem, PaymentDetails, Order } from '@/data/payments'
 import { addToInventory } from '@/data/inventory'
 import { useToast } from '@/contexts/ToastContext'
 import { validateDiscountCode, calculateDiscount, applyDiscountCode, DiscountCode } from '@/data/discountCodes'
@@ -45,18 +42,13 @@ export default function CheckoutPage() {
   const [discountCode, setDiscountCode] = useState('')
   const [appliedDiscountCode, setAppliedDiscountCode] = useState<DiscountCode | null>(null)
   const [discountError, setDiscountError] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'credit-card' | 'cash' | 'goofycoins'>('credit-card')
-  const [useStripe, setUseStripe] = useState(false)
-  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null)
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<'revolut' | 'cash' | 'goofycoins'>('revolut')
   const [mounted, setMounted] = useState(false)
   
   useEffect(() => {
     setMounted(true)
   }, [])
   const [order, setOrder] = useState<Order | null>(null)
-  const [stripePromise, setStripePromise] = useState<Promise<any> | null>(null)
-  const [isStripeAvailable, setIsStripeAvailable] = useState(false)
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -65,17 +57,6 @@ export default function CheckoutPage() {
     }
   }, [isAuthenticated, authLoading, router])
   
-  // Prüfe ob Stripe konfiguriert ist und initialisiere
-  useEffect(() => {
-    const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-    if (stripeKey) {
-      const stripe = getStripe()
-      if (stripe) {
-        setStripePromise(stripe)
-        setIsStripeAvailable(true)
-      }
-    }
-  }, [])
 
   // Show loading state while checking auth
   if (authLoading) {
@@ -172,18 +153,7 @@ export default function CheckoutPage() {
     if (!formData.city) newErrors.city = 'Stadt ist erforderlich'
     if (!formData.postalCode) newErrors.postalCode = 'Postleitzahl ist erforderlich'
 
-    // Kreditkartendaten nur bei Kreditkartenzahlung erforderlich
-    if (paymentMethod === 'credit-card') {
-      if (!formData.cardNumber) newErrors.cardNumber = 'Kartennummer ist erforderlich'
-      else if (!/^\d{4}\s?\d{4}\s?\d{4}\s?\d{4}$/.test(formData.cardNumber.replace(/\s/g, ''))) {
-        newErrors.cardNumber = 'Kartennummer ist ungültig'
-      }
-
-      if (!formData.cardName) newErrors.cardName = 'Karteninhaber-Name ist erforderlich'
-      if (!formData.expiryDate) newErrors.expiryDate = 'Ablaufdatum ist erforderlich'
-      if (!formData.cvv) newErrors.cvv = 'CVV ist erforderlich'
-      else if (!/^\d{3,4}$/.test(formData.cvv)) newErrors.cvv = 'CVV ist ungültig'
-    }
+    // Keine Kreditkartendaten mehr erforderlich - Revolut wird extern abgewickelt
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -309,161 +279,65 @@ export default function CheckoutPage() {
       return
     }
 
-    // Kreditkartenzahlung mit Stripe
-    const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-    if (stripeKey && paymentMethod === 'credit-card') {
-      // Verwende Stripe
+    // Revolut-Zahlung
+    if (paymentMethod === 'revolut') {
       try {
-        // Erstelle temporäre Bestellung für Stripe (wird später bestätigt)
-        const tempOrder = await createOrder({
+        // Erstelle Bestellung
+        const newOrder = await createOrder({
           userId: user?.id || 'user1',
           items: orderItems,
           subtotal,
           serviceFee,
           discount: totalDiscount,
           total: finalTotal,
-          paymentMethod: 'credit-card',
+          paymentMethod: 'revolut',
           coinsEarned,
           discountCode: appliedDiscountCode?.code,
         })
 
-        const response = await fetch('/api/payments/create-intent', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            amount: finalTotal,
-            currency: 'eur',
-            metadata: {
-              orderId: tempOrder.id,
-              userId: user?.id || 'user1',
-            },
-          }),
-        })
-
-        if (!response.ok) {
-          let errorMessage = 'Zahlung konnte nicht initiiert werden'
-          try {
-            const contentType = response.headers.get('content-type')
-            if (contentType && contentType.includes('application/json')) {
-              const error = await response.json()
-              errorMessage = error.error || error.message || errorMessage
-            } else {
-              errorMessage = response.statusText || errorMessage
-            }
-          } catch (e) {
-            // Ignore parsing errors
-          }
-          showError(errorMessage)
-          setIsProcessing(false)
-          return
-        }
-
-        let clientSecret, paymentIntentId
-        try {
-          const contentType = response.headers.get('content-type')
-          if (!contentType || !contentType.includes('application/json')) {
-            throw new Error('Ungültige Antwort vom Server')
-          }
-          const data = await response.json()
-          clientSecret = data.clientSecret
-          paymentIntentId = data.paymentIntentId
-        } catch (e: any) {
-          showError('Fehler beim Verarbeiten der Server-Antwort')
-          setIsProcessing(false)
-          return
-        }
+        // Hole Revolut-Link aus Environment Variables
+        const revolutLink = process.env.NEXT_PUBLIC_REVOLUT_PAYMENT_LINK || ''
         
-        setOrder(tempOrder)
-        setStripeClientSecret(clientSecret)
-        setPaymentIntentId(paymentIntentId)
-        setUseStripe(true)
-        setIsProcessing(false)
+        if (!revolutLink) {
+          showError('Revolut-Zahlungslink ist nicht konfiguriert. Bitte kontaktieren Sie uns.')
+          setIsProcessing(false)
+          return
+        }
+
+        // Füge Order-ID als Parameter zum Revolut-Link hinzu
+        const separator = revolutLink.includes('?') ? '&' : '?'
+        const revolutLinkWithOrder = `${revolutLink}${separator}orderId=${newOrder.id}&amount=${finalTotal.toFixed(2)}`
+
+        // Send order confirmation email
+        if (user?.email && user?.firstName) {
+          sendOrderConfirmationEmail(
+            user.email,
+            user.firstName,
+            newOrder.id,
+            finalTotal,
+            orderItems.map((item) => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+            }))
+          ).catch((error) => {
+            console.error('Error sending order confirmation email:', error)
+          })
+        }
+
+        // Weiterleitung zu Revolut
+        showSuccess('Weiterleitung zu Revolut...', 2000)
+        window.location.href = revolutLinkWithOrder
         return
       } catch (error: any) {
-        console.error('Stripe error:', error)
+        console.error('Revolut error:', error)
         showError('Fehler beim Initialisieren der Zahlung')
         setIsProcessing(false)
         return
       }
     }
-
-    // Wenn Stripe nicht konfiguriert ist, zeige Fehler
-    if (paymentMethod === 'credit-card') {
-      showError('Kreditkartenzahlung ist derzeit nicht verfügbar. Bitte wählen Sie eine andere Zahlungsmethode oder kontaktieren Sie uns.')
-      setIsProcessing(false)
-      return
-    }
   }
 
-  const handleStripeSuccess = async (paymentIntentId: string) => {
-    // Bestätige Zahlung
-    const confirmResult = await confirmStripePayment(paymentIntentId)
-
-    if (confirmResult.success) {
-      // Erstelle Bestellung (falls noch nicht geschehen)
-      const orderItems: OrderItem[] = cartItems.map(item => ({
-        id: item.product.id,
-        type: 'product',
-        name: item.product.name,
-        price: item.product.price,
-        quantity: item.quantity,
-        metadata: {
-          productId: item.product.id,
-        },
-      }))
-
-      if (appliedDiscountCode) {
-        applyDiscountCode(appliedDiscountCode.code)
-      }
-
-      const order = await createOrder({
-        userId: user?.id || 'user1',
-        items: orderItems,
-        subtotal,
-        serviceFee,
-        discount: totalDiscount,
-        total: finalTotal,
-        paymentMethod: 'credit-card',
-        coinsEarned,
-        discountCode: appliedDiscountCode?.code,
-      })
-
-      // Update order status
-      const { updateOrderStatus } = await import('@/data/payments')
-      await updateOrderStatus(order.id, 'completed')
-
-      // Add earned coins to user account
-      if (coinsEarned > 0 && user) {
-        addCoins(coinsEarned)
-        // Update totalSpent
-        updateUser({ totalSpent: (user.totalSpent || 0) + finalTotal })
-      }
-
-      // Füge gekaufte Produkte ins Inventar hinzu
-      cartItems.forEach(item => {
-        for (let i = 0; i < item.quantity; i++) {
-          addToInventory(
-            item.product,
-            'purchase',
-            order.id,
-            'Kauf'
-          )
-        }
-      })
-
-      showSuccess(`Bestellung erfolgreich! ${coinsEarned > 0 ? `+${coinsEarned} GoofyCoins verdient!` : ''}`, 5000)
-      clearCart()
-      router.push(`/checkout/confirmation?orderId=${order.id}`)
-    } else {
-      showError(confirmResult.error || 'Zahlung konnte nicht bestätigt werden')
-    }
-  }
-
-  const handleStripeError = (error: string) => {
-    showError(error)
-  }
 
   const formatCardNumber = (value: string) => {
     const cleaned = value.replace(/\s/g, '')
@@ -650,11 +524,6 @@ export default function CheckoutPage() {
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
                 <CreditCard className="w-6 h-6 mr-2 text-purple-400" />
                 Zahlungsinformationen
-                {isStripeAvailable && paymentMethod === 'credit-card' && (
-                  <span className="ml-2 text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">
-                    Stripe aktiviert
-                  </span>
-                )}
               </h2>
 
               {/* Payment Method Selection */}
@@ -664,21 +533,19 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setPaymentMethod('credit-card')
-                      setUseStripe(false)
-                      setStripeClientSecret(null)
+                      setPaymentMethod('revolut')
                     }}
                     className={`p-4 border-2 rounded-lg transition-all ${
-                      paymentMethod === 'credit-card'
+                      paymentMethod === 'revolut'
                         ? 'border-purple-500 bg-purple-500/10'
                         : 'border-purple-500/30 bg-fortnite-darker hover:border-purple-500/50'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <CreditCard className={`w-5 h-5 ${paymentMethod === 'credit-card' ? 'text-purple-400' : 'text-gray-400'}`} />
+                      <CreditCard className={`w-5 h-5 ${paymentMethod === 'revolut' ? 'text-purple-400' : 'text-gray-400'}`} />
                       <div className="text-left">
-                        <div className={`font-semibold ${paymentMethod === 'credit-card' ? 'text-white' : 'text-gray-300'}`}>
-                          Kreditkarte
+                        <div className={`font-semibold ${paymentMethod === 'revolut' ? 'text-white' : 'text-gray-300'}`}>
+                          Revolut
                         </div>
                         <div className="text-xs text-gray-400">Sichere Online-Zahlung</div>
                       </div>
@@ -688,8 +555,6 @@ export default function CheckoutPage() {
                     type="button"
                     onClick={() => {
                       setPaymentMethod('cash')
-                      setUseStripe(false)
-                      setStripeClientSecret(null)
                     }}
                     className={`p-4 border-2 rounded-lg transition-all ${
                       paymentMethod === 'cash'
@@ -711,8 +576,6 @@ export default function CheckoutPage() {
                     type="button"
                     onClick={() => {
                       setPaymentMethod('goofycoins')
-                      setUseStripe(false)
-                      setStripeClientSecret(null)
                     }}
                     disabled={!canPayWithGoofyCoins}
                     className={`p-4 border-2 rounded-lg transition-all ${
@@ -750,33 +613,17 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {useStripe && stripeClientSecret && stripePromise && paymentMethod === 'credit-card' ? (
-                <Elements
-                  stripe={stripePromise}
-                  options={{
-                    clientSecret: stripeClientSecret,
-                    appearance: {
-                      theme: 'night',
-                      variables: {
-                        colorPrimary: '#a855f7',
-                        colorBackground: '#1a1a2e',
-                        colorText: '#ffffff',
-                        colorDanger: '#ef4444',
-                        fontFamily: 'system-ui, sans-serif',
-                        spacingUnit: '4px',
-                        borderRadius: '8px',
-                      },
-                    },
-                  }}
-                >
-                  <StripePaymentForm
-                    clientSecret={stripeClientSecret}
-                    amount={finalTotal}
-                    orderId={order?.id || ''}
-                    onSuccess={handleStripeSuccess}
-                    onError={handleStripeError}
-                  />
-                </Elements>
+              {paymentMethod === 'revolut' ? (
+                <div className="space-y-4">
+                  <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+                    <p className="text-gray-300 text-sm mb-2">
+                      Sie werden nach dem Klick auf "Bestellung abschließen" zu Revolut weitergeleitet, um die Zahlung sicher abzuwickeln.
+                    </p>
+                    <p className="text-gray-400 text-xs">
+                      Nach erfolgreicher Zahlung erhalten Sie eine Bestätigungs-E-Mail.
+                    </p>
+                  </div>
+                </div>
               ) : paymentMethod === 'credit-card' ? (
                 <div className="space-y-4">
                 <div>
@@ -1020,26 +867,24 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Submit Button - Nur bei Mock Payment */}
-              {!useStripe && (
-                <button
-                  type="submit"
-                  disabled={isProcessing}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-4 rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-purple-500/50 flex items-center justify-center space-x-2"
-                >
-                  {mounted && isProcessing ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Processing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-5 h-5" />
-                      <span>Kauf abschließen</span>
-                    </>
-                  )}
-                </button>
-              )}
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-4 rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-purple-500/50 flex items-center justify-center space-x-2"
+              >
+                {mounted && isProcessing ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-5 h-5" />
+                    <span>Kauf abschließen</span>
+                  </>
+                )}
+              </button>
 
               <p className="text-gray-400 text-xs text-center mt-4">
                 Durch den Abschluss dieses Kaufs stimmen Sie unseren Allgemeinen Geschäftsbedingungen und der Datenschutzerklärung zu
