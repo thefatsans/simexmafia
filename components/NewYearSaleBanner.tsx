@@ -5,7 +5,7 @@ import Link from 'next/link'
 
 export default function NewYearSaleBanner() {
   return (
-    <section className="py-4 sm:py-6 -mx-4 sm:-mx-6 lg:-mx-8">
+    <section className="py-4 sm:py-6 w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
       <div className="w-full">
         <div className="relative overflow-hidden">
           {/* Banner Content */}
