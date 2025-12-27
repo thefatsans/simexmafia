@@ -153,7 +153,7 @@ export default function CheckoutPage() {
     if (!formData.city) newErrors.city = 'Stadt ist erforderlich'
     if (!formData.postalCode) newErrors.postalCode = 'Postleitzahl ist erforderlich'
 
-    // Keine Kreditkartendaten mehr erforderlich - Revolut wird extern abgewickelt
+    // Keine Kreditkartendaten mehr erforderlich - PayPal wird extern abgewickelt
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
