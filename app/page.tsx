@@ -13,6 +13,7 @@ import { Product } from '@/types'
 import NewsletterForm from '@/components/NewsletterForm'
 import NewsletterModal from '@/components/NewsletterModal'
 import { useToast } from '@/contexts/ToastContext'
+import NewYearSaleBanner from '@/components/NewYearSaleBanner'
 
 export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
@@ -111,8 +112,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      {/* New Year Sale Banner */}
+      <NewYearSaleBanner />
+      
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-purple-900/30 via-fortnite-dark to-fortnite-darker py-20">
+      <section className="relative overflow-hidden bg-gradient-to-br from-purple-900/30 via-fortnite-dark to-fortnite-darker py-20 pt-32 sm:pt-40">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiM4QjVDRkYiIGZpbGwtb3BhY2l0eT0iMC4xIj48Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIxLjUiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-20"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center">
