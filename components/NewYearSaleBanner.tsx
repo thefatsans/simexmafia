@@ -13,7 +13,7 @@ export default function NewYearSaleBanner() {
             href="/products?sale=newyear"
             className="block relative w-full group"
           >
-            <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+            <div className="relative w-full" style={{ aspectRatio: '21/9', maxHeight: '400px' }}>
               <Image
                 src="/newyear-sale-banner.png"
                 alt="Neujahr Sale - 27.12. 06:00"
