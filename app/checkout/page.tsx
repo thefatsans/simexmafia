@@ -339,11 +339,6 @@ export default function CheckoutPage() {
   }
 
 
-  const formatCardNumber = (value: string) => {
-    const cleaned = value.replace(/\s/g, '')
-    const match = cleaned.match(/.{1,4}/g)
-    return match ? match.join(' ') : cleaned
-  }
 
   if (cartItems.length === 0) {
     return (
@@ -623,105 +618,6 @@ export default function CheckoutPage() {
                       Nach erfolgreicher Zahlung erhalten Sie eine Bestätigungs-E-Mail.
                     </p>
                   </div>
-                </div>
-              ) : paymentMethod === 'credit-card' ? (
-                <div className="space-y-4">
-                <div>
-                  <label htmlFor="cardNumber" className="block text-gray-300 mb-2">
-                    Kartennummer *
-                  </label>
-                  <input
-                    type="text"
-                    id="cardNumber"
-                    name="cardNumber"
-                    value={formData.cardNumber}
-                    onChange={(e) => {
-                      const formatted = formatCardNumber(e.target.value)
-                      setFormData((prev) => ({ ...prev, cardNumber: formatted }))
-                      if (errors.cardNumber) {
-                        setErrors((prev) => ({ ...prev, cardNumber: '' }))
-                      }
-                    }}
-                    maxLength={19}
-                    className={`w-full px-4 py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors ${
-                      errors.cardNumber ? 'border-red-500' : 'border-purple-500/30'
-                    }`}
-                    placeholder="1234 5678 9012 3456"
-                  />
-                  {errors.cardNumber && <p className="text-red-400 text-sm mt-1">{errors.cardNumber}</p>}
-                </div>
-
-                <div>
-                  <label htmlFor="cardName" className="block text-gray-300 mb-2">
-                    Karteninhaber-Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="cardName"
-                    name="cardName"
-                    value={formData.cardName}
-                    onChange={handleInputChange}
-                    className={`w-full px-4 py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors ${
-                      errors.cardName ? 'border-red-500' : 'border-purple-500/30'
-                    }`}
-                    placeholder="JOHN DOE"
-                  />
-                  {errors.cardName && <p className="text-red-400 text-sm mt-1">{errors.cardName}</p>}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="expiryDate" className="block text-gray-300 mb-2">
-                      Ablaufdatum *
-                    </label>
-                    <input
-                      type="text"
-                      id="expiryDate"
-                      name="expiryDate"
-                      value={formData.expiryDate}
-                      onChange={(e) => {
-                        let value = e.target.value.replace(/\D/g, '')
-                        if (value.length >= 2) {
-                          value = value.slice(0, 2) + '/' + value.slice(2, 4)
-                        }
-                        setFormData((prev) => ({ ...prev, expiryDate: value }))
-                        if (errors.expiryDate) {
-                          setErrors((prev) => ({ ...prev, expiryDate: '' }))
-                        }
-                      }}
-                      maxLength={5}
-                      className={`w-full px-4 py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors ${
-                        errors.expiryDate ? 'border-red-500' : 'border-purple-500/30'
-                      }`}
-                      placeholder="MM/YY"
-                    />
-                    {errors.expiryDate && <p className="text-red-400 text-sm mt-1">{errors.expiryDate}</p>}
-                  </div>
-
-                  <div>
-                    <label htmlFor="cvv" className="block text-gray-300 mb-2">
-                      CVV *
-                    </label>
-                    <input
-                      type="text"
-                      id="cvv"
-                      name="cvv"
-                      value={formData.cvv}
-                      onChange={handleInputChange}
-                      maxLength={4}
-                      className={`w-full px-4 py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors ${
-                        errors.cvv ? 'border-red-500' : 'border-purple-500/30'
-                      }`}
-                      placeholder="123"
-                    />
-                    {errors.cvv && <p className="text-red-400 text-sm mt-1">{errors.cvv}</p>}
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2 text-sm text-gray-400 pt-2">
-                  <Lock className="w-4 h-4" />
-                  <span>Ihre Zahlungsinformationen sind verschlüsselt und sicher</span>
-                </div>
                 </div>
               ) : null}
             </div>
