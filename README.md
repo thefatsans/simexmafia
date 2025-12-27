@@ -4,13 +4,13 @@ A modern, beautiful digital marketplace for gaming products, themed around the G
 
 ## Features
 
-- 🎮 **Product Listings**: Browse games, gift cards, subscriptions, DLC, and in-game currency
-- 🔍 **Advanced Filtering**: Filter by category, platform, and price range
-- 🛒 **Shopping Cart**: Add products to cart and manage quantities
-- 👤 **Seller System**: View seller ratings and verified status
-- 💳 **Secure Checkout**: Beautiful checkout interface
-- 📱 **Responsive Design**: Works perfectly on all devices
-- 🎨 **Modern UI**: Fortnite-inspired purple and gold theme
+-  **Product Listings**: Browse games, gift cards, subscriptions, DLC, and in-game currency
+-  **Advanced Filtering**: Filter by category, platform, and price range
+-  **Shopping Cart**: Add products to cart and manage quantities
+-  **Seller System**: View seller ratings and verified status
+-  **Secure Checkout**: Pretty fye checkout interface
+-  **Responsive Design**: Works on all devices
+-  **Modern UI**: Fortnite-inspired 
 
 ## Tech Stack
 
