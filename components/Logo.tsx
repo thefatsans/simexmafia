@@ -29,8 +29,8 @@ export default function Logo({ width = 40, height = 40, showText = true, classNa
       )}
       {showText && (
         <div className="relative -ml-6">
-          <div className="absolute inset-0 bg-purple-500 blur-xl opacity-50 transition-opacity"></div>
-          <span className="relative text-2xl font-bold bg-gradient-to-r from-purple-400 to-yellow-400 bg-clip-text text-transparent">
+          <div className="absolute inset-0 bg-purple-500 blur-xl opacity-50 transition-opacity group-hover:opacity-70"></div>
+          <span className="relative text-3xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-yellow-400 bg-clip-text text-transparent drop-shadow-lg">
             SimexMafia
           </span>
         </div>

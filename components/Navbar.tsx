@@ -64,14 +64,20 @@ export default function Navbar() {
               e.stopPropagation()
               window.location.href = '/'
             }}
-            className="group flex items-center flex-shrink-0 pointer-events-auto relative z-[10001] cursor-pointer"
+            className="group flex items-center flex-shrink-0 pointer-events-auto relative z-[10001] cursor-pointer transition-transform hover:scale-105"
           >
             <div className="hidden sm:block">
-              <Logo width={150} height={150} showText={true} />
+              <div className="relative">
+                <div className="absolute inset-0 bg-purple-500/20 blur-2xl group-hover:bg-purple-500/30 transition-all rounded-full"></div>
+                <Logo width={200} height={200} showText={true} />
+              </div>
             </div>
             <div className="flex items-center sm:hidden">
-              <Logo width={32} height={32} showText={false} />
-              <span className="ml-1.5 text-sm font-bold text-gray-800 dark:text-white">SimexMafia</span>
+              <div className="relative">
+                <div className="absolute inset-0 bg-purple-500/20 blur-xl group-hover:bg-purple-500/30 transition-all rounded-full -inset-2"></div>
+                <Logo width={48} height={48} showText={false} />
+              </div>
+              <span className="ml-2 text-lg font-bold bg-gradient-to-r from-purple-400 to-yellow-400 bg-clip-text text-transparent">SimexMafia</span>
             </div>
           </a>
 
