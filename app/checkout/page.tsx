@@ -472,7 +472,7 @@ export default function CheckoutPage() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors ${
+                    className={`w-full px-4 py-3 sm:py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-base sm:text-sm ${
                       errors.email ? 'border-red-500' : 'border-purple-500/30'
                     }`}
                     placeholder="your@email.com"
@@ -491,7 +491,7 @@ export default function CheckoutPage() {
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors ${
+                      className={`w-full px-4 py-3 sm:py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-base sm:text-sm ${
                         errors.firstName ? 'border-red-500' : 'border-purple-500/30'
                       }`}
                       placeholder="John"
@@ -509,7 +509,7 @@ export default function CheckoutPage() {
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors ${
+                      className={`w-full px-4 py-3 sm:py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-base sm:text-sm ${
                         errors.lastName ? 'border-red-500' : 'border-purple-500/30'
                       }`}
                       placeholder="Doe"
@@ -528,7 +528,7 @@ export default function CheckoutPage() {
                     name="address"
                     value={formData.address}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors ${
+                    className={`w-full px-4 py-3 sm:py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-base sm:text-sm ${
                       errors.address ? 'border-red-500' : 'border-purple-500/30'
                     }`}
                     placeholder="123 Main Street"
@@ -547,7 +547,7 @@ export default function CheckoutPage() {
                       name="city"
                       value={formData.city}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors ${
+                      className={`w-full px-4 py-3 sm:py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-base sm:text-sm ${
                         errors.city ? 'border-red-500' : 'border-purple-500/30'
                       }`}
                       placeholder="Berlin"
@@ -565,7 +565,7 @@ export default function CheckoutPage() {
                       name="postalCode"
                       value={formData.postalCode}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors ${
+                      className={`w-full px-4 py-3 sm:py-2 bg-fortnite-darker border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-base sm:text-sm ${
                         errors.postalCode ? 'border-red-500' : 'border-purple-500/30'
                       }`}
                       placeholder="10115"
@@ -582,7 +582,7 @@ export default function CheckoutPage() {
                       name="country"
                       value={formData.country}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white focus:outline-none focus:border-purple-500 transition-colors"
+                      className="w-full px-4 py-3 sm:py-2 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white focus:outline-none focus:border-purple-500 transition-colors text-base sm:text-sm"
                     >
                       <option value="Germany">Germany</option>
                       <option value="Austria">Austria</option>
@@ -611,7 +611,7 @@ export default function CheckoutPage() {
                     onClick={() => {
                       setPaymentMethod('paypal')
                     }}
-                    className={`p-4 border-2 rounded-lg transition-all ${
+                    className={`p-4 sm:p-3 border-2 rounded-lg transition-all touch-manipulation min-h-[80px] sm:min-h-[auto] ${
                       paymentMethod === 'paypal'
                         ? 'border-purple-500 bg-purple-500/10'
                         : 'border-purple-500/30 bg-fortnite-darker hover:border-purple-500/50'
@@ -632,7 +632,7 @@ export default function CheckoutPage() {
                     onClick={() => {
                       setPaymentMethod('cash')
                     }}
-                    className={`p-4 border-2 rounded-lg transition-all ${
+                    className={`p-4 sm:p-3 border-2 rounded-lg transition-all touch-manipulation min-h-[80px] sm:min-h-[auto] ${
                       paymentMethod === 'cash'
                         ? 'border-purple-500 bg-purple-500/10'
                         : 'border-purple-500/30 bg-fortnite-darker hover:border-purple-500/50'
@@ -654,7 +654,7 @@ export default function CheckoutPage() {
                       setPaymentMethod('goofycoins')
                     }}
                     disabled={!canPayWithGoofyCoins}
-                    className={`p-4 border-2 rounded-lg transition-all ${
+                    className={`p-4 sm:p-3 border-2 rounded-lg transition-all touch-manipulation min-h-[80px] sm:min-h-[auto] ${
                       paymentMethod === 'goofycoins'
                         ? 'border-yellow-500 bg-yellow-500/10'
                         : canPayWithGoofyCoins
@@ -759,12 +759,12 @@ export default function CheckoutPage() {
                           }
                         }}
                         placeholder="Code eingeben"
-                        className="flex-1 px-4 py-2 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                        className="flex-1 px-4 py-3 sm:py-2 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 text-base sm:text-sm"
                       />
                       <button
                         type="button"
                         onClick={handleApplyDiscountCode}
-                        className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors flex items-center space-x-2"
+                        className="px-4 py-3 sm:py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors flex items-center space-x-2 touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm"
                       >
                         <Tag className="w-4 h-4" />
                         <span>Anwenden</span>
@@ -848,7 +848,7 @@ export default function CheckoutPage() {
               <button
                 type="submit"
                 disabled={isProcessing}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-4 rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-purple-500/50 flex items-center justify-center space-x-2"
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-4 sm:py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-purple-500/50 flex items-center justify-center space-x-2 touch-manipulation min-h-[56px] sm:min-h-[48px] text-base sm:text-sm"
               >
                 {mounted && isProcessing ? (
                   <>

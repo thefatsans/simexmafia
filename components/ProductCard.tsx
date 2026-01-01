@@ -96,11 +96,11 @@ export default function ProductCard({ product }: ProductCardProps) {
         <div className="absolute top-2 left-2 flex flex-col space-y-2 z-30">
           <button
             onClick={handleWishlistToggle}
-            className="bg-black/50 hover:bg-black/70 backdrop-blur-sm p-2 rounded-full transition-all"
+            className="bg-black/50 hover:bg-black/70 backdrop-blur-sm p-2.5 sm:p-2 rounded-full transition-all touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
             title={inWishlist ? 'Von Wunschliste entfernen' : 'Zur Wunschliste hinzufügen'}
           >
             <Heart
-              className={`w-5 h-5 transition-all ${
+              className={`w-5 h-5 sm:w-5 sm:h-5 transition-all ${
                 inWishlist ? 'fill-red-500 text-red-500' : 'text-white hover:text-red-400'
               }`}
             />
@@ -108,11 +108,11 @@ export default function ProductCard({ product }: ProductCardProps) {
           <button
             onClick={handleCompareToggle}
             disabled={!canAddMore && !inCompare}
-            className="bg-black/50 hover:bg-black/70 backdrop-blur-sm p-2 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-black/50 hover:bg-black/70 backdrop-blur-sm p-2.5 sm:p-2 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
             title={inCompare ? 'Bereits im Vergleich' : canAddMore ? 'Zum Vergleich hinzufügen' : 'Maximal 3 Produkte vergleichen'}
           >
             <GitCompare
-              className={`w-5 h-5 transition-all ${
+              className={`w-5 h-5 sm:w-5 sm:h-5 transition-all ${
                 inCompare ? 'fill-winter-blue text-winter-blue' : 'text-white hover:text-winter-ice'
               }`}
             />
@@ -171,10 +171,10 @@ export default function ProductCard({ product }: ProductCardProps) {
           <button
             onClick={handleAddToCart}
             disabled={isAdding}
-            className="bg-winter-blue hover:bg-winter-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white p-2 rounded-lg transition-all transform hover:scale-110 active:scale-95 relative z-10"
+            className="bg-winter-blue hover:bg-winter-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white p-2.5 sm:p-2 rounded-lg transition-all transform hover:scale-110 active:scale-95 relative z-10 touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
             title="In den Warenkorb"
           >
-            <ShoppingCart className={`w-4 h-4 ${isAdding ? 'animate-pulse' : ''}`} />
+            <ShoppingCart className={`w-5 h-5 sm:w-4 sm:h-4 ${isAdding ? 'animate-pulse' : ''}`} />
           </button>
         </div>
       </div>

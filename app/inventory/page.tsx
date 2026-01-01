@@ -665,16 +665,16 @@ export default function InventoryPage() {
             <div className="flex space-x-3">
               <button
                 onClick={removeDuplicates}
-                className="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+                className="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 px-4 py-3 sm:py-2 rounded-lg transition-colors flex items-center space-x-2 touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm"
               >
-                <Package className="w-5 h-5" />
+                <Package className="w-5 h-5 sm:w-4 sm:h-4" />
                 <span>Duplikate entfernen</span>
               </button>
               <button
                 onClick={() => setShowClearConfirm(true)}
-                className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+                className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-3 sm:py-2 rounded-lg transition-colors flex items-center space-x-2 touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm"
               >
-                <Trash2 className="w-5 h-5" />
+                <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
                 <span>Inventar löschen</span>
               </button>
             </div>
@@ -754,7 +754,7 @@ export default function InventoryPage() {
           <div className="flex space-x-4 mb-6 border-b border-purple-500/20">
             <button
               onClick={() => setActiveTab('all')}
-              className={`pb-4 px-4 font-semibold transition-colors ${
+              className={`pb-4 px-4 sm:px-3 font-semibold transition-colors touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm ${
                 activeTab === 'all'
                   ? 'text-purple-400 border-b-2 border-purple-400'
                   : 'text-gray-400 hover:text-white'
@@ -764,7 +764,7 @@ export default function InventoryPage() {
             </button>
             <button
               onClick={() => setActiveTab('unredeemed')}
-              className={`pb-4 px-4 font-semibold transition-colors ${
+              className={`pb-4 px-4 sm:px-3 font-semibold transition-colors touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm ${
                 activeTab === 'unredeemed'
                   ? 'text-green-400 border-b-2 border-green-400'
                   : 'text-gray-400 hover:text-white'
@@ -774,7 +774,7 @@ export default function InventoryPage() {
             </button>
             <button
               onClick={() => setActiveTab('redeemed')}
-              className={`pb-4 px-4 font-semibold transition-colors ${
+              className={`pb-4 px-4 sm:px-3 font-semibold transition-colors touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm ${
                 activeTab === 'redeemed'
                   ? 'text-yellow-400 border-b-2 border-yellow-400'
                   : 'text-gray-400 hover:text-white'
@@ -953,9 +953,9 @@ export default function InventoryPage() {
                         </a>
                         <button
                           onClick={() => setSelectedItem(item)}
-                          className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-2 rounded-lg transition-colors"
+                          className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-3 sm:py-2 rounded-lg transition-colors touch-manipulation min-h-[44px] sm:min-h-[36px] min-w-[44px] sm:min-w-[36px] flex items-center justify-center"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
                         </button>
                       </>
                     ) : (
@@ -969,14 +969,14 @@ export default function InventoryPage() {
                                 <button
                                   onClick={() => handleRedeem(item)}
                                   disabled={pending}
-                                  className={`flex-1 font-semibold px-4 py-2 rounded-lg transition-colors flex items-center justify-center space-x-2 ${
+                                  className={`flex-1 font-semibold px-4 py-3 sm:py-2 rounded-lg transition-colors flex items-center justify-center space-x-2 touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm ${
                                     pending
                                       ? 'bg-gray-500/20 border border-gray-500/30 text-gray-400 cursor-not-allowed'
                                       : 'bg-green-500 hover:bg-green-600 text-white'
                                   }`}
                                   title={pending ? 'Die Bestellung ist noch nicht abgeschlossen. Bitte warten Sie, bis die Bestellung bestätigt wurde.' : ''}
                                 >
-                                  <Key className="w-4 h-4" />
+                                  <Key className="w-5 h-5 sm:w-4 sm:h-4" />
                                   <span>{pending ? 'Ausstehend' : 'Einlösen'}</span>
                                 </button>
                               )
@@ -1010,10 +1010,10 @@ export default function InventoryPage() {
                                       navigator.clipboard.writeText(item.redemptionCode!)
                                       alert('Code in Zwischenablage kopiert!')
                                     }}
-                                    className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 px-3 py-2 rounded-lg transition-colors flex items-center space-x-1"
+                                    className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 px-3 py-3 sm:py-2 rounded-lg transition-colors flex items-center space-x-1 touch-manipulation min-h-[44px] sm:min-h-[36px] min-w-[44px] sm:min-w-[36px]"
                                     title="Code kopieren"
                                   >
-                                    <Copy className="w-4 h-4" />
+                                    <Copy className="w-5 h-5 sm:w-4 sm:h-4" />
                                   </button>
                                 </div>
                               </div>
@@ -1026,9 +1026,9 @@ export default function InventoryPage() {
                         )}
                         <button
                           onClick={() => setSelectedItem(item)}
-                          className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-2 rounded-lg transition-colors"
+                          className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-3 sm:py-2 rounded-lg transition-colors touch-manipulation min-h-[44px] sm:min-h-[36px] min-w-[44px] sm:min-w-[36px] flex items-center justify-center"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
                         </button>
                       </>
                     )}

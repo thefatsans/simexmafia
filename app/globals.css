@@ -83,6 +83,31 @@ body::before {
   .animate-glow {
     animation: glow 3s ease-in-out infinite;
   }
+  
+  /* Mobile touch optimizations */
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+  /* Ensure minimum touch target size (44x44px) */
+  button, a, input[type="button"], input[type="submit"] {
+    min-height: 44px;
+  }
+  
+  /* Better text readability on mobile */
+  body {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  
+  /* Prevent zoom on input focus (iOS) */
+  input, select, textarea {
+    font-size: 16px;
+  }
 }
 
 /* Custom scrollbar */

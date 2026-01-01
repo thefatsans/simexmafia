@@ -90,31 +90,31 @@ export default function CartPage() {
                       <div className="flex items-center space-x-3">
                         <button
                           onClick={() => handleQuantityChange(item.product.id, -1)}
-                          className="bg-fortnite-darker border border-purple-500/30 text-white p-2 rounded hover:bg-purple-500/20 transition-colors"
+                          className="bg-fortnite-darker border border-purple-500/30 text-white p-2.5 sm:p-2 rounded hover:bg-purple-500/20 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
                         >
-                          <Minus className="w-4 h-4" />
+                          <Minus className="w-5 h-5 sm:w-4 sm:h-4" />
                         </button>
-                        <span className="text-white font-medium w-8 text-center">
+                        <span className="text-white font-medium w-10 sm:w-8 text-center text-base sm:text-sm">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => handleQuantityChange(item.product.id, 1)}
-                          className="bg-fortnite-darker border border-purple-500/30 text-white p-2 rounded hover:bg-purple-500/20 transition-colors"
+                          className="bg-fortnite-darker border border-purple-500/30 text-white p-2.5 sm:p-2 rounded hover:bg-purple-500/20 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
                         >
-                          <Plus className="w-4 h-4" />
+                          <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
                         </button>
                       </div>
 
                       <div className="flex items-center space-x-4">
-                        <span className="text-white font-bold text-lg">
+                        <span className="text-white font-bold text-lg sm:text-base">
                           €{(item.product.price * item.quantity).toFixed(2)}
                         </span>
                         <button
                           onClick={() => removeFromCart(item.product.id)}
-                          className="text-red-400 hover:text-red-300 transition-colors"
+                          className="text-red-400 hover:text-red-300 transition-colors touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center p-2.5 sm:p-2"
                           title="Entfernen"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-5 h-5 sm:w-5 sm:h-5" />
                         </button>
                       </div>
                     </div>
