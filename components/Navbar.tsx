@@ -314,8 +314,8 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-purple-500/20 pointer-events-auto relative z-[10001] max-h-[calc(100vh-80px)] overflow-y-auto">
-            <div className="flex flex-col space-y-3 px-4 pointer-events-auto">
+          <div className="md:hidden border-t border-purple-500/20 pointer-events-auto fixed left-0 right-0 z-[10001] bg-fortnite-darker/98 backdrop-blur-md" style={{ top: '80px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
+            <div className="flex flex-col space-y-3 px-4 py-4 pb-8 pointer-events-auto">
               <a 
                 href="/" 
                 onClick={(e) => {
@@ -466,6 +466,19 @@ export default function Navbar() {
                 </a>
               ) : (
                 <>
+                  <a 
+                    href="/account/goofycoins" 
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setIsMenuOpen(false)
+                      window.location.href = '/account/goofycoins'
+                    }}
+                    className="flex items-center space-x-2 px-3 py-3 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 rounded-lg transition-colors group pointer-events-auto relative z-[10004] cursor-pointer touch-manipulation"
+                  >
+                    <Coins className="w-6 h-6 text-yellow-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-yellow-400 font-bold text-base">{user?.goofyCoins ?? 0} GoofyCoins</span>
+                  </a>
                   {user && isAdmin(user.email) && (
                     <a 
                       href="/admin" 
@@ -505,33 +518,6 @@ export default function Navbar() {
                   </button>
                 </>
               )}
-              <form onSubmit={handleSearch} className="relative">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-6 h-6 z-10" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value)
-                      setShowAutocomplete(true)
-                    }}
-                    onFocus={() => setShowAutocomplete(true)}
-                    placeholder="Spiele, Gutscheine suchen..."
-                    className="w-full pl-12 pr-4 py-3 text-base bg-fortnite-dark border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
-                  />
-                  {showAutocomplete && (
-                    <div className="absolute top-full left-0 right-0 mt-2">
-                      <SearchAutocomplete
-                        value={searchQuery}
-                        onChange={setSearchQuery}
-                        onSubmit={handleSearchSubmit}
-                        onClose={() => setShowAutocomplete(false)}
-                        isFocused={showAutocomplete}
-                      />
-                    </div>
-                  )}
-                </div>
-              </form>
             </div>
           </div>
         )}
