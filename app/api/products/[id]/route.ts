@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     // Check if DATABASE_URL is set
-    if (process.env.DATABASE_URL) {
+    if (process.env.DATABASE_URL && prisma) {
       try {
         const product = await prisma.product.findUnique({
           where: { id: params.id },
@@ -234,6 +234,10 @@ export async function PUT(
       inStock,
     } = body
 
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
+
     const product = await prisma.product.update({
       where: { id: params.id },
       data: {
@@ -266,6 +270,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
+
     await prisma.product.delete({
       where: { id: params.id },
     })

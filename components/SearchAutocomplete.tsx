@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Search, Clock, TrendingUp, X } from 'lucide-react'
 import { getProductsFromAPI } from '@/lib/api/products'
@@ -45,6 +46,76 @@ export default function SearchAutocomplete({
   const containerRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
+
+  // Mount check for portal
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Update dropdown position
+  useEffect(() => {
+    if ((showSuggestions || isFocused) && mounted) {
+      const updatePosition = () => {
+        // Find the input element by ID
+        const inputElement = document.getElementById('navbar-search-input') as HTMLInputElement
+        
+        if (!inputElement) {
+          console.warn('Search input not found')
+          return
+        }
+        
+        const inputRect = inputElement.getBoundingClientRect()
+        const viewportWidth = window.innerWidth
+        const dropdownWidth = 400
+        const margin = 16
+        
+        // Calculate width: use input width or dropdown width, whichever is larger
+        let width = Math.max(dropdownWidth, inputRect.width)
+        
+        // Calculate left position to align dropdown with the input (left-aligned, not centered)
+        let left = inputRect.left
+        
+        // If dropdown would overflow on the right, shift it left
+        if (left + width > viewportWidth - margin) {
+          left = viewportWidth - width - margin
+        }
+        
+        // If dropdown would overflow on the left, align it to margin
+        if (left < margin) {
+          left = margin
+          // Adjust width if needed to fit
+          if (left + width > viewportWidth - margin) {
+            width = viewportWidth - left - margin
+          }
+        }
+        
+        setDropdownPosition({
+          top: inputRect.bottom + 8,
+          left: Math.max(margin, left),
+          width: Math.min(width, viewportWidth - margin * 2),
+        })
+      }
+      
+      // Update position immediately and on events
+      updatePosition()
+      
+      // Use requestAnimationFrame to ensure it runs after DOM updates
+      requestAnimationFrame(() => {
+        updatePosition()
+        requestAnimationFrame(updatePosition)
+      })
+      
+      window.addEventListener('resize', updatePosition)
+      window.addEventListener('scroll', updatePosition, true)
+      
+      return () => {
+        window.removeEventListener('resize', updatePosition)
+        window.removeEventListener('scroll', updatePosition, true)
+      }
+    }
+  }, [showSuggestions, isFocused, mounted])
 
   // Load search history from localStorage
   useEffect(() => {
@@ -128,6 +199,8 @@ export default function SearchAutocomplete({
     }
   }, [value, isFocused])
 
+  // Old position fix removed - we now use portal with dropdownPosition state
+
   // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -143,6 +216,8 @@ export default function SearchAutocomplete({
       }
     }
   }, [showSuggestions])
+
+  // Old position fix removed - we now use portal with dropdownPosition state
 
   // Keyboard navigation
   useEffect(() => {
@@ -258,12 +333,20 @@ export default function SearchAutocomplete({
 
   // Show autocomplete if focused (to show history) or if there are suggestions
   if (!showSuggestions && !isFocused) return null
+  if (!mounted) return null
 
-  return (
+  const dropdownContent = (
     <div
       ref={containerRef}
       data-autocomplete
-      className="absolute top-full left-0 right-0 mt-2 bg-fortnite-dark border border-purple-500/30 rounded-lg shadow-2xl z-[9999] max-h-96 overflow-y-auto"
+      className="fixed bg-fortnite-dark border border-winter-ice/30 rounded-lg shadow-2xl max-h-96 overflow-y-auto"
+      style={{ 
+        top: `${dropdownPosition.top}px`,
+        left: `${dropdownPosition.left}px`,
+        width: `${dropdownPosition.width || 400}px`,
+        maxWidth: 'calc(100vw - 2rem)',
+        zIndex: 99999,
+      }}
       onMouseDown={(e) => e.preventDefault()} // Prevent input blur when clicking inside
     >
       {/* Product Suggestions */}
@@ -437,5 +520,7 @@ export default function SearchAutocomplete({
       )}
     </div>
   )
+
+  return createPortal(dropdownContent, document.body)
 }
 

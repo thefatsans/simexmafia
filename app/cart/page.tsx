@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { ShoppingCart, Trash2, Plus, Minus, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { useCart } from '@/contexts/CartContext'
+import AnimatedSection from '@/components/AnimatedSection'
 
 export default function CartPage() {
   const { cartItems, updateQuantity, removeFromCart, getTotalPrice } = useCart()
@@ -22,26 +23,30 @@ export default function CartPage() {
 
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen py-20">
+      <div className="min-h-screen py-20 page-transition">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <ShoppingCart className="w-24 h-24 text-gray-600 mx-auto mb-6" />
-          <h1 className="text-3xl font-bold text-white mb-4">Ihr Warenkorb ist leer</h1>
-          <p className="text-gray-400 mb-8">Beginnen Sie mit dem Einkaufen, um Artikel zu Ihrem Warenkorb hinzuzufügen!</p>
-          <Link
-            href="/products"
-            className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-8 py-4 rounded-lg transition-all transform hover:scale-105"
-          >
-            Produkte durchsuchen
-          </Link>
+          <AnimatedSection animationType="fadeInScale">
+            <ShoppingCart className="w-24 h-24 text-gray-600 mx-auto mb-6" />
+            <h1 className="text-3xl font-bold text-white mb-4">Ihr Warenkorb ist leer</h1>
+            <p className="text-gray-400 mb-8">Beginnen Sie mit dem Einkaufen, um Artikel zu Ihrem Warenkorb hinzuzufügen!</p>
+            <Link
+              href="/products"
+              className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-8 py-4 rounded-lg smooth-hover"
+            >
+              Produkte durchsuchen
+            </Link>
+          </AnimatedSection>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 page-transition">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold text-white mb-8">Warenkorb</h1>
+        <AnimatedSection animationType="fadeInUp">
+          <h1 className="text-4xl font-bold text-white mb-8">Warenkorb</h1>
+        </AnimatedSection>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}

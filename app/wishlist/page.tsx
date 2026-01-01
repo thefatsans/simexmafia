@@ -6,6 +6,7 @@ import ProductCard from '@/components/ProductCard'
 import { Heart, Trash2, ShoppingCart } from 'lucide-react'
 import { useCart } from '@/contexts/CartContext'
 import { useState, useEffect } from 'react'
+import AnimatedSection from '@/components/AnimatedSection'
 
 export default function WishlistPage() {
   const { wishlist, removeFromWishlist, clearWishlist } = useWishlist()
@@ -45,10 +46,10 @@ export default function WishlistPage() {
   }
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 page-transition">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
+        <AnimatedSection animationType="fadeInUp" className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
@@ -81,7 +82,7 @@ export default function WishlistPage() {
               </div>
             )}
           </div>
-        </div>
+        </AnimatedSection>
 
         {/* Wishlist Content */}
         {wishlist.length === 0 ? (
@@ -97,19 +98,19 @@ export default function WishlistPage() {
                 e.preventDefault()
                 window.location.href = '/products'
               }}
-              className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-8 py-4 rounded-lg transition-all transform hover:scale-105"
+              className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-8 py-4 rounded-lg smooth-hover"
             >
               Produkte durchsuchen
             </a>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {wishlist.map((product) => (
-              <div key={product.id} className="relative group">
+            {wishlist.map((product, index) => (
+              <div key={product.id} className={`relative group animate-fade-in-scale animate-delay-${Math.min((index % 4) * 100, 600)}`}>
                 <ProductCard product={product} />
                 <button
                   onClick={() => handleRemove(product.id)}
-                  className="absolute top-2 left-2 bg-red-500/80 hover:bg-red-500 backdrop-blur-sm p-2 rounded-full transition-all opacity-0 group-hover:opacity-100 z-40"
+                  className="absolute top-2 left-2 bg-red-500/80 hover:bg-red-500 backdrop-blur-sm p-2 rounded-full smooth-hover opacity-0 group-hover:opacity-100 z-40"
                   title="Von Wunschliste entfernen"
                 >
                   <Trash2 className="w-4 h-4 text-white" />

@@ -1,0 +1,2 @@
+-- Migration applied manually via Supabase SQL Editor
+-- All tables created successfully

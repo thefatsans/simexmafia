@@ -14,6 +14,10 @@ export async function PUT(
       return NextResponse.json({ error: 'quantity is required' }, { status: 400 })
     }
 
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
+
     if (quantity <= 0) {
       // Lösche Artikel wenn Menge 0 oder weniger
       await prisma.cartItem.delete({
@@ -47,6 +51,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
+
     await prisma.cartItem.delete({
       where: { id: params.id },
     })
@@ -57,6 +65,12 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to remove cart item' }, { status: 500 })
   }
 }
+
+
+
+
+
+
 
 
 

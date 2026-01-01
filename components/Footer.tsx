@@ -8,7 +8,7 @@ import { companyInfo } from '@/lib/company-info'
 export default function Footer() {
 
   return (
-    <footer className="bg-fortnite-darker dark:bg-fortnite-darker bg-gray-50 dark:border-purple-500/20 border-gray-200 border-t mt-20 relative z-[9999] pointer-events-auto transition-colors">
+    <footer className="bg-fortnite-darker dark:bg-fortnite-darker bg-gray-50 dark:border-winter-ice/20 border-gray-200 border-t mt-20 relative z-[9999] pointer-events-auto transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pointer-events-auto">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pointer-events-auto">
           {/* Brand */}
@@ -33,7 +33,7 @@ export default function Footer() {
                     e.stopPropagation()
                     window.location.href = '/products'
                   }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-purple-400 hover:text-purple-600 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
                 >
                   Alle Produkte
                 </a>
@@ -46,7 +46,7 @@ export default function Footer() {
                     e.stopPropagation()
                     window.location.href = '/categories'
                   }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-purple-400 hover:text-purple-600 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
                 >
                   Kategorien
                 </a>
@@ -59,7 +59,7 @@ export default function Footer() {
                     e.stopPropagation()
                     window.location.href = '/sellers'
                   }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-purple-400 hover:text-purple-600 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
                 >
                   Top Verkäufer
                 </a>
@@ -72,7 +72,7 @@ export default function Footer() {
                     e.stopPropagation()
                     window.location.href = '/about'
                   }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-purple-400 hover:text-purple-600 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
                 >
                   Über uns
                 </a>
@@ -85,7 +85,7 @@ export default function Footer() {
                     e.stopPropagation()
                     window.location.href = '/contact'
                   }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-purple-400 hover:text-purple-600 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
                 >
                   Kontakt
                 </a>
@@ -98,7 +98,7 @@ export default function Footer() {
                     e.stopPropagation()
                     window.location.href = '/faq'
                   }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-purple-400 hover:text-purple-600 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
                 >
                   FAQ
                 </a>
@@ -118,7 +118,7 @@ export default function Footer() {
                     e.stopPropagation()
                     window.location.href = '/help'
                   }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-purple-400 hover:text-purple-600 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
                 >
                   Hilfe-Center
                 </a>
@@ -131,7 +131,7 @@ export default function Footer() {
                     e.stopPropagation()
                     window.location.href = '/refunds'
                   }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-purple-400 hover:text-purple-600 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
                 >
                   Rückerstattungsrichtlinie
                 </a>
@@ -144,7 +144,7 @@ export default function Footer() {
                     e.stopPropagation()
                     window.location.href = '/contact'
                   }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-purple-400 hover:text-purple-600 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
                 >
                   Kontaktieren Sie uns
                 </a>
@@ -157,7 +157,7 @@ export default function Footer() {
                     e.stopPropagation()
                     window.location.href = '/faq'
                   }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-purple-400 hover:text-purple-600 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
                 >
                   FAQ
                 </a>
@@ -207,7 +207,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-8 border-t border-purple-500/20">
+        <div className="mt-8 pt-8 border-t border-winter-ice/20">
           <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
             <p className="text-gray-400 text-sm">
               © {new Date().getFullYear()} SimexMafia. Alle Rechte vorbehalten.
@@ -220,7 +220,7 @@ export default function Footer() {
                   e.stopPropagation()
                   window.location.href = '/legal/imprint'
                 }}
-                className="text-gray-400 hover:text-purple-400 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                className="text-gray-400 hover:text-winter-ice transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
               >
                 Impressum
               </a>
@@ -231,7 +231,7 @@ export default function Footer() {
                   e.stopPropagation()
                   window.location.href = '/legal/privacy'
                 }}
-                className="text-gray-400 hover:text-purple-400 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                className="text-gray-400 hover:text-winter-ice transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
               >
                 Datenschutz
               </a>
@@ -242,7 +242,7 @@ export default function Footer() {
                   e.stopPropagation()
                   window.location.href = '/legal/terms'
                 }}
-                className="text-gray-400 hover:text-purple-400 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                className="text-gray-400 hover:text-winter-ice transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
               >
                 AGB
               </a>
@@ -253,7 +253,7 @@ export default function Footer() {
                   e.stopPropagation()
                   window.location.href = '/legal/cancellation'
                 }}
-                className="text-gray-400 hover:text-purple-400 transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                className="text-gray-400 hover:text-winter-ice transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
               >
                 Widerruf
               </a>

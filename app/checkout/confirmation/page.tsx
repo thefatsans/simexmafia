@@ -8,21 +8,57 @@ import SocialShare from '@/components/SocialShare'
 import { getOrderById } from '@/data/payments'
 import { useEffect, useState } from 'react'
 import { Order } from '@/data/payments'
+import { getOrdersFromAPI } from '@/lib/api/orders'
+import { useAuth } from '@/contexts/AuthContext'
 
 function ConfirmationContent() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get('orderId') || 'ORD-000000'
   const [order, setOrder] = useState<Order | null>(null)
+  const { user } = useAuth()
 
   useEffect(() => {
     const loadOrder = async () => {
       if (orderId) {
-        const foundOrder = await getOrderById(orderId)
-        setOrder(foundOrder || null)
+        try {
+          // Try to load from API first
+          if (user?.id) {
+            const orders = await getOrdersFromAPI(user.id)
+            const apiOrder = orders.find(o => o.id === orderId)
+            if (apiOrder) {
+              setOrder({
+                id: apiOrder.id,
+                userId: apiOrder.userId,
+                items: apiOrder.items,
+                subtotal: apiOrder.subtotal,
+                serviceFee: apiOrder.serviceFee,
+                discount: apiOrder.discount,
+                total: apiOrder.total,
+                paymentMethod: apiOrder.paymentMethod as Order['paymentMethod'],
+                status: apiOrder.status as Order['status'],
+                createdAt: apiOrder.createdAt,
+                completedAt: apiOrder.completedAt,
+                coinsEarned: apiOrder.coinsEarned,
+                discountCode: apiOrder.discountCode,
+                statusReason: (apiOrder as any).statusReason,
+              })
+              return
+            }
+          }
+          
+          // Fallback to localStorage
+          const foundOrder = await getOrderById(orderId)
+          setOrder(foundOrder || null)
+        } catch (error) {
+          console.error('[Confirmation] Error loading order:', error)
+          // Fallback to localStorage
+          const foundOrder = await getOrderById(orderId)
+          setOrder(foundOrder || null)
+        }
       }
     }
     loadOrder()
-  }, [orderId])
+  }, [orderId, user])
 
   return (
     <div className="min-h-screen py-20">
@@ -132,6 +168,84 @@ function ConfirmationContent() {
                     <p className="text-gray-400 text-sm">
                       Ihre Bestellung wird erst nach erfolgreicher Zahlung bei der Abholung aktiviert. 
                       Die digitalen Keys werden Ihnen nach Zahlungseingang zur Verfügung gestellt.
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : order?.paymentMethod === 'paypal' ? (
+              <>
+                {order?.status === 'processing' || order?.status === 'pending' ? (
+                  <>
+                    <div className="flex items-start space-x-4">
+                      <div className="bg-yellow-500/20 p-3 rounded-lg">
+                        <Package className="w-6 h-6 text-yellow-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-white font-semibold mb-1">Zahlung wird bearbeitet</h3>
+                        <p className="text-gray-400 text-sm">
+                          Ihre PayPal-Zahlung wurde erhalten und wird derzeit überprüft. 
+                          Sobald die Zahlung bestätigt wurde, erhalten Sie Zugriff auf Ihre digitalen Keys.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-4">
+                      <div className="bg-purple-500/20 p-3 rounded-lg">
+                        <Mail className="w-6 h-6 text-purple-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-white font-semibold mb-1">Überprüfen Sie Ihre E-Mail</h3>
+                        <p className="text-gray-400 text-sm">
+                          Wir haben Ihnen eine Bestätigungs-E-Mail mit Ihren Bestelldetails gesendet.
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-start space-x-4">
+                      <div className="bg-green-500/20 p-3 rounded-lg">
+                        <CheckCircle className="w-6 h-6 text-green-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-white font-semibold mb-1">PayPal-Zahlung erfolgreich</h3>
+                        <p className="text-gray-400 text-sm">
+                          Ihre PayPal-Zahlung wurde erfolgreich verarbeitet. Ihre Bestellung wird nun bearbeitet.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-4">
+                      <div className="bg-purple-500/20 p-3 rounded-lg">
+                        <Mail className="w-6 h-6 text-purple-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-white font-semibold mb-1">Überprüfen Sie Ihre E-Mail</h3>
+                        <p className="text-gray-400 text-sm">
+                          Wir haben Ihnen eine Bestätigungs-E-Mail mit Ihren Bestelldetails und digitalen Keys gesendet.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-4">
+                      <div className="bg-purple-500/20 p-3 rounded-lg">
+                        <Download className="w-6 h-6 text-purple-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-white font-semibold mb-1">Zugriff auf Ihre Produkte</h3>
+                        <p className="text-gray-400 text-sm">
+                          Ihre digitalen Keys sind in Ihrem Konto verfügbar. Sie können auch Ihre E-Mail für sofortigen Zugriff überprüfen.
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+                <div className="flex items-start space-x-4">
+                  <div className="bg-purple-500/20 p-3 rounded-lg">
+                    <Package className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold mb-1">Wichtiger Hinweis</h3>
+                    <p className="text-gray-400 text-sm">
+                      Bitte beachten Sie, dass Rückerstattungen nur verarbeitet werden, bevor Sie den digitalen Key einlösen. 
+                      Nach der Aktivierung kann das Produkt nicht zurückerstattet werden.
                     </p>
                   </div>
                 </div>

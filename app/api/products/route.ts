@@ -87,6 +87,10 @@ export async function GET(request: NextRequest) {
       ])
     }
 
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
+
     const products = await prisma.product.findMany({
       where,
       include: {
@@ -232,6 +236,10 @@ export async function POST(request: NextRequest) {
     // Validierung
     if (!name || !description || !price || !category || !platform || !sellerId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
 
     const product = await prisma.product.create({

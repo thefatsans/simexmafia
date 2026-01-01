@@ -12,6 +12,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ChatProvider } from '@/contexts/ChatContext'
 import StructuredData from '@/components/StructuredData'
 import ChatWidget from '@/components/ChatWidget'
+import Snowflakes from '@/components/Snowflakes'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -94,7 +95,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} smooth-scroll`} style={{ scrollBehavior: 'smooth' }}>
         <StructuredData type="organization" />
         <StructuredData type="website" />
         <ThemeProvider>
@@ -104,6 +105,7 @@ export default function RootLayout({
                 <CompareProvider>
                   <ToastProvider>
                     <ChatProvider>
+                      <Snowflakes />
                       <Navbar />
                       <main className="min-h-screen relative z-0">
                         {children}

@@ -1,28 +1,94 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Package, ArrowLeft, Download, CheckCircle, Star, Gift, Coins, Filter, X, CreditCard, Wallet, TrendingUp } from 'lucide-react'
+import { Package, ArrowLeft, Download, CheckCircle, Star, Gift, Coins, Filter, X, CreditCard, Wallet, TrendingUp, Key, Copy, Eye } from 'lucide-react'
 import { getProductFromAPI } from '@/lib/api/products'
 import { getUserReviewsFromAPI } from '@/lib/api/reviews'
 import { mockUser } from '@/data/user'
 import { Review } from '@/data/reviews'
 import { getUserOrders, Order, OrderItem } from '@/data/payments'
+import { getOrdersFromAPI } from '@/lib/api/orders'
 import { getSackByType } from '@/data/sacks'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function OrdersPage() {
+  const { user, isLoading: authLoading, syncUserFromDatabase } = useAuth()
   const [userReviews, setUserReviews] = useState<Review[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'pending' | 'failed'>('all')
   const [filterType, setFilterType] = useState<'all' | 'product' | 'sack' | 'goofycoins'>('all')
+  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set()) // itemId -> true wenn Key sichtbar ist
+
+  const loadOrders = useCallback(async () => {
+    if (!user?.id) return
+    
+    try {
+      // Versuche zuerst die API zu verwenden (Datenbank)
+      try {
+        console.log('[Orders Page] Loading orders from API for user:', user.id)
+        const apiOrders = await getOrdersFromAPI(user.id)
+        console.log('[Orders Page] Loaded orders from API:', apiOrders.length)
+        
+        // Konvertiere API-Format zu Order-Format
+        const convertedOrders: Order[] = apiOrders.map((apiOrder: any) => {
+          console.log('[Orders Page] Converting order:', apiOrder.id, 'statusReason:', apiOrder.statusReason)
+          return {
+            id: apiOrder.id,
+            userId: apiOrder.userId,
+            items: apiOrder.items.map((item: any) => ({
+              id: item.id,
+              type: item.type,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              metadata: item.metadata,
+              productId: item.productId,
+              key: item.key,
+            })),
+            subtotal: apiOrder.subtotal,
+            serviceFee: apiOrder.serviceFee,
+            discount: apiOrder.discount,
+            total: apiOrder.total,
+            paymentMethod: apiOrder.paymentMethod as any,
+            status: apiOrder.status as Order['status'],
+            createdAt: apiOrder.createdAt,
+            completedAt: apiOrder.completedAt,
+            coinsEarned: apiOrder.coinsEarned,
+            discountCode: apiOrder.discountCode,
+            statusReason: apiOrder.statusReason || undefined, // Hinzufügen des Grundes
+          }
+        })
+        
+        const sortedOrders = convertedOrders.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        console.log('[Orders Page] Setting orders from API:', sortedOrders.length, 'orders')
+        setOrders(sortedOrders)
+        return
+      } catch (apiError) {
+        console.warn('[Orders Page] API not available, using localStorage:', apiError)
+      }
+      
+      // Fallback: localStorage
+      const userOrders = getUserOrders(user.id)
+      console.log('[Orders Page] Loaded orders from localStorage:', userOrders.length)
+      setOrders(userOrders)
+    } catch (error) {
+      console.error('[Orders Page] Error loading orders:', error)
+      setOrders([])
+    }
+  }, [user?.id])
 
   useEffect(() => {
+    if (!user?.id) return
+    
     // Load user reviews from API
     const loadReviews = async () => {
       try {
-        const reviews = await getUserReviewsFromAPI(mockUser.id)
+        const reviews = await getUserReviewsFromAPI(user.id)
         setUserReviews(reviews)
       } catch (error) {
         console.error('Error loading user reviews:', error)
@@ -41,16 +107,24 @@ export default function OrdersPage() {
     
     // Load orders
     loadOrders()
-  }, [])
-
-  const loadOrders = async () => {
-    const userOrders = await getUserOrders(mockUser.id)
-    setOrders(userOrders)
-  }
+    
+    // Synchronisiere User-Daten mit der Datenbank (für GoofyCoins-Updates)
+    syncUserFromDatabase()
+    
+    // Automatisches Aktualisieren alle 30 Sekunden, um Status-Updates zu sehen
+    const interval = setInterval(() => {
+      loadOrders()
+      // Synchronisiere auch User-Daten, um GoofyCoins-Updates zu sehen
+      syncUserFromDatabase()
+    }, 30000) // 30 Sekunden
+    
+    return () => clearInterval(interval)
+  }, [user?.id, loadOrders, syncUserFromDatabase])
 
   const hasUserReviewed = (productId: string) => {
+    if (!user?.id) return false
     return userReviews.some(
-      (review) => review.productId === productId && review.userId === mockUser.id
+      (review) => review.productId === productId && review.userId === user.id
     )
   }
 
@@ -224,7 +298,7 @@ export default function OrdersPage() {
   }
 
   // Komponente für Order Item mit asynchronem Produktbild
-  const OrderItemRow = ({ item }: { item: OrderItem }) => {
+  const OrderItemRow = ({ item, orderStatus }: { item: OrderItem; orderStatus: Order['status'] }) => {
     const [productImage, setProductImage] = useState<string | null>(null)
     const [isLoadingImage, setIsLoadingImage] = useState(false)
 
@@ -397,7 +471,7 @@ export default function OrdersPage() {
         </div>
         <div className="flex-1">
           <h4 className="text-white font-semibold">{item.name}</h4>
-          <div className="flex items-center space-x-2 mt-1">
+          <div className="flex items-center space-x-2 mt-1 flex-wrap gap-2">
             <span className={`text-xs px-2 py-1 rounded ${
               item.type === 'sack' ? 'bg-purple-500/20 text-purple-300' :
               item.type === 'goofycoins' ? 'bg-yellow-500/20 text-yellow-300' :
@@ -405,6 +479,17 @@ export default function OrdersPage() {
             }`}>
               {item.type === 'sack' ? 'Sack' : item.type === 'goofycoins' ? 'GoofyCoins' : 'Produkt'}
             </span>
+            {/* Status Badge für das Produkt */}
+            <span className={`text-xs px-2 py-1 rounded font-medium ${getStatusColor(orderStatus)}`}>
+              {getStatusText(orderStatus)}
+            </span>
+            {/* Key Status - wenn Key vorhanden, zeige "Bereit" */}
+            {(item as any).key && (
+              <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400 font-medium flex items-center space-x-1">
+                <CheckCircle className="w-3 h-3" />
+                <span>Key verfügbar</span>
+              </span>
+            )}
             {item.metadata?.sackType && (
               <span className="text-gray-400 text-xs">
                 {getSackByType(item.metadata.sackType)?.icon} {getSackByType(item.metadata.sackType)?.name}
@@ -422,23 +507,77 @@ export default function OrdersPage() {
           <p className="text-gray-400 text-sm">Menge: {item.quantity}</p>
         </div>
         {item.type === 'product' && (
-          <div className="flex items-center space-x-2">
-            <ProductLinkButton item={item} />
-            {item.metadata?.productId && hasUserReviewed(item.metadata.productId) ? (
-              <span className="bg-green-500/20 text-green-400 px-4 py-2 rounded-lg flex items-center space-x-2 text-sm">
-                <Star className="w-4 h-4" />
-                <span>Bewertet</span>
-              </span>
-            ) : item.metadata?.productId ? (
-              <Link
-                href={`/products/${item.metadata.productId}/review`}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
-              >
-                <Star className="w-4 h-4" />
-                <span>Bewertung</span>
-              </Link>
-            ) : null}
+          <div className="flex flex-col items-end space-y-2">
+            <div className="flex items-center space-x-2">
+              <ProductLinkButton item={item} />
+              {item.metadata?.productId && hasUserReviewed(item.metadata.productId) ? (
+                <span className="bg-green-500/20 text-green-400 px-4 py-2 rounded-lg flex items-center space-x-2 text-sm">
+                  <Star className="w-4 h-4" />
+                  <span>Bewertet</span>
+                </span>
+              ) : item.metadata?.productId ? (
+                <Link
+                  href={`/products/${item.metadata.productId}/review`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+                >
+                  <Star className="w-4 h-4" />
+                  <span>Bewertung</span>
+                </Link>
+              ) : null}
+            </div>
+            {/* Key anzeigen Button - nur wenn Bestellung abgeschlossen und Key vorhanden */}
+            {orderStatus === 'completed' && (item as any).key && (
+              <div className="w-full">
+                {visibleKeys.has(item.id) ? (
+                  <div className="bg-fortnite-darker border border-green-500/30 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 text-xs">Digital Key:</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setVisibleKeys(prev => {
+                            const next = new Set(prev)
+                            next.delete(item.id)
+                            return next
+                          })
+                        }}
+                        className="text-gray-400 hover:text-white transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <code className="flex-1 bg-fortnite-dark border border-purple-500/30 rounded px-3 py-2 text-white font-mono text-sm break-all">
+                        {(item as any).key}
+                      </code>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigator.clipboard.writeText((item as any).key)
+                          alert('Key in Zwischenablage kopiert!')
+                        }}
+                        className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 px-3 py-2 rounded-lg transition-colors flex items-center space-x-1"
+                        title="Key kopieren"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setVisibleKeys(prev => new Set(prev).add(item.id))
+                    }}
+                    className="w-full bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Key anzeigen</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -472,15 +611,42 @@ export default function OrdersPage() {
   const statistics = getOrderStatistics()
   const filteredOrders = getFilteredOrders()
 
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-white">Laden...</div>
+      </div>
+    )
+  }
+
+  // Don't render if not authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-white">Bitte melden Sie sich an</div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <Link href="/account" className="inline-flex items-center text-purple-400 hover:text-purple-300 mb-4 transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück zum Konto
-          </Link>
+          <div className="flex items-center justify-between mb-4">
+            <Link href="/account" className="inline-flex items-center text-purple-400 hover:text-purple-300 transition-colors">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Zurück zum Konto
+            </Link>
+            <button
+              onClick={() => loadOrders()}
+              className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 rounded-lg transition-colors flex items-center space-x-2"
+            >
+              <Package className="w-4 h-4" />
+              <span>Aktualisieren</span>
+            </button>
+          </div>
           <h1 className="text-4xl font-bold text-white mb-2">Bestellhistorie</h1>
           <p className="text-gray-400">Sehen Sie alle Ihre vergangenen Käufe</p>
         </div>
@@ -593,6 +759,24 @@ export default function OrdersPage() {
                         <span>{getStatusText(order.status)}</span>
                       </span>
                     </div>
+                    {(order.status === 'failed' || order.status === 'cancelled') && (
+                      <div className="mb-2">
+                        {order.statusReason ? (
+                          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                            <p className="text-red-400 text-sm font-semibold mb-1">
+                              {order.status === 'failed' ? 'Grund für Fehlschlag:' : 'Grund für Stornierung:'}
+                            </p>
+                            <p className="text-red-300 text-sm">{order.statusReason}</p>
+                          </div>
+                        ) : (
+                          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                            <p className="text-yellow-400 text-xs">
+                              Kein Grund angegeben
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center space-x-4 text-sm text-gray-400">
                       <p>Bestellt: {formatDate(order.createdAt)}</p>
                       {order.completedAt && (
@@ -623,7 +807,7 @@ export default function OrdersPage() {
                 {/* Order Items */}
                 <div className="space-y-4">
                   {order.items.map((item, index) => (
-                    <OrderItemRow key={index} item={item} />
+                    <OrderItemRow key={index} item={item} orderStatus={order.status} />
                   ))}
                 </div>
               </div>
@@ -684,6 +868,14 @@ export default function OrdersPage() {
                       <CheckCircle className="w-4 h-4" />
                       <span>{getStatusText(selectedOrder.status)}</span>
                     </span>
+                    {(selectedOrder.status === 'failed' || selectedOrder.status === 'cancelled') && selectedOrder.statusReason && (
+                      <div className="mt-2 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                        <p className="text-red-400 text-xs font-semibold mb-1">
+                          {selectedOrder.status === 'failed' ? 'Grund für Fehlschlag:' : 'Grund für Stornierung:'}
+                        </p>
+                        <p className="text-red-300 text-xs">{selectedOrder.statusReason}</p>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="text-gray-400 text-sm mb-1">Bestelldatum</div>
@@ -710,13 +902,75 @@ export default function OrdersPage() {
                 <h3 className="text-white font-semibold mb-4">Bestellte Artikel</h3>
                 <div className="space-y-3">
                   {selectedOrder.items.map((item, index) => (
-                    <div key={index} className="bg-fortnite-darker rounded-lg p-4 flex items-center space-x-4">
-                      <div className="text-3xl">{getItemIcon(item)}</div>
-                      <div className="flex-1">
-                        <div className="text-white font-semibold">{item.name}</div>
-                        <div className="text-gray-400 text-sm">Menge: {item.quantity}</div>
+                    <div key={index} className="bg-fortnite-darker rounded-lg p-4">
+                      <div className="flex items-center space-x-4 mb-2">
+                        <div className="text-3xl">{getItemIcon(item)}</div>
+                        <div className="flex-1">
+                          <div className="text-white font-semibold">{item.name}</div>
+                          <div className="text-gray-400 text-sm">Menge: {item.quantity}</div>
+                        </div>
+                        <div className="text-white font-semibold">€{(item.price * item.quantity).toFixed(2)}</div>
                       </div>
-                      <div className="text-white font-semibold">€{(item.price * item.quantity).toFixed(2)}</div>
+                      <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-purple-500/20">
+                        <span className={`text-xs px-2 py-1 rounded font-medium ${getStatusColor(selectedOrder.status)}`}>
+                          Status: {getStatusText(selectedOrder.status)}
+                        </span>
+                        {(item as any).key && (
+                          <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400 font-medium flex items-center space-x-1">
+                            <CheckCircle className="w-3 h-3" />
+                            <span>Key verfügbar</span>
+                          </span>
+                        )}
+                      </div>
+                      {/* Key anzeigen im Modal - nur wenn abgeschlossen */}
+                      {selectedOrder.status === 'completed' && (item as any).key && (
+                        <div className="mt-3 pt-3 border-t border-purple-500/20">
+                          {visibleKeys.has(item.id) ? (
+                            <div className="bg-fortnite-dark border border-green-500/30 rounded-lg p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-400 text-sm">Digital Key:</span>
+                                <button
+                                  onClick={() => {
+                                    setVisibleKeys(prev => {
+                                      const next = new Set(prev)
+                                      next.delete(item.id)
+                                      return next
+                                    })
+                                  }}
+                                  className="text-gray-400 hover:text-white transition-colors"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <code className="flex-1 bg-fortnite-darker border border-purple-500/30 rounded px-3 py-2 text-white font-mono text-sm break-all">
+                                  {(item as any).key}
+                                </code>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText((item as any).key)
+                                    alert('Key in Zwischenablage kopiert!')
+                                  }}
+                                  className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 px-3 py-2 rounded-lg transition-colors flex items-center space-x-1"
+                                  title="Key kopieren"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setVisibleKeys(prev => new Set(prev).add(item.id))
+                              }}
+                              className="w-full bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span>Key anzeigen</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -52,9 +52,11 @@ export default function AdminDashboard() {
     console.log('User is admin, showing dashboard')
     
     // Load statistics
-    const loadStats = async () => {
+    const loadStats = () => {
       try {
-        const orders = await getOrders()
+        // getOrders() ist synchron, kein await nötig
+        const orders = getOrders()
+        console.log('[Admin Dashboard] Loaded orders:', orders.length)
         const sackHistory = getSackHistory()
         const inventory = getInventory()
         const discountCodes = getDiscountCodes()

@@ -23,7 +23,15 @@ export async function getProductsFromAPI(filters?: {
     if (filters?.search) params.append('search', filters.search)
     if (filters?.inStock) params.append('inStock', 'true')
 
-    const response = await fetch(`${API_BASE_URL}/api/products?${params.toString()}`)
+    // Timeout für Fetch-Anfrage (10 Sekunden)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
+    
+    const response = await fetch(`${API_BASE_URL}/api/products?${params.toString()}`, {
+      signal: controller.signal
+    })
+    
+    clearTimeout(timeoutId)
     
     if (!response.ok) {
       throw new Error('Failed to fetch products')

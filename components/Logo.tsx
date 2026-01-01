@@ -16,21 +16,39 @@ export default function Logo({ width = 40, height = 40, showText = true, classNa
   return (
     <div className={`flex items-center space-x-1 ${className}`}>
       {!logoError && (
-        <div className="relative" style={{ width, height }}>
-          <Image
-            src="/logo.png"
-            alt="SimexMafia Logo"
-            fill
-            className="object-contain"
-            onError={() => setLogoError(true)}
-            priority
-          />
+        <div 
+          className="relative logo-image-wrapper flex items-center justify-center"
+          style={{ 
+            width, 
+            height,
+          }}
+        >
+          <div 
+            className="relative logo-image flex items-center justify-center" 
+            style={{ 
+              width, 
+              height,
+              animation: 'logoFloat 3s ease-in-out infinite',
+            }}
+          >
+            <Image
+              src="/logo.png"
+              alt="SimexMafia Logo"
+              fill
+              className="object-contain transition-all duration-300 hover:scale-110"
+              onError={() => setLogoError(true)}
+              priority
+              style={{
+                filter: 'drop-shadow(0 0 20px rgba(56, 189, 248, 0.6)) drop-shadow(0 0 40px rgba(56, 189, 248, 0.3))',
+                animation: 'logoGlow 2s ease-in-out infinite',
+              }}
+            />
+          </div>
         </div>
       )}
       {showText && (
-        <div className="relative -ml-6">
-          <div className="absolute inset-0 bg-purple-500 blur-xl opacity-50 transition-opacity group-hover:opacity-70"></div>
-          <span className="relative text-3xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-yellow-400 bg-clip-text text-transparent drop-shadow-lg">
+        <div className="relative text-container flex items-center" style={{ animation: 'none !important', marginLeft: '-24px' }}>
+          <span className="relative text-3xl font-bold bg-gradient-to-r from-winter-ice via-winter-blue-light to-winter-snow bg-clip-text text-transparent drop-shadow-lg leading-none" style={{ animation: 'none !important' }}>
             SimexMafia
           </span>
         </div>

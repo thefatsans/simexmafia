@@ -7,6 +7,7 @@ import { getProductsFromAPI } from '@/lib/api/products'
 import { Product } from '@/types'
 import { searchProducts } from '@/lib/search-utils'
 import { Search as SearchIcon, ArrowUpDown } from 'lucide-react'
+import AnimatedSection from '@/components/AnimatedSection'
 
 type SortOption = 'default' | 'price-asc' | 'price-desc' | 'rating-desc' | 'rating-asc' | 'popularity' | 'name-asc' | 'name-desc'
 
@@ -71,7 +72,7 @@ function SearchContent() {
   }, [filteredProducts, sortOption])
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 page-transition">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
@@ -130,8 +131,10 @@ function SearchContent() {
           </div>
         ) : sortedProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {sortedProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+            {sortedProducts.map((product, index) => (
+              <div key={product.id} className={`animate-fade-in-scale animate-delay-${Math.min((index % 4) * 100, 600)}`}>
+                <ProductCard product={product} />
+              </div>
             ))}
           </div>
         ) : (

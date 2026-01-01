@@ -20,7 +20,7 @@ export default function CheckoutPage() {
   const router = useRouter()
   const { cartItems, clearCart, getTotalPrice } = useCart()
   const { showSuccess, showError } = useToast()
-  const { isAuthenticated, isLoading: authLoading, user, addCoins, subtractCoins, updateUser } = useAuth()
+  const { isAuthenticated, isLoading: authLoading, user, addCoins, subtractCoins, updateUser, syncUserFromDatabase } = useAuth()
 
   // All hooks must be called before any conditional returns
   const [formData, setFormData] = useState({
@@ -197,49 +197,76 @@ export default function CheckoutPage() {
         return
       }
 
-      const newOrder = await createOrder({
-        userId: user.id,
-        items: orderItems,
-        subtotal,
-        serviceFee,
-        discount: totalDiscount,
-        total: finalTotal,
-        paymentMethod: 'goofycoins',
-        coinsEarned: 0, // Keine Coins bei GoofyCoins-Zahlung
-        discountCode: appliedDiscountCode?.code,
-      })
+      try {
+        console.log('[Checkout] Creating order with GoofyCoins:', {
+          userId: user.id,
+          itemsCount: orderItems.length,
+          total: finalTotal
+        })
+        const newOrder = await createOrder({
+          userId: user.id,
+          items: orderItems,
+          subtotal,
+          serviceFee,
+          discount: totalDiscount,
+          total: finalTotal,
+          paymentMethod: 'goofycoins',
+          coinsEarned: 0, // Keine Coins bei GoofyCoins-Zahlung
+          discountCode: appliedDiscountCode?.code,
+        })
+        console.log('[Checkout] Order created:', {
+          orderId: newOrder.id,
+          userId: newOrder.userId,
+          status: newOrder.status
+        })
 
-      // Subtrahiere GoofyCoins
-      const success = subtractCoins(requiredGoofyCoins)
-      if (!success) {
-        showError('Fehler beim Abziehen der GoofyCoins')
+        // WICHTIG: Coins wurden bereits serverseitig abgezogen
+        // Synchronisiere User-Balance mit Server
+        if (user) {
+          await syncUserFromDatabase()
+        }
+
+        // WICHTIG: Produkte werden zum Inventar hinzugefügt, aber als "ausstehend" markiert
+        // Sie können erst eingelöst werden, wenn die Bestellung "completed" ist
+        orderItems.forEach(item => {
+          const cartItem = cartItems.find(ci => ci.product.id === item.id)
+          if (cartItem) {
+            for (let i = 0; i < item.quantity; i++) {
+              addToInventory(
+                cartItem.product,
+                'purchase',
+                newOrder.id, // Bestell-ID als sourceId
+                'Kauf'
+              )
+            }
+          }
+        })
+
+        showSuccess(`Bestellung erfolgreich erstellt! ${requiredGoofyCoins} GoofyCoins wurden abgezogen. Die Bestellung wird bearbeitet.`, 5000)
+        clearCart()
+        router.push(`/checkout/confirmation?orderId=${newOrder.id}`)
+        return
+      } catch (error: any) {
+        console.error('[Checkout] Error creating order:', error)
+        // Wenn Fehler wegen unzureichender Coins, synchronisiere Balance
+        if (error.message?.includes('Insufficient GoofyCoins') || error.message?.includes('insufficient')) {
+          await syncUserFromDatabase()
+          showError('Nicht genug GoofyCoins für diese Bestellung')
+        } else {
+          showError('Fehler beim Erstellen der Bestellung. Bitte versuchen Sie es erneut.')
+        }
         setIsProcessing(false)
         return
       }
-
-      // Füge Produkte zum Inventar hinzu
-      orderItems.forEach(item => {
-        const cartItem = cartItems.find(ci => ci.product.id === item.id)
-        if (cartItem) {
-          for (let i = 0; i < item.quantity; i++) {
-            addToInventory(
-              cartItem.product,
-              'purchase',
-              newOrder.id,
-              'Kauf'
-            )
-          }
-        }
-      })
-
-      showSuccess(`Bestellung erfolgreich! ${requiredGoofyCoins} GoofyCoins wurden abgezogen.`, 5000)
-      clearCart()
-      router.push(`/checkout/confirmation?orderId=${newOrder.id}`)
-      return
     }
 
     // Barzahlung
     if (paymentMethod === 'cash') {
+      console.log('[Checkout] Creating order with Cash:', {
+        userId: user?.id || 'user1',
+        itemsCount: orderItems.length,
+        total: finalTotal
+      })
       const newOrder = await createOrder({
         userId: user?.id || 'user1',
         items: orderItems,
@@ -251,10 +278,28 @@ export default function CheckoutPage() {
         coinsEarned,
         discountCode: appliedDiscountCode?.code,
       })
+      console.log('[Checkout] Order created:', {
+        orderId: newOrder.id,
+        userId: newOrder.userId,
+        status: newOrder.status
+      })
 
       // Bei Barzahlung bleibt Status "pending" bis manuell bestätigt
       // Coins werden erst nach Bestätigung der Zahlung hinzugefügt
-      // Produkte werden noch nicht ins Inventar hinzugefügt
+      // Produkte werden zum Inventar hinzugefügt, aber als "ausstehend" markiert
+      orderItems.forEach(item => {
+        const cartItem = cartItems.find(ci => ci.product.id === item.id)
+        if (cartItem) {
+          for (let i = 0; i < item.quantity; i++) {
+            addToInventory(
+              cartItem.product,
+              'purchase',
+              newOrder.id, // Bestell-ID als sourceId
+              'Kauf'
+            )
+          }
+        }
+      })
       
       // Send order confirmation email
       if (user?.email && user?.firstName) {
@@ -283,6 +328,11 @@ export default function CheckoutPage() {
     if (paymentMethod === 'paypal') {
       try {
         // Erstelle Bestellung
+        console.log('[Checkout] Creating order with PayPal:', {
+          userId: user?.id || 'user1',
+          itemsCount: orderItems.length,
+          total: finalTotal
+        })
         const newOrder = await createOrder({
           userId: user?.id || 'user1',
           items: orderItems,
@@ -294,19 +344,52 @@ export default function CheckoutPage() {
           coinsEarned,
           discountCode: appliedDiscountCode?.code,
         })
+        console.log('[Checkout] Order created:', {
+          orderId: newOrder.id,
+          userId: newOrder.userId,
+          status: newOrder.status
+        })
 
-        // Hole PayPal-Link aus Environment Variables
-        const paypalLink = process.env.NEXT_PUBLIC_PAYPAL_PAYMENT_LINK || ''
-        
-        if (!paypalLink) {
-          showError('PayPal-Zahlungslink ist nicht konfiguriert. Bitte kontaktieren Sie uns.')
-          setIsProcessing(false)
-          return
+        // Hole PayPal-Link aus Environment Variables oder verwende Standard
+        const paypalLink = process.env.NEXT_PUBLIC_PAYPAL_PAYMENT_LINK || 'https://paypal.me/SimexMafia'
+
+        // Produkte werden zum Inventar hinzugefügt, aber als "ausstehend" markiert
+        // Sie können erst eingelöst werden, wenn die Bestellung "completed" ist
+        orderItems.forEach(item => {
+          const cartItem = cartItems.find(ci => ci.product.id === item.id)
+          if (cartItem) {
+            for (let i = 0; i < item.quantity; i++) {
+              addToInventory(
+                cartItem.product,
+                'purchase',
+                newOrder.id, // Bestell-ID als sourceId
+                'Kauf'
+              )
+            }
+          }
+        })
+
+        // Store orderId in localStorage as fallback for callback
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('pendingPayPalOrderId', newOrder.id)
+          localStorage.setItem('pendingPayPalAmount', finalTotal.toFixed(2))
         }
 
-        // Füge Order-ID und Betrag als Parameter zum PayPal-Link hinzu
-        const separator = paypalLink.includes('?') ? '&' : '?'
-        const paypalLinkWithOrder = `${paypalLink}${separator}orderId=${newOrder.id}&amount=${finalTotal.toFixed(2)}`
+        // Build callback URL
+        const callbackUrl = `${window.location.origin}/checkout/paypal/callback`
+        
+        // PayPal.me Links unterstützen keine Query-Parameter, daher verwenden wir den Betrag im Pfad
+        // Format: https://paypal.me/Username/Amount
+        let paypalLinkWithOrder: string
+        if (paypalLink.includes('paypal.me/')) {
+          // PayPal.me Link - Betrag im Pfad
+          const baseUrl = paypalLink.replace(/\/$/, '') // Entferne trailing slash falls vorhanden
+          paypalLinkWithOrder = `${baseUrl}/${finalTotal.toFixed(2)}`
+        } else {
+          // Normale PayPal Payment Link - Query-Parameter verwenden
+          const separator = paypalLink.includes('?') ? '&' : '?'
+          paypalLinkWithOrder = `${paypalLink}${separator}orderId=${newOrder.id}&amount=${finalTotal.toFixed(2)}&return=${encodeURIComponent(callbackUrl)}&cancel_return=${encodeURIComponent(callbackUrl + '?cancel=true')}`
+        }
 
         // Send order confirmation email
         if (user?.email && user?.firstName) {
@@ -337,8 +420,6 @@ export default function CheckoutPage() {
       }
     }
   }
-
-
 
   if (cartItems.length === 0) {
     return (

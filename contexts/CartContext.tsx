@@ -245,8 +245,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const getTotalPrice = () => {
     return cartItems.reduce((total, item) => {
-      // Verwende originalPrice falls vorhanden, sonst price
-      const itemPrice = item.product.originalPrice || item.product.price
+      // Verwende immer price (der tatsächliche Preis, den der Kunde zahlt)
+      // originalPrice ist nur zur Anzeige (durchgestrichen), nicht zur Berechnung
+      const itemPrice = item.product.price
       return total + itemPrice * item.quantity
     }, 0)
   }

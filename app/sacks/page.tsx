@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext'
 
 export default function SacksPage() {
   const router = useRouter()
-  const { isAuthenticated, isLoading: authLoading, user, addCoins, subtractCoins } = useAuth()
+  const { isAuthenticated, isLoading: authLoading, user, addCoins, subtractCoins, updateUser, syncUserFromDatabase } = useAuth()
   
   // All hooks must be called before any conditional returns
   const [selectedSack, setSelectedSack] = useState<Sack | null>(null)
@@ -78,10 +78,10 @@ export default function SacksPage() {
     setSelectedSack(sack)
   }
 
-  const handleOpenSack = () => {
-    if (!selectedSack) return
+  const handleOpenSack = async () => {
+    if (!selectedSack || !user?.id) return
 
-    // Prüfe ob genug Coins vorhanden sind
+    // Prüfe ob genug Coins vorhanden sind (client-side check)
     if (purchaseMethod === 'coins' && userCoins < selectedSack.priceCoins) {
       showError('Nicht genug GoofyCoins!')
       setTimeout(() => {
@@ -99,159 +99,186 @@ export default function SacksPage() {
       return
     }
 
-    // Simuliere Kauf - subtract coins via AuthContext
-    let coinsSubtracted = false
+    // WICHTIG: Serverseitige Validierung für Coin-Käufe
     if (purchaseMethod === 'coins') {
-      const success = subtractCoins(selectedSack.priceCoins)
-      if (!success) {
-        showError('Nicht genug GoofyCoins!')
+      try {
+        setIsOpening(true)
+        
+        // Rufe API auf für serverseitige Validierung und Coin-Abzug
+        const response = await fetch('/api/sacks/purchase', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sackType: selectedSack.type,
+            purchaseMethod: 'coins',
+            userId: user.id,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok || !data.success) {
+          setIsOpening(false)
+          showError(data.error || 'Fehler beim Kauf des Sacks')
+          // Synchronisiere User-Daten, falls sich der Balance geändert hat
+          if (user?.id) {
+            await syncUserFromDatabase()
+          }
+          return
+        }
+
+        // Server hat Coins abgezogen und Belohnung generiert
+        const result = data.reward
+        resultRef.current = result
+        selectedSackRef.current = selectedSack
+        coinsSubtractedRef.current = true
+        purchaseMethodRef.current = purchaseMethod
+        coinsAddedRef.current = result.type === 'coins' && result.coins ? true : false
+
+        // WICHTIG: Balance-Update verzögern, um Überraschungseffekt zu bewahren
+        // Die Balance wird erst nach der Animation aktualisiert
+        const newBalance = data.newBalance
+
+        // Generiere mögliche Belohnungen für Animation
+        const rewards = generatePossibleRewards(selectedSack)
+        
+        // Finde die Belohnung in der Liste oder füge sie hinzu
+        let finalIndex = rewards.findIndex(r => 
+          r.reward.type === result.type &&
+          (result.type === 'coins' ? r.reward.coins === result.coins : true) &&
+          (result.type === 'product' ? r.reward.product?.id === result.product?.id : true)
+        )
+        
+        if (finalIndex === -1) {
+          // Belohnung nicht in Liste, füge sie hinzu
+          const rarity = result.type === 'nothing' ? 'common' : 
+                         result.type === 'coins' && result.coins! < 50 ? 'common' :
+                         result.type === 'coins' && result.coins! < 200 ? 'uncommon' :
+                         result.type === 'coins' && result.coins! < 500 ? 'rare' :
+                         result.type === 'product' && result.product!.price < 20 ? 'uncommon' :
+                         result.type === 'product' && result.product!.price < 50 ? 'rare' :
+                         result.type === 'product' && result.product!.price < 100 ? 'epic' : 'legendary'
+          rewards.push({ reward: result, rarity })
+          finalIndex = rewards.length - 1
+        }
+        
+        // Setze State
+        setPossibleRewards(rewards)
+        setShowReward(false)
+        setReward(null)
+        setCurrentIndex(0)
+        setIsSpinning(true)
+        currentIndexRef.current = 0
+        finalIndexRef.current = finalIndex
+        startTimeRef.current = Date.now()
+        
+        // Gleichmäßige Animation mit kontinuierlicher Position
+        const totalDuration = 4000 // 4 Sekunden total
+        const spinCycles = 3 // Mindestens 3 volle Runden
+        
+        // Berechne wie viele Karten wir durchlaufen müssen
+        const totalCards = rewards.length
+        // Starte bei 0, gehe durch spinCycles Runden, dann zur finalen Position
+        const targetPosition = spinCycles * totalCards + finalIndex
+        
+        const animate = () => {
+          const now = Date.now()
+          const elapsed = now - (startTimeRef.current || 0)
+          
+          if (elapsed >= totalDuration) {
+            // Finale Position erreichen
+            const finalAbsoluteIndex = targetPosition
+            setCurrentIndex(finalAbsoluteIndex)
+            setIsSpinning(false)
+            
+            // Kurze Pause, damit der Benutzer die Belohnung sehen kann
+            setTimeout(() => {
+              const finalResult = resultRef.current
+              const finalSack = selectedSackRef.current
+              if (!finalResult || !finalSack) return
+              
+              setReward(finalResult)
+              
+              // Warte weitere 2 Sekunden, damit die Belohnung sichtbar bleibt
+              setTimeout(() => {
+                setIsOpening(false)
+                setShowReward(true)
+                
+                // JETZT erst die Balance aktualisieren - nach der Animation
+                // Dies verhindert, dass der Benutzer das Ergebnis vorher sieht
+                if (newBalance !== undefined && user) {
+                  updateUser({ goofyCoins: newBalance })
+                }
+                
+                // Synchronisiere vollständig mit Datenbank für Konsistenz
+                syncUserFromDatabase().catch(err => {
+                  console.error('[Sacks] Error syncing user:', err)
+                })
+                
+                saveSackHistory({
+                  sackId: finalSack.id,
+                  sackType: finalSack.type,
+                  sackName: finalSack.name,
+                  sackIcon: finalSack.icon,
+                  sackColor: finalSack.color,
+                  reward: finalResult,
+                  purchaseMethod: purchaseMethodRef.current,
+                  pricePaid: purchaseMethodRef.current === 'coins' ? finalSack.priceCoins : finalSack.priceMoney,
+                }, user?.id)
+                
+                // Debug: Log für gespeicherte Historie
+                console.log('[Sacks] Saved sack history with userId:', user?.id, 'sackId:', finalSack.id)
+                
+                // Clear leaderboard cache for real-time updates
+                clearLeaderboardCache()
+              
+                if (finalResult.type === 'product' && finalResult.product) {
+                  addToInventory(finalResult.product, 'sack', finalSack.id, finalSack.name)
+                  setTimeout(() => {
+                    showSuccess(`Produkt gewonnen: ${finalResult.product?.name}!`, 5000)
+                  }, 500)
+                }
+                
+                // Coins wurden bereits vom Server hinzugefügt, nur UI-Update nötig
+                if (finalResult.type === 'coins' && finalResult.coins) {
+                  setTimeout(() => {
+                    showSuccess(`GoofyCoins gewonnen: +${finalResult.coins}!`, 5000)
+                  }, 500)
+                }
+              }, 2000)
+            }, 500)
+            
+            return
+          }
+          
+          // Berechne aktuelle Position basierend auf elapsed time
+          const progress = elapsed / totalDuration
+          // Ease-out Funktion für natürlichere Animation
+          const easedProgress = 1 - Math.pow(1 - progress, 3)
+          const currentPosition = Math.floor(easedProgress * targetPosition)
+          
+          setCurrentIndex(currentPosition)
+          currentIndexRef.current = currentPosition
+          
+          animationFrameRef.current = requestAnimationFrame(animate)
+        }
+        
+        animationFrameRef.current = requestAnimationFrame(animate)
+        return
+      } catch (error: any) {
+        console.error('[Sacks] Error purchasing sack:', error)
         setIsOpening(false)
+        showError('Fehler beim Kauf des Sacks. Bitte versuchen Sie es erneut.')
         return
       }
-      coinsSubtracted = true
     }
 
-    // Generiere mögliche Belohnungen für Animation
-    const rewards = generatePossibleRewards(selectedSack)
-    
-    // Bestimme die tatsächliche Belohnung
-    const result = openSack(selectedSack)
-    resultRef.current = result
-    selectedSackRef.current = selectedSack
-    coinsSubtractedRef.current = coinsSubtracted
-    purchaseMethodRef.current = purchaseMethod
-    coinsAddedRef.current = false // Reset guard
-    
-    // Finde die Belohnung in der Liste oder füge sie hinzu
-    let finalIndex = rewards.findIndex(r => 
-      r.reward.type === result.type &&
-      (result.type === 'coins' ? r.reward.coins === result.coins : true) &&
-      (result.type === 'product' ? r.reward.product?.id === result.product?.id : true)
-    )
-    
-    if (finalIndex === -1) {
-      // Belohnung nicht in Liste, füge sie hinzu
-      const rarity = result.type === 'nothing' ? 'common' : 
-                     result.type === 'coins' && result.coins! < 50 ? 'common' :
-                     result.type === 'coins' && result.coins! < 200 ? 'uncommon' :
-                     result.type === 'coins' && result.coins! < 500 ? 'rare' :
-                     result.type === 'product' && result.product!.price < 20 ? 'uncommon' :
-                     result.type === 'product' && result.product!.price < 50 ? 'rare' :
-                     result.type === 'product' && result.product!.price < 100 ? 'epic' : 'legendary'
-      rewards.push({ reward: result, rarity })
-      finalIndex = rewards.length - 1
-    }
-    
-    // Setze State
-    setPossibleRewards(rewards)
-    setIsOpening(true)
-    setShowReward(false)
-    setReward(null)
-    setCurrentIndex(0)
-    setIsSpinning(true)
-    currentIndexRef.current = 0
-    finalIndexRef.current = finalIndex
-    startTimeRef.current = Date.now()
-    
-    // Gleichmäßige Animation mit kontinuierlicher Position
-    const totalDuration = 4000 // 4 Sekunden total
-    const spinCycles = 3 // Mindestens 3 volle Runden
-    
-    // Berechne wie viele Karten wir durchlaufen müssen
-    const totalCards = rewards.length
-    // Starte bei 0, gehe durch spinCycles Runden, dann zur finalen Position
-    const targetPosition = spinCycles * totalCards + finalIndex
-    
-    const animate = () => {
-      const now = Date.now()
-      const elapsed = now - (startTimeRef.current || 0)
-      
-      if (elapsed >= totalDuration) {
-        // Finale Position erreichen - verwende die absolute Position die zu finalIndex führt
-        // targetPosition = spinCycles * totalCards + finalIndex
-        // Am Ende sollte currentIndex = targetPosition sein, was zu finalIndex führt
-        const finalAbsoluteIndex = targetPosition
-        setCurrentIndex(finalAbsoluteIndex)
-        setIsSpinning(false)
-        
-        // Kurze Pause, damit der Benutzer die Belohnung sehen kann
-        setTimeout(() => {
-          const finalResult = resultRef.current
-          const finalSack = selectedSackRef.current
-          if (!finalResult || !finalSack) return
-          
-          setReward(finalResult)
-          
-          // Warte weitere 2 Sekunden, damit die Belohnung sichtbar bleibt
-          setTimeout(() => {
-            setIsOpening(false)
-            setShowReward(true)
-            
-            saveSackHistory({
-              sackId: finalSack.id,
-              sackType: finalSack.type,
-              sackName: finalSack.name,
-              sackIcon: finalSack.icon,
-              sackColor: finalSack.color,
-              reward: finalResult,
-              purchaseMethod: purchaseMethodRef.current,
-              pricePaid: purchaseMethodRef.current === 'coins' ? finalSack.priceCoins : finalSack.priceMoney,
-            }, user?.id)
-            
-            // Debug: Log für gespeicherte Historie
-            console.log('[Sacks] Saved sack history with userId:', user?.id, 'sackId:', finalSack.id)
-            
-            // Clear leaderboard cache for real-time updates
-            clearLeaderboardCache()
-          
-            if (finalResult.type === 'product' && finalResult.product) {
-              addToInventory(finalResult.product, 'sack', finalSack.id, finalSack.name)
-              setTimeout(() => {
-                showSuccess(`Produkt gewonnen: ${finalResult.product?.name}!`, 5000)
-              }, 500)
-            }
-            
-            if (finalResult.type === 'coins' && finalResult.coins && !coinsAddedRef.current) {
-              const coinsWon = finalResult.coins
-              coinsAddedRef.current = true // Setze Guard, um doppelte Zuweisung zu verhindern
-              addCoins(coinsWon)
-              setTimeout(() => {
-                const netCoins = coinsWon - (coinsSubtractedRef.current ? finalSack.priceCoins : 0)
-                if (netCoins > 0) {
-                  showSuccess(`${coinsWon} GoofyCoins gewonnen! (Netto: +${netCoins} Coins)`, 4000)
-                } else if (netCoins < 0) {
-                  showSuccess(`${coinsWon} GoofyCoins gewonnen! (Netto: ${netCoins} Coins)`, 4000)
-                } else {
-                  showSuccess(`${coinsWon} GoofyCoins gewonnen!`, 4000)
-                }
-              }, 500)
-            }
-            
-            if (finalResult.type === 'nothing') {
-              setTimeout(() => {
-                showInfo('Niete! Versuchen Sie es erneut.', 3000)
-              }, 500)
-            }
-          }, 2000) // 2 Sekunden Pause, damit die Belohnung sichtbar bleibt
-        }, 300)
-        return
-      }
-      
-      // Ease-out Funktion für smooth slowdown
-      const progress = elapsed / totalDuration
-      const easeOut = 1 - Math.pow(1 - progress, 3) // Cubic ease-out
-      
-      // Berechne aktuelle Position (0 bis targetPosition)
-      const currentPosition = targetPosition * easeOut
-      // Verwende absolute Position für smooth scrolling
-      const absoluteIndex = Math.floor(currentPosition)
-      
-      setCurrentIndex(absoluteIndex)
-      
-      animationFrameRef.current = requestAnimationFrame(animate)
-    }
-    
-    animationFrameRef.current = requestAnimationFrame(animate)
+    // Fallback für den Fall, dass purchaseMethod nicht 'coins' ist (sollte nicht passieren)
+    showError('Ungültige Zahlungsmethode')
+    setIsOpening(false)
+    return
   }
 
   const handleCloseReward = () => {
@@ -270,7 +297,7 @@ export default function SacksPage() {
     setReward(null)
   }
 
-  const handleOpenSackAfterPayment = () => {
+  const handleOpenSackAfterPayment = (orderId?: string) => {
     if (!selectedSack) return
 
     // Generiere mögliche Belohnungen für Animation
@@ -373,16 +400,17 @@ export default function SacksPage() {
             if (finalResult.type === 'coins' && finalResult.coins && !coinsAddedRef.current) {
               const coinsWon = finalResult.coins
               coinsAddedRef.current = true // Setze Guard, um doppelte Zuweisung zu verhindern
-              addCoins(coinsWon)
+              
+              // WICHTIG: Nur NETTO-Coins hinzufügen (nicht die vollen coinsWon)
+              // Wenn mit Coins bezahlt wurde, wurden die Coins bereits abgezogen
+              // Also: coinsWon - priceCoins (wenn mit Coins bezahlt) = Netto-Gewinn
+              // Da purchaseMethodRef.current === 'money', wurden keine Coins abgezogen
+              const netCoins = coinsWon  // Mit Echtgeld bezahlt: Voller Gewinn
+              
+              // Coins hinzufügen
+              addCoins(netCoins)
               setTimeout(() => {
-                const netCoins = coinsWon - (coinsSubtractedRef.current ? finalSack.priceCoins : 0)
-                if (netCoins > 0) {
-                  showSuccess(`${coinsWon} GoofyCoins gewonnen! (Netto: +${netCoins} Coins)`, 4000)
-                } else if (netCoins < 0) {
-                  showSuccess(`${coinsWon} GoofyCoins gewonnen! (Netto: ${netCoins} Coins)`, 4000)
-                } else {
-                  showSuccess(`${coinsWon} GoofyCoins gewonnen!`, 4000)
-                }
+                showSuccess(`${coinsWon} GoofyCoins gewonnen!`, 4000)
               }, 500)
             }
             
@@ -666,8 +694,8 @@ export default function SacksPage() {
 
         {/* Purchase Modal */}
         {selectedSack && !showReward && !isOpening && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-            <div className="bg-fortnite-dark border border-purple-500/30 rounded-lg p-8 max-w-md w-full relative">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 overflow-y-auto">
+            <div className="bg-fortnite-dark border border-purple-500/30 rounded-lg p-8 max-w-md w-full relative my-8">
               <button
                 onClick={() => setSelectedSack(null)}
                 className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
@@ -869,7 +897,8 @@ export default function SacksPage() {
             onSuccess={(orderId) => {
               setShowPaymentCheckout(false)
               // Nach erfolgreicher Zahlung, öffne den Sack automatisch
-              handleOpenSackAfterPayment()
+              // Übergebe die Bestell-ID, damit Produkte nicht direkt einlösbar sind
+              handleOpenSackAfterPayment(orderId)
             }}
             onCancel={() => {
               setShowPaymentCheckout(false)

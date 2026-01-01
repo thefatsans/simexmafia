@@ -11,3 +11,10 @@ Die Datei ist zu groß, um alle manuell zu korrigieren. Bitte führe folgende Er
 4. Für Games: `generateId(game.name, 'games', game.platform)`
 5. Für Currency: `generateId(item.name, 'in-game-currency', item.platform)`
 
+
+
+
+
+
+
+

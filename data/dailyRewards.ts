@@ -128,9 +128,10 @@ export const canClaimReward = (userId?: string): boolean => {
   const daysDiff = Math.floor((now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60 * 24))
   
   // Kann geholt werden wenn:
-  // - Letzter Claim war gestern (Streak fortsetzen)
-  // - Oder noch nie geholt wurde
-  return daysDiff === 1 || daysDiff === 0
+  // - Letzter Claim war gestern (Streak fortsetzen) ODER
+  // - Mehr als 1 Tag vergangen (Streak gebrochen, neu starten)
+  // NICHT wenn: daysDiff === 0 (bereits heute geholt)
+  return daysDiff >= 1
 }
 
 export const isStreakBroken = (userId?: string): boolean => {
@@ -155,19 +156,33 @@ export const isStreakBroken = (userId?: string): boolean => {
 export const claimDailyReward = (userId?: string): { success: boolean; reward: DailyReward | null; newStreak: number; totalCoins: number } => {
   const data = getDailyRewardData(userId)
   
-  // Prüfe ob Streak gebrochen ist
-  if (isStreakBroken(userId)) {
-    // Reset Streak
-    data.currentStreak = 0
-  }
-  
   // Prüfe ob bereits heute geholt wurde
   if (!canClaimReward(userId)) {
     return { success: false, reward: null, newStreak: data.currentStreak, totalCoins: 0 }
   }
   
-  // Erhöhe Streak (oder starte bei 1)
-  const newStreak = data.currentStreak >= 7 ? 1 : data.currentStreak + 1
+  // Prüfe ob Streak gebrochen ist
+  let newStreak = 1
+  if (isStreakBroken(userId)) {
+    // Streak gebrochen - starte bei 1
+    newStreak = 1
+  } else if (data.lastClaimDate) {
+    // Streak fortsetzen
+    const lastClaim = new Date(data.lastClaimDate)
+    const now = new Date()
+    lastClaim.setHours(0, 0, 0, 0)
+    now.setHours(0, 0, 0, 0)
+    const daysDiff = Math.floor((now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60 * 24))
+    
+    if (daysDiff === 1) {
+      // Gestern geholt - Streak fortsetzen
+      newStreak = data.currentStreak >= 7 ? 1 : data.currentStreak + 1
+    } else {
+      // Mehr als 1 Tag - Streak gebrochen
+      newStreak = 1
+    }
+  }
+  
   const reward = dailyRewards[newStreak - 1]
   
   // Berechne Gesamt-Coins

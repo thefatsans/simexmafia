@@ -65,16 +65,16 @@ export default function ProductCard({ product }: ProductCardProps) {
   }
 
   return (
-    <div className="group bg-fortnite-dark dark:bg-fortnite-dark bg-white dark:border-purple-500/20 border-gray-200 rounded-lg overflow-hidden hover:border-purple-500/50 dark:hover:border-purple-500/50 hover:border-purple-600 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20 dark:hover:shadow-purple-500/20 relative">
+    <div className="group bg-fortnite-dark dark:bg-fortnite-dark bg-white dark:border-winter-ice/20 border-gray-200 rounded-lg overflow-hidden hover:border-winter-ice/50 dark:hover:border-winter-ice/50 hover:border-winter-blue smooth-hover hover:shadow-lg hover:shadow-winter-blue/20 dark:hover:shadow-winter-blue/20 relative">
       {/* Image Container */}
-      <div className="relative aspect-video bg-gradient-to-br from-purple-900/50 to-yellow-900/50 overflow-hidden">
+      <div className="relative aspect-video bg-gradient-to-br from-winter-blue-dark/50 to-winter-ice-dark/50 overflow-hidden">
         <Link href={`/products/${product.id}`} className="block w-full h-full">
           {product.image ? (
             <Image
               src={product.image}
               alt={product.name}
               fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              className="object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
               loading="lazy"
               placeholder="blur"
@@ -88,7 +88,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         </Link>
         
         {discountPercentage > 0 && (
-          <div className="absolute top-2 right-2 bg-purple-500 text-white px-2 py-1 rounded-md text-xs font-bold z-10 pointer-events-none">
+          <div className="absolute top-2 right-2 bg-winter-blue text-white px-2 py-1 rounded-md text-xs font-bold z-10 pointer-events-none">
             -{discountPercentage}%
           </div>
         )}
@@ -113,7 +113,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           >
             <GitCompare
               className={`w-5 h-5 transition-all ${
-                inCompare ? 'fill-purple-500 text-purple-500' : 'text-white hover:text-purple-400'
+                inCompare ? 'fill-winter-blue text-winter-blue' : 'text-white hover:text-winter-ice'
               }`}
             />
           </button>
@@ -125,14 +125,14 @@ export default function ProductCard({ product }: ProductCardProps) {
       {/* Content */}
       <div className="p-4">
         <div className="flex items-start justify-between mb-2">
-          <Link href={`/products/${product.id}`} className="text-white dark:text-white text-gray-900 font-semibold text-sm line-clamp-2 group-hover:text-purple-400 dark:group-hover:text-purple-400 group-hover:text-purple-600 transition-colors">
+          <Link href={`/products/${product.id}`} className="text-white dark:text-white text-gray-900 font-semibold text-sm line-clamp-2 group-hover:text-winter-ice dark:group-hover:text-winter-ice group-hover:text-winter-blue-light transition-colors">
             {product.name}
           </Link>
         </div>
 
         {/* Platform Badge */}
         <div className="mb-2">
-          <span className="inline-block bg-purple-500/20 text-purple-300 text-xs px-2 py-1 rounded">
+          <span className="inline-block bg-winter-blue/20 text-winter-ice text-xs px-2 py-1 rounded">
             {product.platform}
           </span>
         </div>
@@ -171,7 +171,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <button
             onClick={handleAddToCart}
             disabled={isAdding}
-            className="bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white p-2 rounded-lg transition-all transform hover:scale-110 active:scale-95 relative z-10"
+            className="bg-winter-blue hover:bg-winter-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white p-2 rounded-lg transition-all transform hover:scale-110 active:scale-95 relative z-10"
             title="In den Warenkorb"
           >
             <ShoppingCart className={`w-4 h-4 ${isAdding ? 'animate-pulse' : ''}`} />

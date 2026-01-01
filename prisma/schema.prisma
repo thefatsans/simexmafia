@@ -89,6 +89,7 @@ model Order {
   total         Float
   paymentMethod String   // credit-card, paypal, apple-pay, google-pay
   status        String   @default("pending") // pending, processing, completed, failed, cancelled
+  statusReason  String?  // Grund für fehlgeschlagen/storniert
   coinsEarned   Int      @default(0)
   discountCode  String?
   
@@ -112,6 +113,7 @@ model OrderItem {
   price       Float
   quantity    Int      @default(1)
   metadata    Json?    // Additional data (sack type, etc.)
+  key         String?  // Digital key/code for the product
   
   createdAt   DateTime @default(now())
 }
@@ -168,6 +170,7 @@ model InventoryItem {
   
   source    String   // purchase, sack, reward
   orderId   String?
+  sourceId  String?  // Bestell-ID (ORD-...) oder Sack-ID für sourceId
   notes     String?
   
   createdAt DateTime @default(now())

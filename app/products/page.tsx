@@ -147,10 +147,10 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 page-transition">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 animate-fade-in-up">
           <h1 className="text-3xl sm:text-4xl font-bold text-white dark:text-white text-gray-900 mb-2">Alle Produkte</h1>
           <p className="text-gray-400 dark:text-gray-400 text-gray-600">Finden Sie die besten Angebote für digitale Gaming-Produkte</p>
         </div>
@@ -365,8 +365,10 @@ export default function ProductsPage() {
                           {categoryNames[category]} ({categoryProducts.length})
                         </h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                          {categoryProducts.map((product) => (
-                            <ProductCard key={product.id} product={product} />
+                          {categoryProducts.map((product, index) => (
+                            <div key={product.id} className={`animate-fade-in-scale animate-delay-${Math.min((index % 4) * 100, 600)}`}>
+                              <ProductCard product={product} />
+                            </div>
                           ))}
                         </div>
                       </div>

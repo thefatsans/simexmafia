@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Lock, Shield, CheckCircle, X, Wallet } from 'lucide-react'
+import { Lock, Shield, CheckCircle, X, Wallet } from 'lucide-react'
 import { PaymentMethod, PaymentDetails, OrderItem, createOrder, processPayment, validatePaymentDetails } from '@/data/payments'
 import { calculateCoinsEarned, TIER_INFO } from '@/types/user'
 import { useToast } from '@/contexts/ToastContext'
@@ -26,9 +26,9 @@ export default function PaymentCheckout({
   const router = useRouter()
   const { user, addCoins, updateUser } = useAuth()
   const [mounted, setMounted] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('credit-card')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('paypal')
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({
-    method: 'credit-card',
+    method: 'paypal',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isProcessing, setIsProcessing] = useState(false)
@@ -67,19 +67,6 @@ export default function PaymentCheckout({
     setErrors({})
   }
 
-  const formatCardNumber = (value: string) => {
-    const cleaned = value.replace(/\s/g, '')
-    const match = cleaned.match(/.{1,4}/g)
-    return match ? match.join(' ') : cleaned
-  }
-
-  const formatExpiryDate = (value: string) => {
-    const cleaned = value.replace(/\D/g, '')
-    if (cleaned.length >= 2) {
-      return cleaned.slice(0, 2) + '/' + cleaned.slice(2, 4)
-    }
-    return cleaned
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -108,6 +95,33 @@ export default function PaymentCheckout({
       coinsEarned,
     })
 
+    // WICHTIG: Für Säcke und GoofyCoins: PayPal-Weiterleitung erforderlich
+    const isGoofyCoinsPurchase = items.some(item => item.type === 'goofycoins')
+    if ((isSackPurchase || isGoofyCoinsPurchase) && paymentMethod === 'paypal') {
+      const paypalLink = process.env.NEXT_PUBLIC_PAYPAL_PAYMENT_LINK || 'https://paypal.me/SimexMafia'
+      
+      // Store orderId in localStorage as fallback for callback
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pendingPayPalOrderId', order.id)
+        localStorage.setItem('pendingPayPalAmount', finalTotal.toFixed(2))
+      }
+      
+      // PayPal.me Links unterstützen keine Query-Parameter, daher verwenden wir den Betrag im Pfad
+      let paypalLinkWithOrder: string
+      if (paypalLink.includes('paypal.me/')) {
+        // PayPal.me Link - Betrag im Pfad
+        const baseUrl = paypalLink.replace(/\/$/, '') // Entferne trailing slash falls vorhanden
+        paypalLinkWithOrder = `${baseUrl}/${finalTotal.toFixed(2)}`
+      } else {
+        // Normale PayPal Payment Link - Query-Parameter verwenden
+        paypalLinkWithOrder = `${paypalLink}?amount=${finalTotal.toFixed(2)}&orderId=${order.id}`
+      }
+      
+      // Weiterleitung zu PayPal
+      window.location.href = paypalLinkWithOrder
+      return
+    }
+    
     // Verarbeite Zahlung
     const result = await processPayment(order, {
       ...paymentDetails,
@@ -194,19 +208,7 @@ export default function PaymentCheckout({
           {/* Payment Method Selection */}
           <div className="mb-6">
             <label className="block text-white font-semibold mb-3">Zahlungsmethode:</label>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => handlePaymentMethodChange('credit-card')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  paymentMethod === 'credit-card'
-                    ? 'border-purple-500 bg-purple-500/20'
-                    : 'border-purple-500/30 bg-fortnite-darker'
-                }`}
-              >
-                <CreditCard className="w-8 h-8 text-purple-400 mx-auto mb-2" />
-                <div className="text-white font-semibold text-sm">Kreditkarte</div>
-              </button>
+            <div className="grid grid-cols-1 gap-4">
               <button
                 type="button"
                 onClick={() => handlePaymentMethodChange('paypal')}
@@ -218,85 +220,15 @@ export default function PaymentCheckout({
               >
                 <Wallet className="w-8 h-8 text-blue-400 mx-auto mb-2" />
                 <div className="text-white font-semibold text-sm">PayPal</div>
+                <div className="text-gray-400 text-xs mt-1">Sichere Online-Zahlung</div>
               </button>
             </div>
-          </div>
-
-          {/* Payment Details */}
-          {paymentMethod === 'credit-card' && (
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-gray-300 text-sm mb-2">Kartennummer</label>
-                <input
-                  type="text"
-                  name="cardNumber"
-                  value={paymentDetails.cardNumber || ''}
-                  onChange={(e) => {
-                    const formatted = formatCardNumber(e.target.value)
-                    setPaymentDetails((prev) => ({ ...prev, cardNumber: formatted }))
-                  }}
-                  placeholder="1234 5678 9012 3456"
-                  maxLength={19}
-                  className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-                />
-                {errors.cardNumber && (
-                  <p className="text-red-400 text-xs mt-1">{errors.cardNumber}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-gray-300 text-sm mb-2">Karteninhaber</label>
-                <input
-                  type="text"
-                  name="cardName"
-                  value={paymentDetails.cardName || ''}
-                  onChange={handleInputChange}
-                  placeholder="Max Mustermann"
-                  className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-                />
-                {errors.cardName && (
-                  <p className="text-red-400 text-xs mt-1">{errors.cardName}</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-300 text-sm mb-2">Ablaufdatum</label>
-                  <input
-                    type="text"
-                    name="expiryDate"
-                    value={paymentDetails.expiryDate || ''}
-                    onChange={(e) => {
-                      const formatted = formatExpiryDate(e.target.value)
-                      setPaymentDetails((prev) => ({ ...prev, expiryDate: formatted }))
-                    }}
-                    placeholder="MM/YY"
-                    maxLength={5}
-                    className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-                  />
-                  {errors.expiryDate && (
-                    <p className="text-red-400 text-xs mt-1">{errors.expiryDate}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-gray-300 text-sm mb-2">CVV</label>
-                  <input
-                    type="text"
-                    name="cvv"
-                    value={paymentDetails.cvv || ''}
-                    onChange={handleInputChange}
-                    placeholder="123"
-                    maxLength={4}
-                    className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-                  />
-                  {errors.cvv && (
-                    <p className="text-red-400 text-xs mt-1">{errors.cvv}</p>
-                  )}
-                </div>
-              </div>
+            <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <p className="text-blue-400 text-sm">
+                <strong>Hinweis:</strong> Sie werden nach dem Klick auf "Jetzt bezahlen" zu PayPal weitergeleitet, um die Zahlung sicher abzuwickeln.
+              </p>
             </div>
-          )}
+          </div>
 
           {paymentMethod === 'paypal' && (
             <div className="mb-6">

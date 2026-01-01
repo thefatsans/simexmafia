@@ -44,6 +44,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
+
     // Get all sellers to map seller names to IDs
     const sellers = await prisma.seller.findMany()
     const sellerMap = new Map(sellers.map((s: { name: string; id: string }) => [s.name, s.id]))
@@ -56,6 +60,11 @@ export async function POST(request: NextRequest) {
 
     for (const product of productsToMigrate) {
       try {
+        if (!prisma) {
+          errors.push({ product: product.name || product.id, error: 'Database not available' })
+          continue
+        }
+
         // Check if product already exists (by name or by old ID)
         const existing = await prisma.product.findFirst({
           where: {

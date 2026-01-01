@@ -19,14 +19,14 @@ import { useAuth } from '@/contexts/AuthContext'
 
 export default function DailyRewardsPage() {
   const router = useRouter()
-  const { isAuthenticated, isLoading: authLoading, user, addCoins } = useAuth()
+  const { isAuthenticated, isLoading: authLoading, user, addCoins, syncUserFromDatabase } = useAuth()
   
   // All hooks must be called before any conditional returns
   const [rewardData, setRewardData] = useState(() => getDailyRewardData(user?.id))
   const [showClaimModal, setShowClaimModal] = useState(false)
   const [claimedReward, setClaimedReward] = useState<{ reward: DailyReward; totalCoins: number } | null>(null)
   const [timeUntilNext, setTimeUntilNext] = useState(0)
-  const { showSuccess, showInfo } = useToast()
+  const { showSuccess, showInfo, showError } = useToast()
   
   // Get userCoins from AuthContext
   const userCoins = user?.goofyCoins || 0
@@ -101,28 +101,51 @@ export default function DailyRewardsPage() {
     }
   }
 
-  const handleClaim = () => {
-    if (!user) return
+  const handleClaim = async () => {
+    if (!user?.id) return
     
-    const result = claimDailyReward(user.id)
-    
-    if (result.success && result.reward) {
-      // Add coins to user account via AuthContext
-      addCoins(result.totalCoins)
-      setClaimedReward({ reward: result.reward, totalCoins: result.totalCoins })
+    try {
+      // Rufe API auf für serverseitige Validierung
+      const response = await fetch('/api/daily-rewards/claim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        showError?.(data.error || 'Fehler beim Einlösen der täglichen Belohnung')
+        return
+      }
+
+      // Update user balance from server response
+      if (data.newBalance !== undefined) {
+        // Synchronisiere User-Balance mit Server
+        await syncUserFromDatabase()
+      }
+
+      setClaimedReward({ reward: data.reward, totalCoins: data.totalCoins })
       setShowClaimModal(false)
       loadData()
       
       // Toast-Benachrichtigung
-      showSuccess(`Tägliche Belohnung erhalten! +${result.totalCoins} GoofyCoins`, 5000)
-      if (result.newStreak > 1) {
-        showInfo(`Streak: ${result.newStreak} Tage!`, 4000)
+      showSuccess(`Tägliche Belohnung erhalten! +${data.totalCoins} GoofyCoins`, 5000)
+      if (data.newStreak > 1) {
+        showInfo(`Streak: ${data.newStreak} Tage!`, 4000)
       }
       
       // Nach 5 Sekunden Erfolgs-Modal schließen
       setTimeout(() => {
         setClaimedReward(null)
       }, 5000)
+    } catch (error: any) {
+      console.error('[Daily Rewards] Error claiming reward:', error)
+      showError('Fehler beim Einlösen der täglichen Belohnung')
     }
   }
 

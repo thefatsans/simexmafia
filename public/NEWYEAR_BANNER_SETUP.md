@@ -26,3 +26,10 @@ Um das Banner zu entfernen, lösche einfach:
 - `components/NewYearSaleBanner.tsx`
 - Den Import und die Verwendung in `app/page.tsx`
 
+
+
+
+
+
+
+

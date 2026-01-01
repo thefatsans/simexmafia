@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Category } from '@/types'
 import { getProductsFromAPI } from '@/lib/api/products'
+import AnimatedSection from '@/components/AnimatedSection'
 
 const categoryInfo: Record<Category, { name: string; icon: string; description: string }> = {
   'games': {
@@ -84,35 +85,41 @@ export default function CategoriesPage() {
   }, [])
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 page-transition">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-12 text-center">
+        <AnimatedSection animationType="fadeInUp" className="mb-12 text-center">
           <h1 className="text-4xl font-bold text-white mb-4">Nach Kategorie einkaufen</h1>
           <p className="text-gray-400 text-lg">
             Durchsuchen Sie unsere große Auswahl an digitalen Gaming-Produkten
           </p>
-        </div>
+        </AnimatedSection>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories.map((category) => {
+          {categories.map((category, index) => {
             const info = categoryInfo[category]
             const count = isLoading ? 0 : (productCounts[category] || 0)
             
             return (
-              <Link
+              <AnimatedSection
                 key={category}
-                href={`/categories/${category}`}
-                className="group bg-fortnite-dark border border-purple-500/20 rounded-lg p-8 hover:border-purple-500/50 transition-all hover:transform hover:scale-105"
+                animationType="fadeInScale"
+                delay={index * 100}
+                className="h-full"
               >
-                <div className="text-6xl mb-4">{info.icon}</div>
-                <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">
-                  {info.name}
-                </h2>
-                <p className="text-gray-400 mb-4">{info.description}</p>
-                <p className="text-purple-400 font-semibold">
-                  {isLoading ? '...' : `${count} Produkte`} →
-                </p>
-              </Link>
+                <Link
+                  href={`/categories/${category}`}
+                  className="group bg-fortnite-dark border border-purple-500/20 rounded-lg p-8 hover:border-purple-500/50 smooth-hover scale-on-hover block h-full"
+                >
+                  <div className="text-6xl mb-4">{info.icon}</div>
+                  <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-purple-400 smooth-hover">
+                    {info.name}
+                  </h2>
+                  <p className="text-gray-400 mb-4">{info.description}</p>
+                  <p className="text-purple-400 font-semibold">
+                    {isLoading ? '...' : `${count} Produkte`} →
+                  </p>
+                </Link>
+              </AnimatedSection>
             )
           })}
         </div>

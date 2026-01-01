@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
-import { User, Edit2, Save, X, LogOut, Coins, ShoppingBag, Calendar, Award } from 'lucide-react'
+import { User, Edit2, Save, X, LogOut, Coins, ShoppingBag, Calendar, Award, Gift, Trophy, Sparkles } from 'lucide-react'
 import { TIER_INFO, calculateTier } from '@/types/user'
 import { getOrders } from '@/data/payments'
 import { getSackHistory } from '@/data/sackHistory'
@@ -322,14 +322,58 @@ export default function AccountPage() {
                 >
                   Inventar
                 </a>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center justify-center space-x-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Abmelden</span>
-                </button>
               </div>
+            </div>
+
+            {/* Features Card */}
+            <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6">
+              <h2 className="text-2xl font-bold text-white mb-4">Features</h2>
+              <div className="space-y-3">
+                <a
+                  href="/sacks"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    router.push('/sacks')
+                  }}
+                  className="block w-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30 text-purple-400 px-4 py-3 rounded-lg transition-colors text-center flex items-center justify-center space-x-2"
+                >
+                  <Gift className="w-4 h-4" />
+                  <span>🎁 Säcke öffnen</span>
+                </a>
+                <a
+                  href="/daily-rewards"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    router.push('/daily-rewards')
+                  }}
+                  className="block w-full bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-400 px-4 py-3 rounded-lg transition-colors text-center flex items-center justify-center space-x-2"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Tägliche Belohnungen</span>
+                </a>
+                <a
+                  href="/leaderboard"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    router.push('/leaderboard')
+                  }}
+                  className="block w-full bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 px-4 py-3 rounded-lg transition-colors text-center flex items-center justify-center space-x-2"
+                >
+                  <Trophy className="w-4 h-4" />
+                  <span>🏆 Leaderboard</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Logout Card */}
+            <div className="bg-fortnite-dark border border-red-500/20 rounded-lg p-6">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center space-x-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Abmelden</span>
+              </button>
             </div>
           </div>
         </div>

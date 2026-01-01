@@ -12,6 +12,10 @@ export async function GET(request: NextRequest) {
     if (productId) where.productId = productId
     if (userId) where.userId = userId
 
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
+
     const reviews = await prisma.review.findMany({
       where,
       include: {
@@ -55,6 +59,10 @@ export async function POST(request: NextRequest) {
 
     if (rating < 1 || rating > 5) {
       return NextResponse.json({ error: 'Rating must be between 1 and 5' }, { status: 400 })
+    }
+
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
 
     // Prüfe ob User bereits ein Review für dieses Produkt hat

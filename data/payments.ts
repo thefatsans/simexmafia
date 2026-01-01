@@ -16,6 +16,7 @@ export interface OrderItem {
   price: number
   quantity: number
   metadata?: Record<string, any> // Zusätzliche Daten (z.B. Sack-Typ, Produkt-ID)
+  key?: string // Digital key/code for the product
 }
 
 export interface Order {
@@ -28,6 +29,7 @@ export interface Order {
   total: number
   paymentMethod: PaymentMethod
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+  statusReason?: string // Grund für fehlgeschlagen/storniert
   createdAt: string
   completedAt?: string
   coinsEarned?: number
@@ -37,6 +39,8 @@ export interface Order {
 const STORAGE_KEY = 'simexmafia-orders'
 
 export const createOrder = async (order: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order> => {
+  let createdOrder: Order
+  
   // Versuche API zu verwenden
   try {
     const { createOrderAPI } = await import('@/lib/api/orders')
@@ -51,7 +55,7 @@ export const createOrder = async (order: Omit<Order, 'id' | 'createdAt' | 'statu
       coinsEarned: order.coinsEarned || 0,
       discountCode: order.discountCode,
     })
-    return {
+    createdOrder = {
       id: apiOrder.id,
       userId: apiOrder.userId,
       items: apiOrder.items,
@@ -66,40 +70,70 @@ export const createOrder = async (order: Omit<Order, 'id' | 'createdAt' | 'statu
       coinsEarned: apiOrder.coinsEarned,
       discountCode: apiOrder.discountCode,
     }
+    console.log('[createOrder] Order created via API:', {
+      orderId: createdOrder.id,
+      userId: createdOrder.userId
+    })
   } catch (error) {
-    console.warn('API not available, using localStorage:', error)
+    console.warn('[createOrder] API not available, using localStorage:', error)
+    // Fallback: localStorage
+    createdOrder = {
+      ...order,
+      id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date().toISOString(),
+      status: 'pending',
+    }
   }
 
-  // Fallback: localStorage
-  const newOrder: Order = {
-    ...order,
-    id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    createdAt: new Date().toISOString(),
-    status: 'pending',
-  }
-  
+  // WICHTIG: Speichere IMMER im localStorage, auch wenn die API erfolgreich war
+  // Das stellt sicher, dass die Bestellungen im Admin-Panel angezeigt werden
   try {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(STORAGE_KEY)
       const orders = stored ? JSON.parse(stored) : []
-      orders.push(newOrder)
+      
+      // Prüfe, ob die Bestellung bereits existiert (z.B. von der API)
+      const existingIndex = orders.findIndex((o: Order) => o.id === createdOrder.id)
+      if (existingIndex >= 0) {
+        // Aktualisiere bestehende Bestellung
+        orders[existingIndex] = createdOrder
+      } else {
+        // Füge neue Bestellung hinzu
+        orders.push(createdOrder)
+      }
+      
       localStorage.setItem(STORAGE_KEY, JSON.stringify(orders))
+      console.log('[createOrder] Order saved to localStorage:', {
+        orderId: createdOrder.id,
+        userId: createdOrder.userId,
+        totalOrders: orders.length,
+        allOrderIds: orders.map((o: Order) => o.id)
+      })
     }
   } catch (error) {
-    console.error('Error saving order:', error)
+    console.error('[createOrder] Error saving order to localStorage:', error)
   }
   
-  return newOrder
+  return createdOrder
 }
 
 export const getOrders = (): Order[] => {
   try {
     if (typeof window === 'undefined') return []
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (!stored) return []
-    return JSON.parse(stored)
+    if (!stored) {
+      console.log('[getOrders] No orders in localStorage')
+      return []
+    }
+    const orders = JSON.parse(stored)
+    console.log('[getOrders] Loaded orders from localStorage:', {
+      count: orders.length,
+      orderIds: orders.map((o: Order) => o.id),
+      userIds: [...new Set(orders.map((o: Order) => o.userId))]
+    })
+    return orders
   } catch (error) {
-    console.error('Error loading orders:', error)
+    console.error('[getOrders] Error loading orders:', error)
     return []
   }
 }
@@ -154,7 +188,39 @@ export const processPayment = async (
   order: Order,
   paymentDetails: PaymentDetails
 ): Promise<{ success: boolean; orderId: string; error?: string; paymentIntentId?: string }> => {
-  // Barzahlung wird direkt in handleSubmit behandelt
+  // WICHTIG: Testzahlungen für Säcke und GoofyCoins deaktivieren
+  const isSackPurchase = order.items.some(item => item.type === 'sack')
+  const isGoofyCoinsPurchase = order.items.some(item => item.type === 'goofycoins')
+  
+  if (isSackPurchase || isGoofyCoinsPurchase) {
+    // Für Säcke und GoofyCoins: Nur echte Zahlungen erlauben
+    if (paymentDetails.method === 'cash') {
+      return {
+        success: false,
+        orderId: order.id,
+        error: 'Barzahlung ist für Säcke und GoofyCoins nicht verfügbar. Bitte verwenden Sie PayPal oder eine Kreditkarte.',
+      }
+    }
+    
+    // Für Kreditkartenzahlung: Stripe ist erforderlich
+    if (paymentDetails.method === 'credit-card') {
+      if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+        return {
+          success: false,
+          orderId: order.id,
+          error: 'Kreditkartenzahlung ist derzeit nicht verfügbar. Bitte verwenden Sie PayPal.',
+        }
+      }
+    }
+    
+    // Für PayPal: Weiterleitung zu PayPal erforderlich
+    if (paymentDetails.method === 'paypal') {
+      const paypalLink = process.env.NEXT_PUBLIC_PAYPAL_PAYMENT_LINK || 'https://paypal.me/SimexMafia'
+      // PayPal-Link wird in PaymentCheckout verwendet
+    }
+  }
+  
+  // Barzahlung wird direkt in handleSubmit behandelt (nur für normale Produkte)
   if (paymentDetails.method === 'cash') {
     return {
       success: true,
@@ -162,66 +228,30 @@ export const processPayment = async (
     }
   }
 
-  // Für Kreditkartenzahlung: Stripe ist erforderlich
-  if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+  // Kreditkartenzahlung ist nicht mehr verfügbar
+  if (paymentDetails.method === 'credit-card') {
     return {
       success: false,
       orderId: order.id,
-      error: 'Kreditkartenzahlung ist derzeit nicht verfügbar. Bitte wählen Sie Barzahlung oder kontaktieren Sie uns.',
+      error: 'Kreditkartenzahlung ist nicht mehr verfügbar. Bitte verwenden Sie PayPal oder Barzahlung.',
     }
   }
 
-  try {
-    // Erstelle Payment Intent
-    const response = await fetch('/api/payments/create-intent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        amount: order.total,
-        currency: 'eur',
-        metadata: {
-          orderId: order.id,
-          userId: order.userId,
-        },
-      }),
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      updateOrderStatus(order.id, 'failed')
-      return {
-        success: false,
-        orderId: order.id,
-        error: error.error || 'Zahlung konnte nicht initiiert werden',
-      }
-    }
-
-    const { clientSecret, paymentIntentId } = await response.json()
-
-    // Für PayPal: Hier würde man zu PayPal weiterleiten
-    if (paymentDetails.method === 'paypal') {
-      return {
-        success: false,
-        orderId: order.id,
-        error: 'PayPal-Zahlung ist derzeit nicht verfügbar.',
-      }
-    }
-
+  // Für PayPal: Weiterleitung zu PayPal (wird in PaymentCheckout behandelt)
+  if (paymentDetails.method === 'paypal') {
+    // PayPal-Weiterleitung wird in PaymentCheckout.tsx behandelt
+    // Hier geben wir success: true zurück, damit die Weiterleitung stattfinden kann
     return {
       success: true,
       orderId: order.id,
-      paymentIntentId,
     }
-  } catch (error: any) {
-    console.error('Payment processing error:', error)
-    updateOrderStatus(order.id, 'failed')
-    return {
-      success: false,
-      orderId: order.id,
-      error: error.message || 'Zahlung fehlgeschlagen',
-    }
+  }
+
+  // Fallback für unbekannte Zahlungsmethoden
+  return {
+    success: false,
+    orderId: order.id,
+    error: 'Unbekannte Zahlungsmethode',
   }
 }
 
@@ -262,34 +292,14 @@ export const confirmStripePayment = async (
 export const validatePaymentDetails = (details: PaymentDetails): { valid: boolean; errors: Record<string, string> } => {
   const errors: Record<string, string> = {}
   
+  // Kreditkartenzahlung ist nicht mehr verfügbar
   if (details.method === 'credit-card') {
-    if (!details.cardNumber) {
-      errors.cardNumber = 'Kartennummer ist erforderlich'
-    } else if (!/^\d{4}\s?\d{4}\s?\d{4}\s?\d{4}$/.test(details.cardNumber.replace(/\s/g, ''))) {
-      errors.cardNumber = 'Kartennummer ist ungültig'
-    }
-    
-    if (!details.cardName) {
-      errors.cardName = 'Karteninhaber-Name ist erforderlich'
-    }
-    
-    if (!details.expiryDate) {
-      errors.expiryDate = 'Ablaufdatum ist erforderlich'
-    } else if (!/^\d{2}\/\d{2}$/.test(details.expiryDate)) {
-      errors.expiryDate = 'Ablaufdatum muss im Format MM/YY sein'
-    }
-    
-    if (!details.cvv) {
-      errors.cvv = 'CVV ist erforderlich'
-    } else if (!/^\d{3,4}$/.test(details.cvv)) {
-      errors.cvv = 'CVV ist ungültig'
-    }
-  } else if (details.method === 'paypal') {
-    if (!details.paypalEmail) {
-      errors.paypalEmail = 'PayPal-E-Mail ist erforderlich'
-    } else if (!/\S+@\S+\.\S+/.test(details.paypalEmail)) {
-      errors.paypalEmail = 'E-Mail-Adresse ist ungültig'
-    }
+    errors.method = 'Kreditkartenzahlung ist nicht mehr verfügbar. Bitte verwenden Sie PayPal oder Barzahlung.'
+  }
+  
+  if (details.method === 'paypal') {
+    // PayPal-E-Mail ist optional, da wir zu PayPal weiterleiten
+    // Keine Validierung erforderlich
   }
   
   return {

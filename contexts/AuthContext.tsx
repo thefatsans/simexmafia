@@ -15,6 +15,7 @@ interface AuthContextType {
   updateUser: (updates: Partial<User>) => void
   addCoins: (amount: number) => void
   subtractCoins: (amount: number) => boolean // Returns true if successful, false if insufficient coins
+  syncUserFromDatabase: () => Promise<void> // Synchronisiert User-Daten mit der Datenbank
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -296,6 +297,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true
   }, [user, updateUser])
 
+  // Funktion zum Synchronisieren des Users mit der Datenbank
+  const syncUserFromDatabase = useCallback(async () => {
+    if (!user?.id) return
+
+    try {
+      const { getUserFromAPI } = await import('@/lib/api/users')
+      const dbUser = await getUserFromAPI(user.id)
+      
+      // Aktualisiere User mit Datenbank-Daten
+      if (dbUser) {
+        const updatedUser: User = {
+          id: dbUser.id,
+          email: dbUser.email,
+          firstName: dbUser.firstName,
+          lastName: dbUser.lastName,
+          goofyCoins: dbUser.goofyCoins || 0,
+          totalSpent: dbUser.totalSpent || 0,
+          tier: dbUser.tier || 'Bronze',
+          joinDate: dbUser.joinDate || user.joinDate,
+          avatar: dbUser.avatar,
+        }
+        
+        setUser(updatedUser)
+        
+        // Aktualisiere auch localStorage
+        localStorage.setItem('simexmafia-user', JSON.stringify(updatedUser))
+        
+        // Update in users list
+        const usersJson = localStorage.getItem('simexmafia-users')
+        if (usersJson) {
+          const users: StoredUser[] = JSON.parse(usersJson)
+          const userIndex = users.findIndex(u => u.id === user.id)
+          if (userIndex !== -1) {
+            users[userIndex] = { ...users[userIndex], ...updatedUser, password: users[userIndex].password }
+            localStorage.setItem('simexmafia-users', JSON.stringify(users))
+          }
+        }
+        
+        console.log('[AuthContext] Synced user from database:', updatedUser)
+      }
+    } catch (error) {
+      console.error('[AuthContext] Error syncing user from database:', error)
+      // Fallback: Verwende localStorage-Daten
+    }
+  }, [user?.id])
+
   return (
     <AuthContext.Provider
       value={{
@@ -309,6 +356,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateUser,
         addCoins,
         subtractCoins,
+        syncUserFromDatabase,
       }}
     >
       {children}

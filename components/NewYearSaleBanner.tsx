@@ -5,22 +5,39 @@ import Link from 'next/link'
 
 export default function NewYearSaleBanner() {
   return (
-    <section className="py-4 sm:py-6 w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
-      <div className="w-full">
+    <section 
+      className="py-5 sm:py-6"
+      style={{ 
+        width: '100vw',
+        position: 'relative',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        marginLeft: 0,
+        marginRight: 0,
+        maxWidth: 'none'
+      }}
+    >
+      <div className="w-full" style={{ width: '100%' }}>
         <div className="relative overflow-hidden">
           {/* Banner Content */}
           <Link 
             href="/products?sale=newyear"
             className="block relative w-full group"
           >
-            <div className="relative w-full flex items-center justify-center" style={{ minHeight: '300px', maxHeight: '500px' }}>
+            <div className="relative w-full" style={{ width: '100%', maxHeight: '550px' }}>
               <Image
-                src="/newyear-sale-banner.png"
+                src="/newyear-sale-banner-stretched.png"
                 alt="Neujahr Sale - 27.12. 06:00"
-                width={1920}
-                height={1080}
-                className="w-full h-auto object-contain group-hover:scale-[1.01] transition-transform duration-300"
-                style={{ maxHeight: '500px' }}
+                width={2800}
+                height={1200}
+                className="w-full h-auto group-hover:scale-[1.01] transition-transform duration-300"
+                style={{ 
+                  width: '100%',
+                  height: 'auto',
+                  display: 'block',
+                  maxHeight: '550px',
+                  objectFit: 'contain'
+                }}
                 priority
                 sizes="100vw"
                 onError={() => {

@@ -1,21 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthenticatedUser, requireResourceOwnership, requireAdmin } from '@/lib/api-auth'
 
 // GET /api/users?email=xxx oder /api/users?id=xxx - User abrufen
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const email = searchParams.get('email')
-    const id = searchParams.get('id')
+    const requestedId = searchParams.get('id')
 
-    if (!email && !id) {
+    if (!email && !requestedId) {
       return NextResponse.json({ error: 'email or id is required' }, { status: 400 })
     }
+    
+    // Prüfe Authentifizierung
+    const authResult = await getAuthenticatedUser(request)
+    if (authResult?.error) {
+      return authResult.error
+    }
+    
+    if (!authResult?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    
+    const { user: authenticatedUser } = authResult
+    
+    // Normale User können nur ihre eigenen Daten abrufen
+    // Admins können alle User-Daten abrufen
+    if (requestedId && requestedId !== authenticatedUser.id && !authenticatedUser.isAdmin) {
+      return NextResponse.json({ error: 'You can only access your own user data' }, { status: 403 })
+    }
+    
+    if (email && email !== authenticatedUser.email && !authenticatedUser.isAdmin) {
+      return NextResponse.json({ error: 'You can only access your own user data' }, { status: 403 })
+    }
 
-    const where = email ? { email } : (id ? { id } : null)
+    const where = email ? { email } : (requestedId ? { id: requestedId } : null)
 
     if (!where) {
       return NextResponse.json({ error: 'email or id is required' }, { status: 400 })
+    }
+
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
 
     const user = await prisma.user.findUnique({
@@ -56,6 +83,10 @@ export async function POST(request: NextRequest) {
     // Validierung
     if (!email || !firstName || !lastName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
 
     // Prüfe ob User bereits existiert
@@ -108,6 +139,32 @@ export async function PATCH(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 })
     }
+    
+    // Prüfe Authentifizierung
+    const authResult = await getAuthenticatedUser(request, body)
+    if (authResult?.error) {
+      return authResult.error
+    }
+    
+    if (!authResult?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    
+    const { user: authenticatedUser } = authResult
+    
+    // Normale User können nur ihre eigenen Daten aktualisieren (außer goofyCoins, totalSpent, tier - diese sind geschützt)
+    // Admins können alle User-Daten aktualisieren
+    if (id !== authenticatedUser.id && !authenticatedUser.isAdmin) {
+      return NextResponse.json({ error: 'You can only update your own user data' }, { status: 403 })
+    }
+    
+    // Nur Admins können goofyCoins, totalSpent und tier direkt ändern
+    // (Diese sollten nur durch System-Operationen geändert werden)
+    if ((goofyCoins !== undefined || totalSpent !== undefined || tier !== undefined) && !authenticatedUser.isAdmin) {
+      return NextResponse.json({ 
+        error: 'Only admins can update goofyCoins, totalSpent, or tier. These are managed by the system.' 
+      }, { status: 403 })
+    }
 
     const updateData: any = {}
     if (firstName) updateData.firstName = firstName
@@ -116,6 +173,10 @@ export async function PATCH(request: NextRequest) {
     if (goofyCoins !== undefined) updateData.goofyCoins = parseInt(goofyCoins)
     if (totalSpent !== undefined) updateData.totalSpent = parseFloat(totalSpent)
     if (tier) updateData.tier = tier
+
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+    }
 
     const user = await prisma.user.update({
       where: { id },

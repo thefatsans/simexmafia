@@ -30,6 +30,20 @@ module.exports = {
           'light-surface': '#ffffff',
           'light-border': '#e5e7eb',
         },
+        winter: {
+          ice: '#E0F2FE',
+          'ice-light': '#F0F9FF',
+          'ice-dark': '#BAE6FD',
+          snow: '#FFFFFF',
+          'snow-blue': '#E6F3FF',
+          frost: '#B3E5FC',
+          'frost-dark': '#81D4FA',
+          silver: '#C0C0C0',
+          'silver-light': '#E8E8E8',
+          blue: '#0EA5E9',
+          'blue-dark': '#0284C7',
+          'blue-light': '#38BDF8',
+        },
         // Light mode colors
         light: {
           bg: '#f8f9fa',

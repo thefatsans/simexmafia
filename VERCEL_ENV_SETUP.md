@@ -11,7 +11,7 @@ DATABASE_URL=postgresql://user:password@host:port/database
 
 ### 2. PayPal (für Zahlungen)
 ```
-NEXT_PUBLIC_PAYPAL_PAYMENT_LINK=https://www.paypal.com/paypalme/... oder https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=...
+NEXT_PUBLIC_PAYPAL_PAYMENT_LINK=https://paypal.me/SimexMafia
 ```
 - **Woher?** PayPal Dashboard → Zahlungslinks erstellen
 - **Wichtig:** Für Zahlungen erforderlich! Dies ist dein PayPal-Zahlungslink oder PayPal.me-Link
