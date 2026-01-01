@@ -314,8 +314,16 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden border-t border-purple-500/20 pointer-events-auto fixed left-0 right-0 z-[10001] bg-fortnite-darker/98 backdrop-blur-md" style={{ top: '80px', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
-            <div className="flex flex-col space-y-3 px-4 py-4 pb-8 pointer-events-auto">
+          <>
+            {/* Backdrop */}
+            <div 
+              className="md:hidden fixed inset-0 bg-black/50 z-[9998]"
+              style={{ top: '72px' }}
+              onClick={() => setIsMenuOpen(false)}
+            />
+            {/* Menu Content */}
+            <div className="md:hidden border-t border-purple-500/20 pointer-events-auto fixed left-0 right-0 z-[9999] bg-fortnite-darker/98 backdrop-blur-md overflow-y-auto" style={{ top: '72px', maxHeight: 'calc(100vh - 72px)' }}>
+              <div className="flex flex-col space-y-3 px-4 py-4 pb-20 pointer-events-auto min-h-full">
               <a 
                 href="/" 
                 onClick={(e) => {
@@ -518,8 +526,9 @@ export default function Navbar() {
                   </button>
                 </>
               )}
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
     </nav>
