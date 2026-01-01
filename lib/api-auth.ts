@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isAdmin as isAdminByEmail } from '@/data/admin'
 
 /**
  * Prüft ob ein User authentifiziert ist und gibt den User zurück
@@ -51,7 +52,15 @@ export async function getAuthenticatedUser(
       }
     }
     
-    return { user }
+    // Erweitere User mit E-Mail-basierter Admin-Prüfung (Fallback für Migration)
+    const isAdminUser = user.isAdmin || isAdminByEmail(user.email)
+    
+    return { 
+      user: {
+        ...user,
+        isAdmin: isAdminUser
+      }
+    }
   } catch (error: any) {
     console.error('[API Auth] Error authenticating user:', error)
     return {

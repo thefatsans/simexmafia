@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthenticatedUser, requireResourceOwnership, requireAdmin } from '@/lib/api-auth'
+import { isAdmin as isAdminByEmail } from '@/data/admin'
 
 // GET /api/users?email=xxx oder /api/users?id=xxx - User abrufen
 export async function GET(request: NextRequest) {
@@ -67,7 +68,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    return NextResponse.json(user)
+    // Erweitere User mit E-Mail-basierter Admin-Prüfung (Fallback für Migration)
+    const isAdminUser = user.isAdmin || isAdminByEmail(user.email)
+    
+    // Aktualisiere isAdmin-Feld in Datenbank, falls es nicht stimmt
+    if (isAdminUser !== user.isAdmin && prisma) {
+      try {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { isAdmin: isAdminUser },
+        })
+        console.log(`[Users API] Updated isAdmin for user ${user.email} to ${isAdminUser}`)
+      } catch (updateError) {
+        console.warn('[Users API] Failed to update isAdmin field:', updateError)
+      }
+    }
+
+    return NextResponse.json({
+      ...user,
+      isAdmin: isAdminUser
+    })
   } catch (error: any) {
     console.error('Error fetching user:', error)
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
@@ -98,6 +118,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User already exists' }, { status: 409 })
     }
 
+    // Prüfe ob E-Mail Admin-Rechte hat
+    const isAdmin = isAdminByEmail(email)
+    
     const user = await prisma.user.create({
       data: {
         email,
@@ -108,6 +131,7 @@ export async function POST(request: NextRequest) {
         goofyCoins: 0,
         totalSpent: 0,
         tier: 'Bronze',
+        isAdmin,
       },
       select: {
         id: true,
@@ -119,6 +143,7 @@ export async function POST(request: NextRequest) {
         tier: true,
         joinDate: true,
         avatar: true,
+        isAdmin: true,
         createdAt: true,
       },
     })
