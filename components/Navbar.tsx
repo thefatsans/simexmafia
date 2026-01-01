@@ -317,13 +317,18 @@ export default function Navbar() {
           <>
             {/* Backdrop */}
             <div 
-              className="md:hidden fixed inset-0 bg-black/50 z-[9998]"
+              className="md:hidden fixed inset-0 bg-black/80 z-[9998]"
               style={{ top: '72px' }}
               onClick={() => setIsMenuOpen(false)}
             />
             {/* Menu Content */}
-            <div className="md:hidden border-t border-purple-500/20 pointer-events-auto fixed left-0 right-0 z-[9999] bg-fortnite-darker/98 backdrop-blur-md overflow-y-auto" style={{ top: '72px', maxHeight: 'calc(100vh - 72px)' }}>
-              <div className="flex flex-col space-y-3 px-4 py-4 pb-20 pointer-events-auto min-h-full">
+            <div className="md:hidden border-t-2 border-purple-500/50 pointer-events-auto fixed left-0 right-0 z-[9999] overflow-y-auto shadow-2xl" style={{ 
+              top: '72px', 
+              maxHeight: 'calc(100vh - 72px)',
+              background: 'linear-gradient(180deg, rgba(8, 20, 35, 0.98) 0%, rgba(4, 12, 24, 0.98) 100%)',
+              backdropFilter: 'blur(20px)'
+            }}>
+              <div className="flex flex-col space-y-2 px-4 py-4 pb-20 pointer-events-auto min-h-full bg-gradient-to-b from-transparent to-purple-900/10">
               <a 
                 href="/" 
                 onClick={(e) => {
@@ -332,7 +337,7 @@ export default function Navbar() {
                   setIsMenuOpen(false)
                   window.location.href = '/'
                 }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto relative z-[10004] cursor-pointer py-2 px-3 rounded-lg hover:bg-purple-500/10 touch-manipulation text-base"
+                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
               >
                 Startseite
               </a>
@@ -344,7 +349,7 @@ export default function Navbar() {
                   setIsMenuOpen(false)
                   window.location.href = '/products'
                 }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto relative z-[10004] cursor-pointer py-2 px-3 rounded-lg hover:bg-purple-500/10 touch-manipulation text-base"
+                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
               >
                 Produkte
               </a>
@@ -356,7 +361,7 @@ export default function Navbar() {
                   setIsMenuOpen(false)
                   window.location.href = '/categories'
                 }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto relative z-[10004] cursor-pointer py-2 px-3 rounded-lg hover:bg-purple-500/10 touch-manipulation text-base"
+                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
               >
                 Kategorien
               </a>
@@ -368,7 +373,7 @@ export default function Navbar() {
                   setIsMenuOpen(false)
                   window.location.href = '/sellers'
                 }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto relative z-[10004] cursor-pointer py-2 px-3 rounded-lg hover:bg-purple-500/10 touch-manipulation text-base"
+                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
               >
                 Verkäufer
               </a>
@@ -380,7 +385,7 @@ export default function Navbar() {
                   setIsMenuOpen(false)
                   window.location.href = '/inventory'
                 }}
-                className="text-gray-300 hover:text-green-400 transition-colors pointer-events-auto relative z-[10004] cursor-pointer py-2 px-3 rounded-lg hover:bg-green-500/10 touch-manipulation text-base"
+                className="text-white hover:text-green-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-green-500/20 active:bg-green-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-green-500/30"
               >
                 📦 Inventar
               </a>
@@ -392,7 +397,7 @@ export default function Navbar() {
                   setIsMenuOpen(false)
                   window.location.href = '/daily-rewards'
                 }}
-                className="text-gray-300 hover:text-yellow-400 transition-colors pointer-events-auto relative z-[10004] cursor-pointer font-semibold py-2 px-3 rounded-lg hover:bg-yellow-500/10 touch-manipulation text-base"
+                className="text-white hover:text-yellow-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-yellow-500/20 active:bg-yellow-500/30 touch-manipulation text-base font-bold border border-transparent hover:border-yellow-500/30"
               >
                 🎁 Tägliche Belohnung
               </a>
@@ -404,7 +409,7 @@ export default function Navbar() {
                   setIsMenuOpen(false)
                   window.location.href = '/leaderboard'
                 }}
-                className="text-gray-300 hover:text-yellow-400 transition-colors pointer-events-auto relative z-[10004] cursor-pointer py-2 px-3 rounded-lg hover:bg-yellow-500/10 touch-manipulation text-base"
+                className="text-white hover:text-yellow-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-yellow-500/20 active:bg-yellow-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-yellow-500/30"
               >
                 🏆 Leaderboard
               </a>
@@ -416,7 +421,7 @@ export default function Navbar() {
                   setIsMenuOpen(false)
                   window.location.href = '/wishlist'
                 }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto relative z-[10004] cursor-pointer py-2 px-3 rounded-lg hover:bg-purple-500/10 touch-manipulation text-base"
+                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
               >
                 Wunschliste
               </a>
@@ -428,7 +433,7 @@ export default function Navbar() {
                   setIsMenuOpen(false)
                   window.location.href = '/compare'
                 }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto relative z-[10004] cursor-pointer py-2 px-3 rounded-lg hover:bg-purple-500/10 touch-manipulation text-base"
+                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
               >
                 Produktvergleich {compareCount > 0 && `(${compareCount})`}
               </a>
@@ -437,7 +442,7 @@ export default function Navbar() {
                   toggleTheme()
                   setIsMenuOpen(false)
                 }}
-                className="text-gray-300 hover:text-purple-400 transition-colors pointer-events-auto relative z-[10004] cursor-pointer text-left flex items-center space-x-2 py-2 px-3 rounded-lg hover:bg-purple-500/10 touch-manipulation text-base w-full"
+                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer text-left flex items-center space-x-2 py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium w-full border border-transparent hover:border-purple-500/30"
                 suppressHydrationWarning
               >
                 {mounted ? (
@@ -468,7 +473,7 @@ export default function Navbar() {
                     setIsMenuOpen(false)
                     window.location.href = '/auth/login'
                   }}
-                  className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto relative z-[10004] cursor-pointer py-2 px-3 rounded-lg hover:bg-purple-500/10 touch-manipulation text-base"
+                  className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
                 >
                   🔐 Anmelden
                 </a>
@@ -496,7 +501,7 @@ export default function Navbar() {
                         setIsMenuOpen(false)
                         window.location.href = '/admin'
                       }}
-                      className="text-gray-300 hover:text-purple-400 transition-colors pointer-events-auto relative z-[10004] cursor-pointer font-semibold py-2 px-3 rounded-lg hover:bg-purple-500/10 touch-manipulation text-base"
+                      className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-bold border border-transparent hover:border-purple-500/30"
                     >
                       ⚙️ Admin Panel
                     </a>
@@ -509,7 +514,7 @@ export default function Navbar() {
                       setIsMenuOpen(false)
                       window.location.href = '/account'
                     }}
-                    className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-purple-400 hover:text-purple-600 transition-colors pointer-events-auto relative z-[10004] cursor-pointer py-2 px-3 rounded-lg hover:bg-purple-500/10 touch-manipulation text-base"
+                    className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
                   >
                     👤 {user?.firstName || 'Konto'}
                   </a>
@@ -519,7 +524,7 @@ export default function Navbar() {
                       setIsMenuOpen(false)
                       window.location.href = '/'
                     }}
-                    className="text-gray-300 hover:text-red-400 transition-colors pointer-events-auto relative z-[10004] cursor-pointer text-left py-2 px-3 rounded-lg hover:bg-red-500/10 touch-manipulation text-base w-full"
+                    className="text-white hover:text-red-300 transition-colors pointer-events-auto relative cursor-pointer text-left py-3 px-4 rounded-lg hover:bg-red-500/20 active:bg-red-500/30 touch-manipulation text-base font-medium w-full border border-transparent hover:border-red-500/30"
                     suppressHydrationWarning
                   >
                     <span>🚪 Abmelden</span>
