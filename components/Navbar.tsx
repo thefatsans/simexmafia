@@ -59,7 +59,7 @@ export default function Navbar() {
       WebkitBackdropFilter: 'blur(12px)',
     }} suppressHydrationWarning>
       <div className="w-full pointer-events-auto overflow-visible">
-        <div className="flex items-center justify-between gap-4 py-3 md:py-4 px-4 sm:px-6 lg:px-8 pointer-events-auto w-full">
+        <div className="flex items-center justify-between gap-2 py-3 md:py-4 px-3 sm:px-6 lg:px-8 pointer-events-auto w-full">
           {/* Left Section: Logo + Navigation */}
           <div className="flex items-center gap-6 flex-shrink-0">
             {/* Logo */}
@@ -165,7 +165,7 @@ export default function Navbar() {
           </form>
 
           {/* Right Section: Actions */}
-          <div className="flex items-center space-x-2 lg:space-x-3 flex-shrink-0 relative z-[10000] pointer-events-auto">
+          <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-shrink-0 relative z-[10000] pointer-events-auto">
             {!mounted ? null : isAuthenticated && user ? (
               <a 
                 href="/account/goofycoins" 
@@ -188,10 +188,10 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/wishlist'
               }}
-              className="relative p-2.5 sm:p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               title="Wunschliste"
             >
-              <Heart className="w-5 h-5 sm:w-5 sm:h-5" />
+              <Heart className="w-5 h-5" />
               {wishlistCount > 0 && (
                 <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                   {wishlistCount > 9 ? '9+' : wishlistCount}
@@ -205,10 +205,10 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/compare'
               }}
-              className="relative p-2.5 sm:p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               title="Produktvergleich"
             >
-              <GitCompare className="w-5 h-5 sm:w-5 sm:h-5" />
+              <GitCompare className="w-5 h-5" />
               {compareCount > 0 && (
                 <span className="absolute top-0 right-0 bg-winter-blue text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                   {compareCount > 9 ? '9+' : compareCount}
@@ -217,16 +217,16 @@ export default function Navbar() {
             </a>
             <button
               onClick={toggleTheme}
-              className="p-2.5 sm:p-2 text-gray-300 hover:text-winter-ice transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="p-2 text-gray-300 hover:text-winter-ice transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               title={mounted ? (theme === 'dark' ? 'Light Mode aktivieren' : 'Dark Mode aktivieren') : 'Theme wechseln'}
               suppressHydrationWarning
             >
               {!mounted ? (
-                <Moon className="w-5 h-5 sm:w-5 sm:h-5" />
+                <Moon className="w-5 h-5" />
               ) : theme === 'dark' ? (
-                <Sun className="w-5 h-5 sm:w-5 sm:h-5" />
+                <Sun className="w-5 h-5" />
               ) : (
-                <Moon className="w-5 h-5 sm:w-5 sm:h-5" />
+                <Moon className="w-5 h-5" />
               )}
             </button>
             <a 
@@ -236,10 +236,10 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/cart'
               }}
-              className="relative p-2.5 sm:p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               title="Warenkorb"
             >
-              <ShoppingCart className="w-5 h-5 sm:w-5 sm:h-5" />
+              <ShoppingCart className="w-5 h-5" />
               {cartCount > 0 && (
                 <span className="absolute top-0 right-0 bg-purple-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   {cartCount > 9 ? '9+' : cartCount}
@@ -303,11 +303,11 @@ export default function Navbar() {
             )}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2.5 sm:p-2 text-gray-300 hover:text-winter-ice transition-colors pointer-events-auto relative z-[10003] min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="lg:hidden p-2 text-gray-300 hover:text-winter-ice transition-colors pointer-events-auto relative z-[10003] min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               suppressHydrationWarning
               aria-label="Menü öffnen"
             >
-              <Menu className="w-6 h-6 sm:w-6 sm:h-6" />
+              <Menu className="w-6 h-6" />
             </button>
           </div>
         </div>
