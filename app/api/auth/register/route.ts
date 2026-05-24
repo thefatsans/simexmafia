@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { hashPassword } from '@/lib/password'
+import { hashPassword, isDatabaseConnectionError } from '@/lib/password'
 import { dbUserToClientUser, publicUserSelect } from '@/lib/auth-user'
 import { isAdmin as isAdminByEmail } from '@/data/admin'
 
@@ -28,17 +28,38 @@ export async function POST(request: NextRequest) {
 
     if (!prisma) {
       return NextResponse.json(
-        { success: false, error: 'Datenbank nicht verfügbar. Bitte versuchen Sie es später erneut.' },
+        {
+          success: false,
+          error: 'Datenbank nicht verfügbar. Bitte versuchen Sie es später erneut.',
+          code: 'DB_UNAVAILABLE',
+        },
         { status: 503 }
       )
     }
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
-      select: { id: true },
+      select: { id: true, passwordHash: true },
     })
 
     if (existingUser) {
+      // Konto existiert ohne Passwort (z.B. früher nur per Sync) → Passwort setzen
+      if (!existingUser.passwordHash) {
+        const updated = await prisma.user.update({
+          where: { email },
+          data: {
+            passwordHash: hashPassword(password),
+            firstName,
+            lastName,
+          },
+          select: publicUserSelect,
+        })
+        return NextResponse.json({
+          success: true,
+          user: dbUserToClientUser(updated),
+        })
+      }
+
       return NextResponse.json(
         {
           success: false,
@@ -78,6 +99,17 @@ export async function POST(request: NextRequest) {
           error: 'Diese E-Mail ist bereits registriert. Bitte melden Sie sich an.',
         },
         { status: 409 }
+      )
+    }
+
+    if (isDatabaseConnectionError(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Datenbank nicht verfügbar. Bitte versuchen Sie es später erneut.',
+          code: 'DB_UNAVAILABLE',
+        },
+        { status: 503 }
       )
     }
 

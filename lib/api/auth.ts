@@ -1,10 +1,18 @@
 import type { User } from '@/types/user'
 
-type AuthApiResponse = {
+export type AuthApiResponse = {
   success: boolean
   user?: User
   error?: string
   code?: string
+}
+
+export function isDbUnavailableResponse(result: AuthApiResponse): boolean {
+  return (
+    result.code === 'DB_UNAVAILABLE' ||
+    !!result.error?.includes('Datenbank') ||
+    !!result.error?.includes('Verbindung')
+  )
 }
 
 export async function loginAPI(email: string, password: string): Promise<AuthApiResponse> {

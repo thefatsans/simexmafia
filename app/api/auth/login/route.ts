@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyPassword } from '@/lib/password'
+import { verifyPassword, isDatabaseConnectionError } from '@/lib/password'
 import { dbUserToClientUser, publicUserSelect } from '@/lib/auth-user'
 import { isAdmin as isAdminByEmail } from '@/data/admin'
 
@@ -19,7 +19,11 @@ export async function POST(request: NextRequest) {
 
     if (!prisma) {
       return NextResponse.json(
-        { success: false, error: 'Datenbank nicht verfügbar. Bitte versuchen Sie es später erneut.' },
+        {
+          success: false,
+          error: 'Datenbank nicht verfügbar. Bitte versuchen Sie es später erneut.',
+          code: 'DB_UNAVAILABLE',
+        },
         { status: 503 }
       )
     }
@@ -66,6 +70,18 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[Auth Login] Error:', error)
+
+    if (isDatabaseConnectionError(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Datenbank nicht verfügbar. Bitte versuchen Sie es später erneut.',
+          code: 'DB_UNAVAILABLE',
+        },
+        { status: 503 }
+      )
+    }
+
     return NextResponse.json(
       { success: false, error: 'Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.' },
       { status: 500 }

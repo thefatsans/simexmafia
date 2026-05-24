@@ -6,12 +6,15 @@ import {
   persistUserSession,
   hashPasswordClient,
   tryLocalLogin,
+  registerLocal,
+  syncLocalUserToDatabase,
 } from '@/lib/auth-session'
 import {
   loginAPI,
   registerAPI,
   googleLoginAPI,
   migratePasswordAPI,
+  isDbUnavailableResponse,
 } from '@/lib/api/auth'
 
 interface AuthContextType {
@@ -54,9 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const applyLoggedInUser = useCallback((userData: User, passwordHash?: string) => {
+  const applyLoggedInUser = useCallback((userData: User, passwordHash?: string, passwordPlain?: string) => {
     setUser(userData)
     persistUserSession(userData, passwordHash)
+    if (passwordPlain) {
+      syncLocalUserToDatabase(userData, passwordPlain).catch(() => {})
+    }
   }, [])
 
   const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -64,54 +70,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const normalizedEmail = email.trim().toLowerCase()
       const passwordHash = hashPasswordClient(password)
 
-      // 1. Datenbank-Login (primär)
       const apiResult = await loginAPI(normalizedEmail, password)
 
       if (apiResult.success && apiResult.user) {
-        applyLoggedInUser(apiResult.user, passwordHash)
+        applyLoggedInUser(apiResult.user, passwordHash, password)
         return { success: true }
       }
 
-      // 2. Legacy-Konto ohne Passwort in DB: aus localStorage migrieren
+      // Konto in DB ohne Passwort → aus localStorage migrieren
       if (apiResult.code === 'NO_PASSWORD') {
         const localResult = tryLocalLogin(normalizedEmail, password)
-        if (localResult.success) {
-          const migrated = await migratePasswordAPI(normalizedEmail, password)
-          if (migrated.success) {
-            const retry = await loginAPI(normalizedEmail, password)
-            if (retry.success && retry.user) {
-              applyLoggedInUser(retry.user, passwordHash)
-              return { success: true }
-            }
-          }
-          if (localResult.user) {
-            applyLoggedInUser(localResult.user, passwordHash)
+        if (localResult.success && localResult.user) {
+          await migratePasswordAPI(normalizedEmail, password)
+          const retry = await loginAPI(normalizedEmail, password)
+          if (retry.success && retry.user) {
+            applyLoggedInUser(retry.user, passwordHash, password)
             return { success: true }
           }
+          applyLoggedInUser(localResult.user, passwordHash, password)
+          return { success: true }
         }
       }
 
-      // 3. Fallback: localStorage (wenn DB nicht erreichbar)
-      if (
-        apiResult.error?.includes('Datenbank') ||
-        apiResult.error?.includes('Verbindung')
-      ) {
-        const localResult = tryLocalLogin(normalizedEmail, password)
-        if (localResult.success && localResult.user) {
-          setUser(localResult.user)
-          return { success: true }
+      // Fallback: localStorage (DB down, User nur lokal, oder noch nicht in DB)
+      const localResult = tryLocalLogin(normalizedEmail, password)
+      if (localResult.success && localResult.user) {
+        applyLoggedInUser(localResult.user, passwordHash, password)
+        return { success: true }
+      }
+
+      if (isDbUnavailableResponse(apiResult)) {
+        return {
+          success: false,
+          error: localResult.error || 'Anmeldung offline nicht möglich. Kein lokales Konto gefunden.',
         }
       }
 
       return {
         success: false,
-        error: apiResult.error || 'Ungültige E-Mail oder Passwort',
+        error: apiResult.error || localResult.error || 'Ungültige E-Mail oder Passwort',
       }
     } catch (error) {
       console.error('Login error:', error)
       const localResult = tryLocalLogin(email, password)
       if (localResult.success && localResult.user) {
-        setUser(localResult.user)
+        const passwordHash = hashPasswordClient(password)
+        applyLoggedInUser(localResult.user, passwordHash, password)
         return { success: true }
       }
       return { success: false, error: 'Ein Fehler ist aufgetreten' }
@@ -131,6 +135,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (apiResult.success && apiResult.user) {
         applyLoggedInUser(apiResult.user)
         return { success: true }
+      }
+
+      if (isDbUnavailableResponse(apiResult)) {
+        return {
+          success: false,
+          error: 'Google-Anmeldung erfordert eine Datenbankverbindung.',
+        }
       }
 
       return {
@@ -163,7 +174,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const normalizedEmail = email.trim().toLowerCase()
       const passwordHash = hashPasswordClient(password)
 
-      // Registrierung in der Datenbank (verhindert doppelte E-Mails)
       const apiResult = await registerAPI(
         normalizedEmail,
         password,
@@ -172,13 +182,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
 
       if (apiResult.success && apiResult.user) {
-        applyLoggedInUser(apiResult.user, passwordHash)
-
-        sendWelcomeEmail(normalizedEmail, firstName).catch((err) => {
-          console.error('Error sending welcome email:', err)
-        })
-
+        applyLoggedInUser(apiResult.user, passwordHash, password)
+        sendWelcomeEmail(normalizedEmail, firstName).catch(() => {})
         return { success: true }
+      }
+
+      // E-Mail schon in DB → mit Passwort anmelden (z.B. nach Sync ohne Passwort)
+      if (apiResult.error?.includes('bereits registriert')) {
+        const loginResult = await loginAPI(normalizedEmail, password)
+        if (loginResult.success && loginResult.user) {
+          applyLoggedInUser(loginResult.user, passwordHash, password)
+          return { success: true }
+        }
+      }
+
+      // Fallback: localStorage wenn DB nicht erreichbar
+      if (isDbUnavailableResponse(apiResult)) {
+        const localRegister = registerLocal(
+          normalizedEmail,
+          password,
+          firstName,
+          lastName
+        )
+
+        if (localRegister.success && localRegister.user) {
+          applyLoggedInUser(localRegister.user, passwordHash, password)
+          sendWelcomeEmail(normalizedEmail, firstName).catch(() => {})
+          return { success: true }
+        }
+
+        if (localRegister.error?.includes('bereits registriert')) {
+          const localLogin = tryLocalLogin(normalizedEmail, password)
+          if (localLogin.success && localLogin.user) {
+            applyLoggedInUser(localLogin.user, passwordHash, password)
+            return { success: true }
+          }
+          return {
+            success: false,
+            error: 'Diese E-Mail ist bereits registriert. Bitte melden Sie sich an.',
+          }
+        }
+
+        if (localRegister.error) {
+          return { success: false, error: localRegister.error }
+        }
       }
 
       return {
@@ -187,6 +234,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Registration error:', error)
+
+      const localRegister = registerLocal(email, password, firstName, lastName)
+      if (localRegister.success && localRegister.user) {
+        const passwordHash = hashPasswordClient(password)
+        applyLoggedInUser(localRegister.user, passwordHash, password)
+        return { success: true }
+      }
+
       return { success: false, error: 'Ein Fehler ist aufgetreten' }
     }
   }, [applyLoggedInUser])
@@ -230,7 +285,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         lastName: user.lastName,
       })
 
-      if (dbUser) {
+      if (dbUser && !dbUser.error) {
         const updatedUser: User = {
           id: dbUser.id,
           email: dbUser.email,
