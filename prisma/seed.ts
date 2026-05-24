@@ -1,3 +1,7 @@
+if (process.env.DATABASE_URL?.includes('supabase') && process.env.NODE_TLS_REJECT_UNAUTHORIZED === undefined) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+}
+
 import { PrismaClient } from '@prisma/client'
 import { readFileSync } from 'fs'
 import path from 'path'
@@ -24,6 +28,10 @@ if (!DATABASE_URL) {
 // Set DATABASE_URL in environment before creating PrismaClient
 process.env.DATABASE_URL = DATABASE_URL
 
+if (DATABASE_URL.includes('supabase') && process.env.NODE_TLS_REJECT_UNAUTHORIZED === undefined) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+}
+
 console.log('🔗 Using DATABASE_URL:', DATABASE_URL.substring(0, 50) + '...')
 
 // For Prisma 7, we need to use the connection string from prisma.config.ts
@@ -34,6 +42,9 @@ import { PrismaPg } from '@prisma/adapter-pg'
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
+  ssl: DATABASE_URL.includes('supabase')
+    ? { rejectUnauthorized: false }
+    : undefined,
 })
 
 const adapter = new PrismaPg(pool)

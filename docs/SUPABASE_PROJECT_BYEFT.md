@@ -19,11 +19,24 @@ Oder klassisch:
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 ```
 
-## 2. Datenbank (Prisma)
+## 2. Datenbank (Prisma) – dein Connection String
 
-1. Öffne [Database Settings](https://supabase.com/dashboard/project/byeftmpqmovxikdfajyj/settings/database)
-2. **Connection string** → **URI** → **Session pooler** (Port **6543**)
-3. Passwort einsetzen und als `DATABASE_URL` speichern
+Aus Supabase → **Database** → **Connection string** → **Session pooler**:
+
+```
+Host:     aws-0-eu-west-1.pooler.supabase.com
+Port:     5432
+User:     postgres.byeftmpqmovxikdfajyj
+Database: postgres
+```
+
+In `.env.local`:
+
+```env
+DATABASE_URL="postgresql://postgres.byeftmpqmovxikdfajyj:DEIN_PASSWORT@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require"
+```
+
+Passwort vergessen? → [Database Settings](https://supabase.com/dashboard/project/byeftmpqmovxikdfajyj/settings/database) → **Reset database password**
 
 ## 3. Tabellen anlegen
 
