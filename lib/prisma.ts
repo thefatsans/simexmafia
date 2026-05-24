@@ -56,12 +56,14 @@ if (process.env.DATABASE_URL) {
             console.log('[Prisma] Using existing pooler connection')
             console.log('[Prisma] Project ref:', projectRef)
           } else {
-            // Convert to Session Pooler (IPv4 compatible)
-            const poolerHost = `aws-0-eu-central-1.pooler.supabase.com`
-            const poolerPort = '6543'
+            // Convert direct connection to Session Pooler (use env override or default region)
+            const poolerHost =
+              process.env.SUPABASE_POOLER_HOST ||
+              'aws-0-eu-central-1.pooler.supabase.com'
+            const poolerPort = process.env.SUPABASE_POOLER_PORT || '6543'
             const poolerUsername = `postgres.${projectRef}`
             const newQuery = queryParams ? `${queryParams}&sslmode=require` : 'sslmode=require'
-            
+
             dbUrl = `postgresql://${poolerUsername}:${password}@${poolerHost}:${poolerPort}/${database}?${newQuery}`
             console.log('[Prisma] Using Session Pooler (IPv4 compatible)')
             console.log('[Prisma] Project ref:', projectRef)
