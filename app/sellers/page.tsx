@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { mockSellers } from '@/data/sellers'
+import { mockSellers, SIMEXMAFIA_SELLER_ID } from '@/data/sellers'
 import { Star, CheckCircle, TrendingUp } from 'lucide-react'
 import { getProductsFromAPI } from '@/lib/api/products'
 import { Product } from '@/types'
@@ -53,8 +53,9 @@ export default function SellersPage() {
     loadSellerStats()
   }, [])
 
-  // Sort by rating and review count
   const sortedSellers = [...sellersWithStats].sort((a, b) => {
+    if (a.id === SIMEXMAFIA_SELLER_ID) return -1
+    if (b.id === SIMEXMAFIA_SELLER_ID) return 1
     if (b.rating !== a.rating) return b.rating - a.rating
     return b.reviewCount - a.reviewCount
   })

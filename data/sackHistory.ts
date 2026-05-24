@@ -2,6 +2,7 @@ import { Sack, SackReward } from './sacks'
 
 export interface SackHistoryEntry {
   id: string
+  userId?: string
   sackId: string
   sackType: string
   sackName: string
@@ -11,6 +12,31 @@ export interface SackHistoryEntry {
   reward: SackReward
   purchaseMethod: 'coins' | 'money'
   pricePaid: number
+}
+
+async function syncSackOpenToServer(
+  entry: Omit<SackHistoryEntry, 'id' | 'openedAt'>,
+  userId: string
+) {
+  try {
+    await fetch('/api/sacks/record', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        userId,
+        sackType: entry.sackType,
+        sackName: entry.sackName,
+        sackIcon: entry.sackIcon,
+        sackColor: entry.sackColor,
+        purchaseMethod: entry.purchaseMethod,
+        pricePaid: entry.pricePaid,
+        reward: entry.reward,
+      }),
+    })
+  } catch (error) {
+    console.warn('[SackHistory] Server sync failed:', error)
+  }
 }
 
 const STORAGE_KEY = 'simexmafia-sack-history'
@@ -28,6 +54,7 @@ export const saveSackHistory = (entry: Omit<SackHistoryEntry, 'id' | 'openedAt'>
     
     const newEntry: SackHistoryEntry = {
       ...entry,
+      userId,
       sackId: sackIdWithUser,
       id: `sack-${timestamp}-${random}`,
       openedAt: new Date().toISOString(),
@@ -35,6 +62,11 @@ export const saveSackHistory = (entry: Omit<SackHistoryEntry, 'id' | 'openedAt'>
     
     const updated = [newEntry, ...history].slice(0, MAX_HISTORY)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+
+    if (userId) {
+      void syncSackOpenToServer(entry, userId)
+    }
+
     return newEntry
   } catch (error) {
     console.error('Error saving sack history:', error)
@@ -55,6 +87,22 @@ export const getSackHistory = (): SackHistoryEntry[] => {
   }
 }
 
+/** Sack-Verlauf nur für den eingeloggten User */
+export const getSackHistoryForUser = (userId: string): SackHistoryEntry[] => {
+  if (!userId) return []
+  const all = getSackHistory()
+  const byField = all.filter((entry) => entry.userId === userId)
+  if (byField.length > 0) return byField
+
+  const bySackId = all.filter((entry) => entry.sackId.includes(`-${userId}-`))
+  if (bySackId.length > 0) return bySackId
+
+  const hasAnyUserId = all.some((entry) => Boolean(entry.userId))
+  if (!hasAnyUserId && all.length > 0) return all
+
+  return []
+}
+
 export const clearSackHistory = () => {
   try {
     localStorage.removeItem(STORAGE_KEY)
@@ -63,8 +111,7 @@ export const clearSackHistory = () => {
   }
 }
 
-export const getSackStatistics = () => {
-  const history = getSackHistory()
+export const getSackStatisticsForHistory = (history: SackHistoryEntry[]) => {
   
   if (history.length === 0) {
     return {
@@ -146,6 +193,8 @@ export const getSackStatistics = () => {
     sackTypeCounts,
   }
 }
+
+export const getSackStatistics = () => getSackStatisticsForHistory(getSackHistory())
 
 
 

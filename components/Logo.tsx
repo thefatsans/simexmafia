@@ -48,7 +48,7 @@ export default function Logo({ width = 40, height = 40, showText = true, classNa
       )}
       {showText && (
         <div className="relative text-container flex items-center" style={{ animation: 'none !important', marginLeft: '-24px' }}>
-          <span className="relative text-3xl font-bold bg-gradient-to-r from-winter-ice via-winter-blue-light to-winter-snow bg-clip-text text-transparent drop-shadow-lg leading-none" style={{ animation: 'none !important' }}>
+          <span className="relative text-3xl font-bold bg-gradient-to-r from-summer-sky-light via-summer-ocean-light to-summer-sand bg-clip-text text-transparent drop-shadow-lg leading-none" style={{ animation: 'none !important' }}>
             SimexMafia
           </span>
         </div>

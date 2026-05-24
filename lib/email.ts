@@ -3,6 +3,9 @@
  * Unterstützt Resend API oder Fallback für Development
  */
 
+import { getSiteUrl, sitePath } from '@/lib/site-url'
+import { SUPPORT_EMAIL } from '@/lib/company-info'
+
 interface EmailOptions {
   to: string | string[]
   subject: string
@@ -32,15 +35,21 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
         subject: options.subject,
         html: options.html,
         text: options.text || options.html.replace(/<[^>]*>/g, ''),
-        from: options.from || 'SimexMafia <noreply@simexmafia.com>',
+        // Absender wird serverseitig über RESEND_FROM_EMAIL gesetzt
+        ...(options.from ? { from: options.from } : {}),
       }),
     })
 
     if (!response.ok) {
-      const error = await response.json()
+      const errorBody = await response.json().catch(() => ({}))
+      const message =
+        (errorBody as { error?: string }).error ||
+        (errorBody as { message?: string }).message ||
+        'Fehler beim Senden der E-Mail'
+      console.error('[sendEmail] API error:', message, errorBody)
       return {
         success: false,
-        error: error.message || 'Fehler beim Senden der E-Mail',
+        error: message,
       }
     }
 
@@ -62,6 +71,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
  * Sendet eine Bestätigungsmail nach der Registrierung
  */
 export async function sendWelcomeEmail(email: string, firstName: string): Promise<EmailResult> {
+  const siteUrl = getSiteUrl()
   const html = `
     <!DOCTYPE html>
     <html>
@@ -72,7 +82,9 @@ export async function sendWelcomeEmail(email: string, firstName: string): Promis
       </head>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">Willkommen bei SimexMafia!</h1>
+          <a href="${siteUrl}" style="color: white; text-decoration: none;">
+            <h1 style="color: white; margin: 0;">Willkommen bei SimexMafia!</h1>
+          </a>
         </div>
         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
           <p style="font-size: 16px;">Hallo ${firstName},</p>
@@ -85,16 +97,19 @@ export async function sendWelcomeEmail(email: string, firstName: string): Promis
             <li>Teil unserer Gaming-Community werden</li>
           </ul>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/account" 
+            <a href="${sitePath('/account')}" 
                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
               Zum Konto
             </a>
           </div>
-          <p style="font-size: 14px; color: #666; margin-top: 30px;">Bei Fragen stehen wir dir gerne zur Verfügung.</p>
+          <p style="font-size: 14px; color: #666; margin-top: 30px;">
+            Bei Fragen: <a href="mailto:${SUPPORT_EMAIL}" style="color: #667eea;">${SUPPORT_EMAIL}</a>
+          </p>
           <p style="font-size: 14px; color: #666;">Viel Spaß beim Shoppen!<br>Dein SimexMafia Team</p>
         </div>
         <div style="text-align: center; margin-top: 20px; padding: 20px; color: #999; font-size: 12px;">
           <p>Diese E-Mail wurde an ${email} gesendet.</p>
+          <p><a href="${siteUrl}" style="color: #667eea;">${siteUrl}</a></p>
           <p>© ${new Date().getFullYear()} SimexMafia. Alle Rechte vorbehalten.</p>
         </div>
       </body>
@@ -118,6 +133,7 @@ export async function sendOrderConfirmationEmail(
   orderTotal: number,
   items: Array<{ name: string; quantity: number; price: number }>
 ): Promise<EmailResult> {
+  const siteUrl = getSiteUrl()
   const itemsHtml = items
     .map(
       (item) => `
@@ -140,7 +156,9 @@ export async function sendOrderConfirmationEmail(
       </head>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">Bestellbestätigung</h1>
+          <a href="${siteUrl}" style="color: white; text-decoration: none;">
+            <h1 style="color: white; margin: 0;">Bestellbestätigung</h1>
+          </a>
         </div>
         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
           <p style="font-size: 16px;">Hallo ${firstName},</p>
@@ -165,14 +183,18 @@ export async function sendOrderConfirmationEmail(
             </table>
           </div>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/account/orders" 
+            <a href="${sitePath('/account/orders')}" 
                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
               Bestellung anzeigen
             </a>
           </div>
           <p style="font-size: 14px; color: #666;">Deine Bestellung wird so schnell wie möglich bearbeitet.</p>
+          <p style="font-size: 14px; color: #666; margin-top: 12px;">
+            Fragen? <a href="mailto:${SUPPORT_EMAIL}" style="color: #667eea;">${SUPPORT_EMAIL}</a>
+          </p>
         </div>
         <div style="text-align: center; margin-top: 20px; padding: 20px; color: #999; font-size: 12px;">
+          <p><a href="${siteUrl}" style="color: #667eea;">${siteUrl}</a></p>
           <p>© ${new Date().getFullYear()} SimexMafia. Alle Rechte vorbehalten.</p>
         </div>
       </body>

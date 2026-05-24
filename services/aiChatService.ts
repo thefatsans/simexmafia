@@ -1,5 +1,6 @@
 import { faqData } from '@/data/faq'
 import { getProductsFromAPI } from '@/lib/api/products'
+import { companyInfo } from '@/lib/company-info'
 import { Product } from '@/types'
 
 export interface ChatContext {
@@ -92,7 +93,7 @@ GOOFYCOINS:
 - Verwendbar für Säcke und Einkäufe
 
 KONTAKT:
-- E-Mail: info@simexmafia.de
+- E-Mail: ${companyInfo.contact.email}
 - Kontaktformular auf der Website
 - FAQ-Sektion verfügbar
 

@@ -6,9 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { User, Edit2, Save, X, LogOut, Coins, ShoppingBag, Calendar, Award, Gift, Trophy, Sparkles } from 'lucide-react'
 import { TIER_INFO, calculateTier } from '@/types/user'
-import { getOrders } from '@/data/payments'
-import { getSackHistory } from '@/data/sackHistory'
-import { getInventory } from '@/data/inventory'
+import { loadAccountStats } from '@/lib/api/account-stats'
 
 export default function AccountPage() {
   const router = useRouter()
@@ -41,19 +39,18 @@ export default function AccountPage() {
         email: user.email,
       })
 
-      // Calculate statistics
       const loadStats = async () => {
-        const orders = await getOrders()
-        const userOrders = orders.filter(o => o.userId === user.id)
-        const sackHistory = getSackHistory()
-        const inventory = getInventory()
-
-        setStats({
-          totalOrders: userOrders.length,
-          totalSpent: user.totalSpent,
-          sacksOpened: sackHistory.length,
-          itemsWon: inventory.filter(i => !i.isRedeemed).length,
-        })
+        try {
+          const data = await loadAccountStats(user)
+          setStats(data)
+        } catch {
+          setStats({
+            totalOrders: 0,
+            totalSpent: user.totalSpent ?? 0,
+            sacksOpened: 0,
+            itemsWon: 0,
+          })
+        }
       }
       loadStats()
     }

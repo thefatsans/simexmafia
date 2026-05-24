@@ -1,6 +1,7 @@
 'use client'
 
 import { Search, MessageCircle, Book, Mail, Phone } from 'lucide-react'
+import { companyInfo } from '@/lib/company-info'
 
 export default function HelpPage() {
   return (
@@ -67,10 +68,10 @@ export default function HelpPage() {
                 <h3 className="text-lg font-semibold text-white mb-1">E-Mail Support</h3>
                 <p className="text-gray-400 mb-2">Schreiben Sie uns eine E-Mail und wir antworten innerhalb von 24 Stunden.</p>
                 <a
-                  href="mailto:support@simexmafia.com"
+                  href={`mailto:${companyInfo.contact.email}`}
                   className="text-purple-400 hover:text-purple-300 transition-colors"
                 >
-                  support@simexmafia.com
+                  {companyInfo.contact.email}
                 </a>
               </div>
             </div>

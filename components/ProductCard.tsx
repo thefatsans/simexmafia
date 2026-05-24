@@ -65,9 +65,9 @@ export default function ProductCard({ product }: ProductCardProps) {
   }
 
   return (
-    <div className="group bg-fortnite-dark dark:bg-fortnite-dark bg-white dark:border-winter-ice/20 border-gray-200 rounded-lg overflow-hidden hover:border-winter-ice/50 dark:hover:border-winter-ice/50 hover:border-winter-blue smooth-hover hover:shadow-lg hover:shadow-winter-blue/20 dark:hover:shadow-winter-blue/20 relative">
+    <div className="group bg-fortnite-dark dark:bg-fortnite-dark bg-white dark:border-summer-sky-light/20 border-gray-200 rounded-lg overflow-hidden hover:border-summer-sky-light/50 dark:hover:border-summer-sky-light/50 hover:border-summer-ocean smooth-hover hover:shadow-lg hover:shadow-summer-ocean/20 dark:hover:shadow-summer-ocean/20 relative">
       {/* Image Container */}
-      <div className="relative aspect-video bg-gradient-to-br from-winter-blue-dark/50 to-winter-ice-dark/50 overflow-hidden">
+      <div className="relative aspect-video bg-gradient-to-br from-summer-ocean-dark/50 to-summer-sky-dark/50 overflow-hidden">
         <Link href={`/products/${product.id}`} className="block w-full h-full">
           {product.image ? (
             <Image
@@ -88,7 +88,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         </Link>
         
         {discountPercentage > 0 && (
-          <div className="absolute top-2 right-2 bg-winter-blue text-white px-2 py-1 rounded-md text-xs font-bold z-10 pointer-events-none">
+          <div className="absolute top-2 right-2 bg-summer-ocean text-white px-2 py-1 rounded-md text-xs font-bold z-10 pointer-events-none">
             -{discountPercentage}%
           </div>
         )}
@@ -113,7 +113,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           >
             <GitCompare
               className={`w-5 h-5 sm:w-5 sm:h-5 transition-all ${
-                inCompare ? 'fill-winter-blue text-winter-blue' : 'text-white hover:text-winter-ice'
+                inCompare ? 'fill-summer-ocean text-summer-ocean' : 'text-white hover:text-summer-sky-light'
               }`}
             />
           </button>
@@ -125,14 +125,14 @@ export default function ProductCard({ product }: ProductCardProps) {
       {/* Content */}
       <div className="p-4">
         <div className="flex items-start justify-between mb-2">
-          <Link href={`/products/${product.id}`} className="text-white dark:text-white text-gray-900 font-semibold text-sm line-clamp-2 group-hover:text-winter-ice dark:group-hover:text-winter-ice group-hover:text-winter-blue-light transition-colors">
+          <Link href={`/products/${product.id}`} className="text-white dark:text-white text-gray-900 font-semibold text-sm line-clamp-2 group-hover:text-summer-sky-light dark:group-hover:text-summer-sky-light group-hover:text-summer-ocean-light transition-colors">
             {product.name}
           </Link>
         </div>
 
         {/* Platform Badge */}
         <div className="mb-2">
-          <span className="inline-block bg-winter-blue/20 text-winter-ice text-xs px-2 py-1 rounded">
+          <span className="inline-block bg-summer-ocean/20 text-summer-sky-light text-xs px-2 py-1 rounded">
             {product.platform}
           </span>
         </div>
@@ -171,7 +171,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <button
             onClick={handleAddToCart}
             disabled={isAdding}
-            className="bg-winter-blue hover:bg-winter-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white p-2.5 sm:p-2 rounded-lg transition-all transform hover:scale-110 active:scale-95 relative z-10 touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
+            className="bg-summer-ocean hover:bg-summer-ocean-dark disabled:opacity-50 disabled:cursor-not-allowed text-white p-2.5 sm:p-2 rounded-lg transition-all transform hover:scale-110 active:scale-95 relative z-10 touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
             title="In den Warenkorb"
           >
             <ShoppingCart className={`w-5 h-5 sm:w-4 sm:h-4 ${isAdding ? 'animate-pulse' : ''}`} />

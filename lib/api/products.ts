@@ -1,4 +1,6 @@
 import { Product } from '@/types'
+import { resolveSeller } from '@/lib/sellers'
+import { applySimexMafiaSellerToDiscordProducts } from '@/lib/products/simex-discord-server'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -38,9 +40,12 @@ export async function getProductsFromAPI(filters?: {
     }
 
     const data = await response.json()
+
+    if (!Array.isArray(data)) {
+      throw new Error('Invalid products response')
+    }
     
     // Konvertiere Datenbank-Format zu Product-Format und aktualisiere Bilder
-    const { updateProductImages } = await import('@/lib/image-updater')
     const products = data.map((p: any) => ({
       id: p.id,
       name: p.name,
@@ -51,27 +56,69 @@ export async function getProductsFromAPI(filters?: {
       image: p.image,
       category: p.category as Product['category'],
       platform: p.platform as Product['platform'],
-      seller: {
-        id: p.seller.id,
-        name: p.seller.name,
-        rating: p.seller.rating,
-        reviewCount: p.seller.reviewCount,
-        verified: p.seller.verified,
-        avatar: p.seller.avatar,
-      },
+      seller: p.seller
+        ? {
+            id: p.seller.id,
+            name: p.seller.name,
+            rating: p.seller.rating,
+            reviewCount: p.seller.reviewCount,
+            verified: p.seller.verified,
+            avatar: p.seller.avatar,
+          }
+        : resolveSeller(p.sellerId),
       rating: p.rating || 0,
       reviewCount: p.reviewCount || 0,
-      inStock: p.inStock,
+      inStock: p.inStock ?? true,
       tags: p.tags || [],
     }))
     
-    // Aktualisiere alle Bilder mit den neuesten aus complete-product-images.ts
-    return updateProductImages(products)
+    const { finalizeProductsForStorefront } = await import('@/lib/promotions/finalize-products')
+    const { ensureSimexDiscordServerInCatalog } = await import('@/lib/products/simex-discord-server')
+    const withDiscord = await ensureSimexDiscordServerInCatalog(products, {
+      category: filters?.category ?? null,
+      platform: filters?.platform ?? null,
+      minPrice: filters?.minPrice ?? null,
+      maxPrice: filters?.maxPrice ?? null,
+      inStock: filters?.inStock,
+      search: filters?.search ?? null,
+    })
+    return finalizeProductsForStorefront(
+      applySimexMafiaSellerToDiscordProducts(withDiscord)
+    )
   } catch (error) {
     console.warn('API not available, using fallback:', error)
-    // Fallback zu Mock-Daten
     const { getProducts } = await import('@/data/products')
-    return getProducts()
+    const { applyProductQueryFilters } = await import('@/lib/products/query')
+    const { finalizeProductsForStorefront } = await import('@/lib/promotions/finalize-products')
+    let products = getProducts()
+    const filterPayload = {
+      category: filters?.category ?? null,
+      platform: filters?.platform ?? null,
+      minPrice: filters?.minPrice ?? null,
+      maxPrice: filters?.maxPrice ?? null,
+      inStock: filters?.inStock,
+      search: filters?.search ?? null,
+    }
+    if (filters) {
+      if (filters.search?.trim()) {
+        const { searchProducts } = await import('@/lib/search-utils')
+        products = searchProducts(products, filters.search.trim(), {
+          minScore: 45,
+          maxResults: 500,
+        })
+        products = applyProductQueryFilters(products, {
+          ...filterPayload,
+          search: null,
+        })
+      } else {
+        products = applyProductQueryFilters(products, filterPayload)
+      }
+    }
+    const { ensureSimexDiscordServerInCatalog } = await import('@/lib/products/simex-discord-server')
+    const withDiscord = await ensureSimexDiscordServerInCatalog(products, filterPayload)
+    return finalizeProductsForStorefront(
+      applySimexMafiaSellerToDiscordProducts(withDiscord)
+    )
   }
 }
 
@@ -114,7 +161,7 @@ export async function getProductFromAPI(id: string): Promise<Product | null> {
     const { getCompleteProductImage } = await import('@/prisma/complete-product-images')
     const correctImage = getCompleteProductImage(p.name) || p.image
     
-    return {
+    const product: Product = {
       id: p.id,
       name: p.name,
       description: p.description,
@@ -124,25 +171,29 @@ export async function getProductFromAPI(id: string): Promise<Product | null> {
       image: correctImage,
       category: p.category as Product['category'],
       platform: p.platform as Product['platform'],
-      seller: {
-        id: p.seller.id,
-        name: p.seller.name,
-        rating: p.seller.rating,
-        reviewCount: p.seller.reviewCount,
-        verified: p.seller.verified,
-        avatar: p.seller.avatar,
-      },
+      seller: p.seller
+        ? {
+            id: p.seller.id,
+            name: p.seller.name,
+            rating: p.seller.rating,
+            reviewCount: p.seller.reviewCount,
+            verified: p.seller.verified,
+            avatar: p.seller.avatar,
+          }
+        : resolveSeller(p.sellerId),
       rating: p.rating || 0,
       reviewCount: p.reviewCount || 0,
       inStock: p.inStock,
       tags: p.tags || [],
     }
+
+    return applySimexMafiaSellerToDiscordProducts([product])[0]
   } catch (error) {
     console.warn('API not available, using fallback:', error)
     // Fallback: Versuche zuerst generierte Produkte
     try {
       const { generateProducts } = await import('@/prisma/product-data')
-      const sellerIds = ['seller1', 'seller2', 'seller3', 'seller4']
+      const sellerIds = ['seller1', 'seller2', 'seller3', 'seller4', 'seller-simexmafia']
       const generatedProducts = generateProducts(sellerIds)
       
       // Suche zuerst nach exakter ID-Übereinstimmung
@@ -244,13 +295,7 @@ export async function getProductFromAPI(id: string): Promise<Product | null> {
           image: correctImage,
           category: foundProduct.category as Product['category'],
           platform: foundProduct.platform as Product['platform'],
-          seller: {
-            id: foundProduct.sellerId || 'seller1',
-            name: foundProduct.sellerId === 'seller1' ? 'GameDeals Pro' : foundProduct.sellerId === 'seller2' ? 'DigitalKeys Store' : foundProduct.sellerId === 'seller3' ? 'GiftCard Masters' : 'Subscriptions Hub',
-            rating: 4.7,
-            reviewCount: 2000,
-            verified: true,
-          },
+          seller: resolveSeller(foundProduct.sellerId),
           rating: foundProduct.rating || 0,
           reviewCount: foundProduct.reviewCount || 0,
           inStock: foundProduct.inStock,
@@ -299,14 +344,28 @@ export async function getProductFromAPI(id: string): Promise<Product | null> {
  */
 export async function searchProductByName(searchTerm: string): Promise<Product | null> {
   try {
-    // Versuche zuerst über die API mit Suchparameter
+    const { searchProducts } = await import('@/lib/search-utils')
+    const { pickBestSearchMatch } = await import('@/lib/products/resolve-product')
+
     const response = await fetch(`${API_BASE_URL}/api/products?search=${encodeURIComponent(searchTerm)}`)
     
     if (response.ok) {
       const products = await response.json()
-      if (products && products.length > 0) {
-        // Konvertiere zu Product-Format
-        const p = products[0]
+      const ranked = searchProducts(
+        (products || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          platform: p.platform,
+          category: p.category,
+          tags: p.tags || [],
+        })),
+        searchTerm,
+        { minScore: 70, maxResults: 5 }
+      )
+      const bestId = ranked[0]?.id ?? pickBestSearchMatch(products || [], searchTerm, { minScore: 70 })?.id
+      const p = bestId ? products.find((item: any) => item.id === bestId) : products[0]
+      if (p) {
         // Verwende getCompleteProductImage für korrektes Bild
         const { getCompleteProductImage } = await import('@/prisma/complete-product-images')
         const correctImage = getCompleteProductImage(p.name) || p.image
@@ -321,14 +380,22 @@ export async function searchProductByName(searchTerm: string): Promise<Product |
           image: correctImage,
           category: p.category as Product['category'],
           platform: p.platform as Product['platform'],
-          seller: {
-            id: p.seller.id,
-            name: p.seller.name,
-            rating: p.seller.rating,
-            reviewCount: p.seller.reviewCount,
-            verified: p.seller.verified,
-            avatar: p.seller.avatar,
-          },
+          seller: p.seller
+            ? {
+                id: p.seller.id,
+                name: p.seller.name,
+                rating: p.seller.rating,
+                reviewCount: p.seller.reviewCount,
+                verified: p.seller.verified,
+                avatar: p.seller.avatar,
+              }
+            : {
+                id: 'seller1',
+                name: 'SimexMafia Partner',
+                rating: 4.7,
+                reviewCount: 2000,
+                verified: true,
+              },
           rating: p.rating || 0,
           reviewCount: p.reviewCount || 0,
           inStock: p.inStock,
@@ -346,44 +413,34 @@ export async function searchProductByName(searchTerm: string): Promise<Product |
     const sellerIds = ['seller1', 'seller2', 'seller3', 'seller4']
     const generatedProducts = generateProducts(sellerIds)
     
-    const searchLower = searchTerm.toLowerCase().trim()
-    const foundProduct = generatedProducts.find((p: any) => {
-      if (!p.name) return false
-      const nameLower = p.name.toLowerCase().trim()
-      return nameLower === searchLower ||
-             nameLower.includes(searchLower) ||
-             searchLower.includes(nameLower) ||
-             nameLower.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ') === searchLower.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
-    })
-    
-      if (foundProduct) {
-        // Verwende getCompleteProductImage für korrektes Bild
-        const { getCompleteProductImage } = await import('@/prisma/complete-product-images')
-        const correctImage = getCompleteProductImage(foundProduct.name) || foundProduct.image
-        
-        return {
-          id: foundProduct.id,
-          name: foundProduct.name,
-          description: foundProduct.description,
-          price: foundProduct.price,
-          originalPrice: foundProduct.originalPrice,
-          discount: foundProduct.discount,
-          image: correctImage,
-          category: foundProduct.category as Product['category'],
-          platform: foundProduct.platform as Product['platform'],
-          seller: {
-            id: foundProduct.sellerId || 'seller1',
-            name: foundProduct.sellerId === 'seller1' ? 'GameDeals Pro' : foundProduct.sellerId === 'seller2' ? 'DigitalKeys Store' : foundProduct.sellerId === 'seller3' ? 'GiftCard Masters' : 'Subscriptions Hub',
-            rating: 4.7,
-            reviewCount: 2000,
-            verified: true,
-          },
-          rating: foundProduct.rating || 0,
-          reviewCount: foundProduct.reviewCount || 0,
-          inStock: foundProduct.inStock,
-          tags: foundProduct.tags || [],
-        }
+    const { pickBestSearchMatch } = await import('@/lib/products/resolve-product')
+    const foundProduct = pickBestSearchMatch(
+      generatedProducts as any,
+      searchTerm,
+      { minScore: 72 }
+    ) as (typeof generatedProducts)[number] | null
+
+    if (foundProduct) {
+      const { getCompleteProductImage } = await import('@/prisma/complete-product-images')
+      const correctImage = getCompleteProductImage(foundProduct.name) || foundProduct.image
+
+      return {
+        id: foundProduct.id,
+        name: foundProduct.name,
+        description: foundProduct.description,
+        price: foundProduct.price,
+        originalPrice: foundProduct.originalPrice,
+        discount: foundProduct.discount,
+        image: correctImage,
+        category: foundProduct.category as Product['category'],
+        platform: foundProduct.platform as Product['platform'],
+        seller: resolveSeller(foundProduct.sellerId),
+        rating: foundProduct.rating || 0,
+        reviewCount: foundProduct.reviewCount || 0,
+        inStock: foundProduct.inStock,
+        tags: foundProduct.tags || [],
       }
+    }
   } catch (genError) {
     console.warn('Generated products search failed:', genError)
   }

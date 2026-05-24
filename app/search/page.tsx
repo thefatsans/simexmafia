@@ -27,15 +27,17 @@ function SearchContent() {
 
       setIsLoading(true)
       try {
-        // Get all products and use intelligent search
-        const allProducts = await getProductsFromAPI()
-        
-        // Use intelligent search with fuzzy matching for better results
-        const matched = searchProducts(allProducts, query, {
-          fuzzyThreshold: 0.5, // Balanced threshold for search results
-          maxResults: 500, // Allow more results for search page
-        })
-        
+        const trimmed = query.trim()
+        let matched = await getProductsFromAPI({ search: trimmed })
+
+        if (matched.length === 0) {
+          const allProducts = await getProductsFromAPI()
+          matched = searchProducts(allProducts, trimmed, {
+            minScore: 45,
+            maxResults: 500,
+          })
+        }
+
         setFilteredProducts(matched)
       } catch (error) {
         console.error('Error loading search results:', error)
@@ -48,6 +50,10 @@ function SearchContent() {
   }, [query])
 
   const sortedProducts = useMemo(() => {
+    if (sortOption === 'default') {
+      return filteredProducts
+    }
+
     const sorted = [...filteredProducts].sort((a, b) => {
       switch (sortOption) {
         case 'price-asc':

@@ -1,12 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Lock, Shield, CheckCircle, X, Wallet } from 'lucide-react'
-import { PaymentMethod, PaymentDetails, OrderItem, createOrder, processPayment, validatePaymentDetails } from '@/data/payments'
+import { Lock, Shield, X, Wallet, CreditCard } from 'lucide-react'
+import {
+  PaymentMethod,
+  PaymentDetails,
+  OrderItem,
+  Order,
+  createOrder,
+  validatePaymentDetails,
+  confirmStripePayment,
+  updateOrderStatus,
+} from '@/data/payments'
 import { calculateCoinsEarned, TIER_INFO } from '@/types/user'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { isStripeConfigured } from '@/lib/payments-config'
+import StripeCheckoutSection from '@/components/StripeCheckoutSection'
 
 interface PaymentCheckoutProps {
   items: OrderItem[]
@@ -32,8 +43,10 @@ export default function PaymentCheckout({
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isProcessing, setIsProcessing] = useState(false)
+  const [stripeOrder, setStripeOrder] = useState<Order | null>(null)
   const { showSuccess, showError } = useToast()
-  
+  const stripeEnabled = isStripeConfigured()
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -41,10 +54,10 @@ export default function PaymentCheckout({
   const serviceFee = 0.99
   const subtotal = total
   const userTier = TIER_INFO[user?.tier || 'Bronze']
-  // Für Säcke: Keine Coins verdienen, da man Coins aus dem Sack gewinnen kann
-  // Nur für normale Produktkäufe Coins verdienen
-  const isSackPurchase = items.some(item => item.type === 'sack')
-  const coinsEarned = isSackPurchase ? 0 : calculateCoinsEarned(subtotal + serviceFee, user?.tier || 'Bronze')
+  const isSackPurchase = items.some((item) => item.type === 'sack')
+  const coinsEarned = isSackPurchase
+    ? 0
+    : calculateCoinsEarned(subtotal + serviceFee, user?.tier || 'Bronze')
   const discount = (subtotal + serviceFee) * (userTier.discount / 100)
   const finalTotal = subtotal + serviceFee - discount
 
@@ -61,12 +74,69 @@ export default function PaymentCheckout({
 
   const handlePaymentMethodChange = (method: PaymentMethod) => {
     setPaymentMethod(method)
-    setPaymentDetails({
-      method,
-    })
+    setPaymentDetails({ method })
+    setStripeOrder(null)
     setErrors({})
   }
 
+  const redirectToPayPal = (order: Order) => {
+    const paypalLink =
+      process.env.NEXT_PUBLIC_PAYPAL_PAYMENT_LINK || 'https://paypal.me/SimexMafia'
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('pendingPayPalOrderId', order.id)
+      localStorage.setItem('pendingPayPalAmount', finalTotal.toFixed(2))
+    }
+
+    let paypalLinkWithOrder: string
+    if (paypalLink.includes('paypal.me/')) {
+      const baseUrl = paypalLink.replace(/\/$/, '')
+      paypalLinkWithOrder = `${baseUrl}/${finalTotal.toFixed(2)}`
+    } else {
+      paypalLinkWithOrder = `${paypalLink}?amount=${finalTotal.toFixed(2)}&orderId=${order.id}`
+    }
+
+    window.location.href = paypalLinkWithOrder
+  }
+
+  const handleStripeSuccess = useCallback(
+    async (paymentIntentId: string) => {
+      if (!stripeOrder) return
+
+      const confirmation = await confirmStripePayment(paymentIntentId)
+      if (!confirmation.success) {
+        showError(confirmation.error || 'Zahlung konnte nicht bestätigt werden')
+        return
+      }
+
+      await updateOrderStatus(stripeOrder.id, 'completed')
+
+      if (coinsEarned > 0 && user && !isSackPurchase) {
+        addCoins(coinsEarned)
+        updateUser({ totalSpent: (user.totalSpent || 0) + finalTotal })
+      }
+
+      showSuccess('Zahlung erfolgreich!', 3000)
+      if (onSuccess) {
+        onSuccess(stripeOrder.id)
+      } else {
+        router.push(`/checkout/confirmation?orderId=${stripeOrder.id}`)
+      }
+    },
+    [
+      stripeOrder,
+      coinsEarned,
+      user,
+      isSackPurchase,
+      finalTotal,
+      addCoins,
+      updateUser,
+      showSuccess,
+      showError,
+      onSuccess,
+      router,
+    ]
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,7 +153,6 @@ export default function PaymentCheckout({
 
     setIsProcessing(true)
 
-    // Erstelle Bestellung
     const order = await createOrder({
       userId: user?.id || 'user1',
       items,
@@ -95,58 +164,26 @@ export default function PaymentCheckout({
       coinsEarned,
     })
 
-    // WICHTIG: Für Säcke und GoofyCoins: PayPal-Weiterleitung erforderlich
-    const isGoofyCoinsPurchase = items.some(item => item.type === 'goofycoins')
-    if ((isSackPurchase || isGoofyCoinsPurchase) && paymentMethod === 'paypal') {
-      const paypalLink = process.env.NEXT_PUBLIC_PAYPAL_PAYMENT_LINK || 'https://paypal.me/SimexMafia'
-      
-      // Store orderId in localStorage as fallback for callback
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('pendingPayPalOrderId', order.id)
-        localStorage.setItem('pendingPayPalAmount', finalTotal.toFixed(2))
-      }
-      
-      // PayPal.me Links unterstützen keine Query-Parameter, daher verwenden wir den Betrag im Pfad
-      let paypalLinkWithOrder: string
-      if (paypalLink.includes('paypal.me/')) {
-        // PayPal.me Link - Betrag im Pfad
-        const baseUrl = paypalLink.replace(/\/$/, '') // Entferne trailing slash falls vorhanden
-        paypalLinkWithOrder = `${baseUrl}/${finalTotal.toFixed(2)}`
-      } else {
-        // Normale PayPal Payment Link - Query-Parameter verwenden
-        paypalLinkWithOrder = `${paypalLink}?amount=${finalTotal.toFixed(2)}&orderId=${order.id}`
-      }
-      
-      // Weiterleitung zu PayPal
-      window.location.href = paypalLinkWithOrder
+    const isGoofyCoinsPurchase = items.some((item) => item.type === 'goofycoins')
+
+    if (paymentMethod === 'credit-card') {
+      setStripeOrder(order)
+      setIsProcessing(false)
       return
     }
-    
-    // Verarbeite Zahlung
-    const result = await processPayment(order, {
-      ...paymentDetails,
-      method: paymentMethod,
-    })
+
+    if ((isSackPurchase || isGoofyCoinsPurchase) && paymentMethod === 'paypal') {
+      redirectToPayPal(order)
+      return
+    }
+
+    if (paymentMethod === 'paypal') {
+      redirectToPayPal(order)
+      return
+    }
 
     setIsProcessing(false)
-
-    if (result.success) {
-      // Add earned coins to user account (nur für normale Produktkäufe, nicht für Säcke)
-      if (coinsEarned > 0 && user && !isSackPurchase) {
-        addCoins(coinsEarned)
-        // Update totalSpent
-        updateUser({ totalSpent: (user.totalSpent || 0) + finalTotal })
-      }
-      
-      showSuccess('Zahlung erfolgreich!', 3000)
-      if (onSuccess) {
-        onSuccess(result.orderId)
-      } else {
-        router.push(`/checkout/confirmation?orderId=${result.orderId}`)
-      }
-    } else {
-      showError(result.error || 'Zahlung fehlgeschlagen. Bitte versuchen Sie es erneut.')
-    }
+    showError('Unbekannte Zahlungsmethode')
   }
 
   return (
@@ -163,7 +200,6 @@ export default function PaymentCheckout({
 
         <h2 className="text-3xl font-bold text-white mb-6">{title}</h2>
 
-        {/* Order Summary */}
         <div className="bg-fortnite-darker rounded-lg p-6 mb-6">
           <h3 className="text-white font-semibold mb-4">Bestellübersicht</h3>
           <div className="space-y-2 mb-4">
@@ -204,76 +240,124 @@ export default function PaymentCheckout({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {/* Payment Method Selection */}
-          <div className="mb-6">
-            <label className="block text-white font-semibold mb-3">Zahlungsmethode:</label>
-            <div className="grid grid-cols-1 gap-4">
-              <button
-                type="button"
-                onClick={() => handlePaymentMethodChange('paypal')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  paymentMethod === 'paypal'
-                    ? 'border-blue-500 bg-blue-500/20'
-                    : 'border-purple-500/30 bg-fortnite-darker'
-                }`}
-              >
-                <Wallet className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-                <div className="text-white font-semibold text-sm">PayPal</div>
-                <div className="text-gray-400 text-xs mt-1">Sichere Online-Zahlung</div>
-              </button>
-            </div>
-            <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-              <p className="text-blue-400 text-sm">
-                <strong>Hinweis:</strong> Sie werden nach dem Klick auf "Jetzt bezahlen" zu PayPal weitergeleitet, um die Zahlung sicher abzuwickeln.
-              </p>
-            </div>
+        {stripeOrder ? (
+          <div>
+            <p className="text-gray-300 text-sm mb-4">
+              Bestellung <span className="text-purple-400">{stripeOrder.id}</span> – bitte Kartendaten
+              eingeben:
+            </p>
+            <StripeCheckoutSection
+              amount={finalTotal}
+              orderId={stripeOrder.id}
+              onSuccess={handleStripeSuccess}
+              onError={(msg) => showError(msg)}
+            />
+            <button
+              type="button"
+              onClick={() => setStripeOrder(null)}
+              className="mt-4 text-sm text-gray-400 hover:text-white"
+            >
+              ← Andere Zahlungsmethode wählen
+            </button>
           </div>
-
-          {paymentMethod === 'paypal' && (
+        ) : (
+          <form onSubmit={handleSubmit}>
             <div className="mb-6">
-              <label className="block text-gray-300 text-sm mb-2">PayPal-E-Mail</label>
-              <input
-                type="email"
-                name="paypalEmail"
-                value={paymentDetails.paypalEmail || ''}
-                onChange={handleInputChange}
-                placeholder="ihre.email@example.com"
-                className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-              />
-              {errors.paypalEmail && (
-                <p className="text-red-400 text-xs mt-1">{errors.paypalEmail}</p>
+              <label className="block text-white font-semibold mb-3">Zahlungsmethode:</label>
+              <div className={`grid gap-4 ${stripeEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                <button
+                  type="button"
+                  onClick={() => handlePaymentMethodChange('paypal')}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    paymentMethod === 'paypal'
+                      ? 'border-blue-500 bg-blue-500/20'
+                      : 'border-purple-500/30 bg-fortnite-darker'
+                  }`}
+                >
+                  <Wallet className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                  <div className="text-white font-semibold text-sm">PayPal</div>
+                  <div className="text-gray-400 text-xs mt-1">Sichere Online-Zahlung</div>
+                </button>
+                {stripeEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => handlePaymentMethodChange('credit-card')}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'credit-card'
+                        ? 'border-purple-500 bg-purple-500/20'
+                        : 'border-purple-500/30 bg-fortnite-darker'
+                    }`}
+                  >
+                    <CreditCard className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+                    <div className="text-white font-semibold text-sm">Karte</div>
+                    <div className="text-gray-400 text-xs mt-1">Visa, Mastercard, etc.</div>
+                  </button>
+                )}
+              </div>
+              {paymentMethod === 'paypal' && (
+                <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <p className="text-blue-400 text-sm">
+                    <strong>Hinweis:</strong> Sie werden nach dem Klick auf &quot;Jetzt bezahlen&quot; zu
+                    PayPal weitergeleitet.
+                  </p>
+                </div>
+              )}
+              {paymentMethod === 'credit-card' && (
+                <div className="mt-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                  <p className="text-purple-300 text-sm">
+                    <strong>Hinweis:</strong> Im nächsten Schritt geben Sie Ihre Kartendaten sicher über
+                    Stripe ein.
+                  </p>
+                </div>
               )}
             </div>
-          )}
 
-          {/* Security Info */}
-          <div className="flex items-center space-x-2 mb-6 text-sm text-gray-400">
-            <Lock className="w-4 h-4" />
-            <span>Ihre Zahlungsdaten werden sicher verschlüsselt übertragen</span>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isProcessing}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-4 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
-          >
-            {mounted && isProcessing ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Wird verarbeitet...</span>
-              </>
-            ) : (
-              <>
-                <Shield className="w-5 h-5" />
-                <span>Jetzt bezahlen - €{finalTotal.toFixed(2)}</span>
-              </>
+            {paymentMethod === 'paypal' && (
+              <div className="mb-6">
+                <label className="block text-gray-300 text-sm mb-2">PayPal-E-Mail (optional)</label>
+                <input
+                  type="email"
+                  name="paypalEmail"
+                  value={paymentDetails.paypalEmail || ''}
+                  onChange={handleInputChange}
+                  placeholder="ihre.email@example.com"
+                  className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                />
+                {errors.paypalEmail && (
+                  <p className="text-red-400 text-xs mt-1">{errors.paypalEmail}</p>
+                )}
+              </div>
             )}
-          </button>
-        </form>
+
+            {errors.method && <p className="text-red-400 text-sm mb-4">{errors.method}</p>}
+
+            <div className="flex items-center space-x-2 mb-6 text-sm text-gray-400">
+              <Lock className="w-4 h-4" />
+              <span>Ihre Zahlungsdaten werden sicher verschlüsselt übertragen</span>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isProcessing}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-4 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+            >
+              {mounted && isProcessing ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Wird verarbeitet...</span>
+                </>
+              ) : (
+                <>
+                  <Shield className="w-5 h-5" />
+                  <span>
+                    {paymentMethod === 'credit-card' ? 'Weiter zur Kartenzahlung' : `Jetzt bezahlen - €${finalTotal.toFixed(2)}`}
+                  </span>
+                </>
+              )}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   )
 }
-

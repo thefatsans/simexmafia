@@ -228,12 +228,12 @@ export const processPayment = async (
     }
   }
 
-  // Kreditkartenzahlung ist nicht mehr verfügbar
+  // Kreditkarte wird über Stripe Elements abgewickelt (PaymentCheckout / Checkout-Seite)
   if (paymentDetails.method === 'credit-card') {
     return {
       success: false,
       orderId: order.id,
-      error: 'Kreditkartenzahlung ist nicht mehr verfügbar. Bitte verwenden Sie PayPal oder Barzahlung.',
+      error: 'Bitte schließen Sie die Kartenzahlung im Formular ab.',
     }
   }
 
@@ -292,9 +292,10 @@ export const confirmStripePayment = async (
 export const validatePaymentDetails = (details: PaymentDetails): { valid: boolean; errors: Record<string, string> } => {
   const errors: Record<string, string> = {}
   
-  // Kreditkartenzahlung ist nicht mehr verfügbar
   if (details.method === 'credit-card') {
-    errors.method = 'Kreditkartenzahlung ist nicht mehr verfügbar. Bitte verwenden Sie PayPal oder Barzahlung.'
+    if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+      errors.method = 'Kartenzahlung ist derzeit nicht verfügbar. Bitte verwenden Sie PayPal.'
+    }
   }
   
   if (details.method === 'paypal') {

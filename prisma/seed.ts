@@ -104,6 +104,23 @@ async function main() {
     },
   })
 
+  const sellerSimex = await prisma.seller.upsert({
+    where: { id: 'seller-simexmafia' },
+    update: {
+      name: 'SimexMafia',
+      verified: true,
+      rating: 5.0,
+      reviewCount: 847,
+    },
+    create: {
+      id: 'seller-simexmafia',
+      name: 'SimexMafia',
+      rating: 5.0,
+      reviewCount: 847,
+      verified: true,
+    },
+  })
+
   console.log('✅ Sellers created')
 
   // Erstelle Test-User
@@ -153,7 +170,7 @@ async function main() {
   // Importiere erweiterte Produktdaten
   const { generateProducts } = await import('./product-data')
   const { getProductImage } = await import('./image-helper')
-  const sellerIds = [seller1.id, seller2.id, seller3.id, seller4.id]
+  const sellerIds = [seller1.id, seller2.id, seller3.id, seller4.id, sellerSimex.id]
   
   // Generiere alle Produkte (200-300+)
   const generatedProducts = generateProducts(sellerIds)

@@ -30,9 +30,30 @@ model User {
   inventoryItems InventoryItem[]
   coinTransactions CoinTransaction[]
   priceAlerts   PriceAlert[]
+  sackOpens     SackOpen[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model SackOpen {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sackType           String
+  sackName           String
+  sackIcon           String?
+  sackColor          String?
+  purchaseMethod     String
+  pricePaid          Float    @default(0)
+  rewardType         String
+  rewardCoins        Int?
+  rewardProductName  String?
+  rewardProductPrice Float?
+  createdAt          DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Seller {

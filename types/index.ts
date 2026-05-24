@@ -40,6 +40,7 @@ export type Platform =
   | 'Epic Games'
   | 'Origin'
   | 'Battle.net'
+  | 'Discord'
   | 'Other'
 
 export interface CartItem {

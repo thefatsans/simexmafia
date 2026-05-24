@@ -11,51 +11,8 @@ export const mockUser: User = {
   joinDate: '2024-01-15',
 }
 
-export const mockCoinTransactions: CoinTransaction[] = [
-  {
-    id: 'tx1',
-    userId: 'user1',
-    amount: 50,
-    type: 'earned',
-    description: 'Purchase: Fortnite V-Bucks 1000',
-    date: '2024-12-20',
-    orderId: 'ORD-123456',
-  },
-  {
-    id: 'tx2',
-    userId: 'user1',
-    amount: 75,
-    type: 'earned',
-    description: 'Purchase: Call of Duty: Modern Warfare III',
-    date: '2024-12-18',
-    orderId: 'ORD-123455',
-  },
-  {
-    id: 'tx3',
-    userId: 'user1',
-    amount: 100,
-    type: 'bonus',
-    description: 'Welcome Bonus',
-    date: '2024-01-15',
-  },
-  {
-    id: 'tx4',
-    userId: 'user1',
-    amount: -25,
-    type: 'spent',
-    description: 'Redeemed: 5% Discount Coupon',
-    date: '2024-12-15',
-  },
-  {
-    id: 'tx5',
-    userId: 'user1',
-    amount: 62,
-    type: 'earned',
-    description: 'Purchase: PlayStation Store Gift Card €50',
-    date: '2024-12-10',
-    orderId: 'ORD-123454',
-  },
-]
+/** Keine Demo-Daten – Verlauf kommt aus der Datenbank */
+export const mockCoinTransactions: CoinTransaction[] = []
 
 export const mockRedemptionItems: RedemptionItem[] = [
   {
@@ -96,8 +53,8 @@ export const mockRedemptionItems: RedemptionItem[] = [
   },
 ]
 
-export const getUserTransactions = (userId: string) => {
-  return mockCoinTransactions.filter(tx => tx.userId === userId)
+export const getUserTransactions = (_userId: string) => {
+  return [] as CoinTransaction[]
 }
 
 

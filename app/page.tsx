@@ -13,11 +13,13 @@ import { Product } from '@/types'
 import NewsletterForm from '@/components/NewsletterForm'
 import NewsletterModal from '@/components/NewsletterModal'
 import { useToast } from '@/contexts/ToastContext'
-import NewYearSaleBanner from '@/components/NewYearSaleBanner'
+import SummerSaleBanner from '@/components/SummerSaleBanner'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
+import { isSimexDiscordServerProduct } from '@/lib/products/simex-discord-server'
 
 export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
+  const [discordExclusive, setDiscordExclusive] = useState<Product | null>(null)
   const [personalizedProducts, setPersonalizedProducts] = useState<Product[]>([])
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
   const { user } = useAuth()
@@ -86,6 +88,19 @@ export default function Home() {
     }
     loadCategoryCounts()
   }, [])
+
+  useEffect(() => {
+    const loadDiscordExclusive = async () => {
+      try {
+        const allProducts = await getProductsFromAPI()
+        const discord = allProducts.find(isSimexDiscordServerProduct) ?? null
+        setDiscordExclusive(discord)
+      } catch {
+        setDiscordExclusive(null)
+      }
+    }
+    loadDiscordExclusive()
+  }, [])
   
   const { recentlyViewed } = useRecentlyViewed()
   const [displayedRecent, setDisplayedRecent] = useState<Product[]>([])
@@ -126,30 +141,30 @@ export default function Home() {
   return (
     <div className="min-h-screen page-transition">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-winter-blue-dark/50 via-winter-blue/40 to-winter-ice-dark/30 py-20 border-b border-winter-ice/30">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMzOEJERjgiIGZpbGwtb3BhY2l0eT0iMC4xNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMS41Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30"></div>
+      <section className="relative overflow-hidden bg-gradient-to-br from-summer-ocean-dark/60 via-cyan-950/50 to-amber-950/30 py-20 border-b border-summer-ocean/30">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmYmJmMjQiIGZpbGwtb3BhY2l0eT0iMC4yIj48Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIxLjUiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-35"></div>
         <div ref={heroAnimation.elementRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className={`text-center ${heroAnimation.isVisible ? 'animate-fade-in-up' : 'opacity-0'}`}>
             <h1 className="text-5xl md:text-7xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-yellow-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-amber-300 via-cyan-300 to-pink-400 bg-clip-text text-transparent">
                 Willkommen bei SimexMafia
               </span>
             </h1>
             <p className={`text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto ${heroAnimation.isVisible ? 'animate-fade-in-up animate-delay-200' : 'opacity-0'}`}>
               Ihr vertrauenswürdiger Marktplatz für reduzierte Spiele, Gutscheine und digitale Produkte.
               <br />
-              <span className="text-winter-blue-light">Powered by Simex</span>
+              <span className="text-summer-ocean-light">Powered by Simex</span>
             </p>
             <div className={`flex flex-col sm:flex-row gap-4 justify-center ${heroAnimation.isVisible ? 'animate-fade-in-up animate-delay-400' : 'opacity-0'}`}>
               <Link
                 href="/products"
-                className="bg-gradient-to-r from-winter-blue to-winter-blue-dark hover:from-winter-blue-light hover:to-winter-blue text-white font-semibold px-8 py-4 rounded-lg smooth-hover shadow-lg shadow-winter-blue/50"
+                className="bg-gradient-to-r from-summer-ocean to-summer-ocean-dark hover:from-summer-ocean-light hover:to-summer-ocean text-white font-semibold px-8 py-4 rounded-lg smooth-hover shadow-lg shadow-summer-ocean/50"
               >
                 Produkte durchsuchen
               </Link>
               <Link
                 href="/categories"
-                className="bg-fortnite-dark border-2 border-winter-ice/50 hover:border-winter-ice text-white font-semibold px-8 py-4 rounded-lg smooth-hover"
+                className="bg-fortnite-dark border-2 border-summer-sky-light/50 hover:border-summer-sky-light text-white font-semibold px-8 py-4 rounded-lg smooth-hover"
               >
                 Kategorien anzeigen
               </Link>
@@ -158,37 +173,36 @@ export default function Home() {
         </div>
       </section>
 
-      {/* New Year Sale Banner Section - Full Width */}
-      <NewYearSaleBanner />
+      <SummerSaleBanner />
 
       {/* Features Section */}
-      <section ref={featuresAnimation.elementRef} className="py-16 bg-gradient-to-b from-winter-blue-dark/20 to-transparent border-b border-winter-ice/10">
+      <section ref={featuresAnimation.elementRef} className="py-16 bg-gradient-to-b from-summer-ocean-dark/20 to-transparent border-b border-summer-sky-light/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className={`text-center smooth-hover ${featuresAnimation.isVisible ? 'animate-fade-in-up animate-delay-100' : 'opacity-0'}`}>
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-winter-blue/20 rounded-full mb-4 border border-winter-ice/30 smooth-hover scale-on-hover">
-                <Shield className="w-8 h-8 text-winter-ice" />
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-summer-ocean/20 rounded-full mb-4 border border-summer-sky-light/30 smooth-hover scale-on-hover">
+                <Shield className="w-8 h-8 text-summer-sky-light" />
               </div>
               <h3 className="text-white font-semibold mb-2">Sicherer Checkout</h3>
               <p className="text-gray-300 text-sm">Sichere und verschlüsselte Transaktionen</p>
             </div>
             <div className={`text-center smooth-hover ${featuresAnimation.isVisible ? 'animate-fade-in-up animate-delay-200' : 'opacity-0'}`}>
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-winter-blue/20 rounded-full mb-4 border border-winter-ice/30 smooth-hover scale-on-hover">
-                <Zap className="w-8 h-8 text-winter-ice" />
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-summer-ocean/20 rounded-full mb-4 border border-summer-sky-light/30 smooth-hover scale-on-hover">
+                <Zap className="w-8 h-8 text-summer-sky-light" />
               </div>
               <h3 className="text-white font-semibold mb-2">Sofortige Lieferung</h3>
               <p className="text-gray-300 text-sm">Erhalten Sie Ihre Keys sofort</p>
             </div>
             <div className={`text-center smooth-hover ${featuresAnimation.isVisible ? 'animate-fade-in-up animate-delay-300' : 'opacity-0'}`}>
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-winter-blue/20 rounded-full mb-4 border border-winter-ice/30 smooth-hover scale-on-hover">
-                <Star className="w-8 h-8 text-winter-ice" />
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-summer-ocean/20 rounded-full mb-4 border border-summer-sky-light/30 smooth-hover scale-on-hover">
+                <Star className="w-8 h-8 text-summer-sky-light" />
               </div>
               <h3 className="text-white font-semibold mb-2">Verifizierte Verkäufer</h3>
               <p className="text-gray-300 text-sm">Vertrauenswürdige Marktplatz-Partner</p>
             </div>
             <div className={`text-center smooth-hover ${featuresAnimation.isVisible ? 'animate-fade-in-up animate-delay-400' : 'opacity-0'}`}>
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-winter-blue/20 rounded-full mb-4 border border-winter-ice/30 smooth-hover scale-on-hover">
-                <TrendingUp className="w-8 h-8 text-winter-ice" />
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-summer-ocean/20 rounded-full mb-4 border border-summer-sky-light/30 smooth-hover scale-on-hover">
+                <TrendingUp className="w-8 h-8 text-summer-sky-light" />
               </div>
               <h3 className="text-white font-semibold mb-2">Beste Preise</h3>
               <p className="text-gray-300 text-sm">Täglich konkurrenzfähige Rabatte</p>
@@ -206,7 +220,7 @@ export default function Home() {
               <Link
                 key={category.name}
                 href={category.href}
-                className={`bg-fortnite-dark border border-winter-ice/20 rounded-lg p-6 text-center hover:border-winter-ice/50 smooth-hover scale-on-hover ${categoriesAnimation.isVisible ? `animate-fade-in-scale animate-delay-${(index + 1) * 100}` : 'opacity-0'}`}
+                className={`bg-fortnite-dark border border-summer-sky-light/20 rounded-lg p-6 text-center hover:border-summer-sky-light/50 smooth-hover scale-on-hover ${categoriesAnimation.isVisible ? `animate-fade-in-scale animate-delay-${(index + 1) * 100}` : 'opacity-0'}`}
               >
                 <div className="text-4xl mb-3">{category.icon}</div>
                 <h3 className="text-white font-semibold mb-1">{category.name}</h3>
@@ -231,14 +245,36 @@ export default function Home() {
         </section>
       )}
 
+      {discordExclusive && (
+        <section className="py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mb-6">
+              <p className="text-amber-300 text-sm font-semibold uppercase tracking-wide mb-1">
+                Exklusiv
+              </p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white">
+                Simex Geheimer Discord-Server
+              </h2>
+              <p className="text-gray-400 mt-2 max-w-2xl">
+                VIP-Zugang mit exklusiven Inhalten, Methoden und Insider-Infos — nur für
+                Mitglieder nach Kauf.
+              </p>
+            </div>
+            <div className="max-w-sm">
+              <ProductCard product={discordExclusive} />
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Featured Products */}
-      <section className="py-16 bg-gradient-to-b from-winter-blue-dark/20 to-transparent border-b border-winter-ice/10">
+      <section className="py-16 bg-gradient-to-b from-summer-ocean-dark/20 to-transparent border-b border-summer-sky-light/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-white animate-fade-in-up">Empfohlene Angebote</h2>
             <Link
               href="/products"
-              className="text-winter-ice hover:text-winter-blue-light smooth-hover"
+              className="text-summer-sky-light hover:text-summer-ocean-light smooth-hover"
             >
               Alle anzeigen →
             </Link>
@@ -259,12 +295,12 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center space-x-3">
-                <Clock className="w-6 h-6 text-winter-ice" />
+                <Clock className="w-6 h-6 text-summer-sky-light" />
                 <h2 className="text-3xl font-bold text-white">Zuletzt angesehen</h2>
               </div>
               <Link
                 href="/products"
-                className="text-winter-ice hover:text-winter-blue-light smooth-hover"
+                className="text-summer-sky-light hover:text-summer-ocean-light smooth-hover"
               >
                 Alle anzeigen →
               </Link>

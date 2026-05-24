@@ -3,6 +3,9 @@
 
 import { getProductImage } from './image-helper'
 
+/** Muss mit lib/sellers.ts SIMEXMAFIA_SELLER_ID übereinstimmen */
+const SIMEXMAFIA_SELLER_ID = 'seller-simexmafia'
+
 export interface ProductSeedData {
   id: string
   name: string
@@ -911,7 +914,7 @@ export function generateProducts(sellerIds: string[]): ProductSeedData[] {
     reviewCount: 47,
     inStock: true,
     tags: ['exclusive', 'discord', 'vip', 'leaks', 'methods', 'simex', 'premium'],
-    sellerId: sellerIds[0], // Use first seller for this special product
+    sellerId: SIMEXMAFIA_SELLER_ID,
   })
 
   return products

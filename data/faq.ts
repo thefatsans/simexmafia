@@ -1,3 +1,5 @@
+import { companyInfo } from '@/lib/company-info'
+
 export interface FAQ {
   id: string
   category: 'allgemein' | 'bestellung' | 'zahlung' | 'account' | 'produkte' | 'sacks' | 'goofycoins' | 'inventar' | 'versand'
@@ -26,7 +28,7 @@ export const faqData: FAQ[] = [
     id: '3',
     category: 'allgemein',
     question: 'Wie kann ich den Support kontaktieren?',
-    answer: 'Sie können uns über das Kontaktformular erreichen oder eine E-Mail an info@simexmafia.de senden. Unser Support-Team antwortet normalerweise innerhalb von 24 Stunden.',
+    answer: `Sie können uns über das Kontaktformular erreichen oder eine E-Mail an ${companyInfo.contact.email} senden. Unser Support-Team antwortet normalerweise innerhalb von 24 Stunden.`,
     tags: ['support', 'kontakt', 'hilfe'],
   },
   

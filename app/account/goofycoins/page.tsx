@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Coins, Award, Gift, ArrowLeft, TrendingUp } from 'lucide-react'
-import { mockCoinTransactions, mockRedemptionItems } from '@/data/user'
+import { mockRedemptionItems } from '@/data/user'
+import { getCoinTransactionsFromAPI } from '@/lib/api/goofycoins'
+import { CoinTransaction } from '@/types/user'
 import { TIER_INFO, calculateTier } from '@/types/user'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
@@ -13,11 +15,35 @@ export default function GoofyCoinsPage() {
   const { user, subtractCoins, isLoading } = useAuth()
   const { showSuccess, showError } = useToast()
   const [selectedTab, setSelectedTab] = useState<'overview' | 'history' | 'redeem'>('overview')
+  const [transactions, setTransactions] = useState<CoinTransaction[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
   
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!user?.id || selectedTab !== 'history') return
+
+    const loadHistory = async () => {
+      setHistoryLoading(true)
+      try {
+        const data = await getCoinTransactionsFromAPI(user.id, {
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        })
+        setTransactions(data)
+      } catch {
+        setTransactions([])
+      } finally {
+        setHistoryLoading(false)
+      }
+    }
+
+    loadHistory()
+  }, [user?.id, user?.email, user?.firstName, user?.lastName, selectedTab])
   
   if (!mounted || isLoading) {
     return (
@@ -35,8 +61,6 @@ export default function GoofyCoinsPage() {
     )
   }
   
-  // Stelle sicher, dass alle Werte konsistent sind und nicht undefined
-  const transactions = Array.isArray(mockCoinTransactions) ? mockCoinTransactions : []
   const redemptionItems = Array.isArray(mockRedemptionItems) ? mockRedemptionItems : []
   const tierInfo = TIER_INFO[user?.tier || 'Bronze']
 
@@ -248,7 +272,20 @@ export default function GoofyCoinsPage() {
         {selectedTab === 'history' && (
           <div className="space-y-4">
             <h3 className="text-2xl font-bold text-white mb-6">Transaktionsverlauf</h3>
-            {transactions.map((tx) => (
+            {historyLoading ? (
+              <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-8 text-center">
+                <p className="text-gray-400">Verlauf wird geladen…</p>
+              </div>
+            ) : transactions.length === 0 ? (
+              <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-8 text-center">
+                <Coins className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                <p className="text-white font-medium mb-2">Noch keine Transaktionen</p>
+                <p className="text-gray-400 text-sm">
+                  Sobald du GoofyCoins verdienst, ausgibst oder einlöst, erscheinen sie hier.
+                </p>
+              </div>
+            ) : (
+              transactions.map((tx) => (
               <div
                 key={tx.id}
                 className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6"
@@ -298,7 +335,8 @@ export default function GoofyCoinsPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            ))
+            )}
           </div>
         )}
 

@@ -7,6 +7,7 @@ import { Search, Clock, TrendingUp, X } from 'lucide-react'
 import { getProductsFromAPI } from '@/lib/api/products'
 import { Product } from '@/types'
 import { searchProducts } from '@/lib/search-utils'
+import { getProductUrl } from '@/lib/products/product-url'
 
 interface SearchAutocompleteProps {
   value: string
@@ -44,8 +45,8 @@ export default function SearchAutocomplete({
   const [isLoading, setIsLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const containerRef = useRef<HTMLDivElement>(null)
-  const abortControllerRef = useRef<AbortController | null>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const searchRequestIdRef = useRef(0)
   const [mounted, setMounted] = useState(false)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
 
@@ -127,74 +128,66 @@ export default function SearchAutocomplete({
     }
   }, [])
 
-  // Debounced search with abort controller
+  // Debounced search (request id ignores stale responses instead of aborting fetch)
   useEffect(() => {
-    // Clear previous timer
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
     }
 
-    // Abort previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-
-    // Reset selected index
     setSelectedIndex(-1)
 
-    if (value.trim().length >= 2) {
+    const trimmed = value.trim()
+
+    if (trimmed.length >= 2) {
       setIsLoading(true)
-      
-      // Debounce the search
+      setShowSuggestions(true)
+
       debounceTimerRef.current = setTimeout(async () => {
-        const searchTerm = value.toLowerCase().trim()
-        
-        // Create new abort controller
-        abortControllerRef.current = new AbortController()
-        
+        const requestId = ++searchRequestIdRef.current
+
         try {
-          // Get all products first
-          const allProducts = await getProductsFromAPI()
-          
-          // Check if request was aborted
-          if (abortControllerRef.current?.signal.aborted) {
+          const fromApi = await getProductsFromAPI({ search: trimmed })
+
+          if (requestId !== searchRequestIdRef.current) {
             return
           }
-          
-          // Use intelligent search with fuzzy matching
-          const matched = searchProducts(allProducts, value, {
-            fuzzyThreshold: 0.4, // Lower threshold for autocomplete (more lenient)
-            maxResults: MAX_SUGGESTIONS,
-          })
-          
+
+          const matched =
+            fromApi.length > 0
+              ? fromApi.slice(0, MAX_SUGGESTIONS)
+              : searchProducts(await getProductsFromAPI(), trimmed, {
+                  minScore: 45,
+                  maxResults: MAX_SUGGESTIONS,
+                })
+
+          if (requestId !== searchRequestIdRef.current) {
+            return
+          }
+
           setSuggestions(matched)
           setShowSuggestions(true)
-          setIsLoading(false)
-        } catch (error: any) {
-          // Ignore abort errors
-          if (error.name === 'AbortError') {
+        } catch (error) {
+          if (requestId !== searchRequestIdRef.current) {
             return
           }
           console.error('Error loading suggestions:', error)
           setSuggestions([])
           setShowSuggestions(true)
-          setIsLoading(false)
+        } finally {
+          if (requestId === searchRequestIdRef.current) {
+            setIsLoading(false)
+          }
         }
       }, DEBOUNCE_DELAY)
     } else {
       setSuggestions([])
-      // Show suggestions if focused (to show history) or if there's a value
       setShowSuggestions(isFocused || value.length > 0)
       setIsLoading(false)
     }
 
-    // Cleanup
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
-      }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
       }
     }
   }, [value, isFocused])
@@ -275,19 +268,10 @@ export default function SearchAutocomplete({
   // Autocomplete will close when user clicks on a suggestion
 
   const handleSuggestionClick = useCallback((product: Product) => {
-    const query = product.name
-    console.log('Navigating to product:', { id: product.id, name: product.name, url: `/products/${product.id}` })
-    saveToHistory(query)
+    saveToHistory(product.name)
     setShowSuggestions(false)
     setSelectedIndex(-1)
-    // Always use product name for Discord-Server to ensure correct routing
-    if (product.name.toLowerCase().includes('simex') && product.name.toLowerCase().includes('discord')) {
-      console.log('Discord-Server product detected, using name-based navigation')
-      // Use the exact product name for navigation
-      router.push(`/products/${encodeURIComponent(product.name)}`)
-    } else {
-      router.push(`/products/${product.id}`)
-    }
+    router.push(getProductUrl(product))
     onClose?.()
   }, [router, onClose])
 
@@ -339,7 +323,7 @@ export default function SearchAutocomplete({
     <div
       ref={containerRef}
       data-autocomplete
-      className="fixed bg-fortnite-dark border border-winter-ice/30 rounded-lg shadow-2xl max-h-96 overflow-y-auto"
+      className="fixed bg-fortnite-dark border border-summer-sky-light/30 rounded-lg shadow-2xl max-h-96 overflow-y-auto"
       style={{ 
         top: `${dropdownPosition.top}px`,
         left: `${dropdownPosition.left}px`,
@@ -356,18 +340,10 @@ export default function SearchAutocomplete({
             Produktvorschläge
           </h3>
           <div className="space-y-2">
-            {suggestions.map((product, index) => {
-              // Debug: Log product info to help identify the issue
-              if (product.name.toLowerCase().includes('simex') || product.name.toLowerCase().includes('discord')) {
-                console.log('Discord/Simex product found:', { id: product.id, name: product.name, index })
-              }
-              return (
+            {suggestions.map((product, index) => (
               <button
-                key={`${product.id}-${product.name}`}
-                onClick={() => {
-                  console.log('Clicked product:', { id: product.id, name: product.name })
-                  handleSuggestionClick(product)
-                }}
+                key={product.id}
+                onClick={() => handleSuggestionClick(product)}
                 onMouseEnter={() => setSelectedIndex(index)}
                 className={`w-full flex items-center space-x-3 p-2 rounded transition-colors text-left group ${
                   selectedIndex === index
@@ -409,11 +385,16 @@ export default function SearchAutocomplete({
                 </div>
                 <div className="text-right">
                   <p className="text-purple-400 font-semibold text-sm">
-                    €{(product.discount && product.discount > 0 ? product.price : (product.originalPrice || product.price)).toFixed(2)}
+                    €{product.price.toFixed(2)}
                   </p>
+                  {product.discount && product.discount > 0 && product.originalPrice ? (
+                    <p className="text-gray-500 text-xs line-through">
+                      €{product.originalPrice.toFixed(2)}
+                    </p>
+                  ) : null}
                 </div>
               </button>
-            )})}
+            ))}
           </div>
         </div>
       )}

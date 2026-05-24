@@ -1,35 +1,24 @@
-// Intelligent search utilities with fuzzy matching, synonyms, and typo tolerance
+// Product search: token matching, field weights, deduplication
 
-/**
- * Normalize search term: remove special characters, convert to lowercase, handle common variations
- */
+import { isSimexDiscordServerProduct } from '@/lib/products/simex-discord-server'
+
 function normalizeSearchTerm(term: string): string {
   return term
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
-    .replace(/\s+/g, ' ') // Normalize whitespace
+    .replace(/[^\w\s-äöüß]/gi, '')
+    .replace(/\s+/g, ' ')
 }
 
-/**
- * Calculate Levenshtein distance (edit distance) between two strings
- * Used for fuzzy matching
- */
 function levenshteinDistance(str1: string, str2: string): number {
-  const matrix: number[][] = []
   const len1 = str1.length
   const len2 = str2.length
-
   if (len1 === 0) return len2
   if (len2 === 0) return len1
 
-  for (let i = 0; i <= len2; i++) {
-    matrix[i] = [i]
-  }
-
-  for (let j = 0; j <= len1; j++) {
-    matrix[0][j] = j
-  }
+  const matrix: number[][] = []
+  for (let i = 0; i <= len2; i++) matrix[i] = [i]
+  for (let j = 0; j <= len1; j++) matrix[0][j] = j
 
   for (let i = 1; i <= len2; i++) {
     for (let j = 1; j <= len1; j++) {
@@ -37,265 +26,200 @@ function levenshteinDistance(str1: string, str2: string): number {
         matrix[i][j] = matrix[i - 1][j - 1]
       } else {
         matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1, // insertion
-          matrix[i - 1][j] + 1 // deletion
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
         )
       }
     }
   }
-
   return matrix[len2][len1]
 }
 
-/**
- * Calculate similarity score between two strings (0-1, where 1 is identical)
- */
 function similarityScore(str1: string, str2: string): number {
   const maxLen = Math.max(str1.length, str2.length)
   if (maxLen === 0) return 1
-  const distance = levenshteinDistance(str1, str2)
-  return 1 - distance / maxLen
+  return 1 - levenshteinDistance(str1, str2) / maxLen
 }
 
-/**
- * Product search synonyms and variations
- */
 const SEARCH_SYNONYMS: Record<string, string[]> = {
-  // Fortnite / V-Bucks
-  'vbucks': ['v-bucks', 'v bucks', 'vbucks', 'fortnite vbucks', 'fortnite v-bucks', 'fortnite v bucks'],
-  'v-bucks': ['vbucks', 'v bucks', 'fortnite vbucks', 'fortnite v-bucks', 'fortnite v bucks'],
-  'fortnite': ['fortnite', 'fn', 'fort nite'],
-  
-  // Platforms
-  'steam': ['steam', 'valve'],
-  'playstation': ['playstation', 'ps', 'ps4', 'ps5', 'sony'],
-  'xbox': ['xbox', 'x-box', 'microsoft'],
-  'nintendo': ['nintendo', 'switch', 'nintendo switch'],
-  'epic games': ['epic', 'epic games', 'epicgames'],
-  
-  // Games
-  'call of duty': ['cod', 'call of duty', 'callofduty'],
-  'grand theft auto': ['gta', 'grand theft auto', 'grandtheftauto'],
-  'counter-strike': ['cs', 'csgo', 'cs2', 'counter-strike', 'counterstrike'],
-  'fifa': ['fifa', 'ea sports fifa'],
-  'apex legends': ['apex', 'apex legends'],
-  'valorant': ['valorant', 'val'],
-  'rocket league': ['rl', 'rocket league'],
-  
-  // Categories
+  vbucks: ['v-bucks', 'v bucks', 'vbucks', 'fortnite'],
+  'v-bucks': ['vbucks', 'v bucks', 'fortnite'],
+  fortnite: ['fortnite', 'fn', 'vbucks', 'v-bucks'],
+  steam: ['steam', 'valve'],
+  playstation: ['playstation', 'ps', 'ps4', 'ps5', 'sony'],
+  xbox: ['xbox', 'microsoft'],
+  nintendo: ['nintendo', 'switch'],
+  'epic games': ['epic', 'epicgames'],
+  'call of duty': ['cod', 'call of duty'],
   'gift card': ['giftcard', 'gift-card', 'gutschein'],
-  'gift cards': ['giftcards', 'gift-cards', 'gutscheine'],
-  'in-game currency': ['currency', 'coins', 'points', 'in-game currency', 'ingame currency'],
-  'subscription': ['sub', 'subscription', 'abo'],
-  'subscriptions': ['subs', 'subscriptions', 'abos'],
-  
-  // Common terms
-  'wallet': ['wallet', 'guthaben', 'balance'],
+  'gift cards': ['giftcard', 'gutscheine'],
   'game pass': ['gamepass', 'game-pass', 'xbox game pass'],
-  'playstation plus': ['ps plus', 'psplus', 'playstation plus', 'ps+'],
-  
-  // Discord / Simex
-  'discord': ['discord', 'dc'],
-  'simex': ['simex', 'simex mafia', 'simexmafia'],
-  'simex discord': ['simex discord', 'simex discord server', 'simex geheimer discord', 'simex geheimer discord-server'],
+  'playstation plus': ['ps plus', 'psplus', 'ps+'],
+  discord: ['discord', 'dc'],
+  simex: ['simex', 'simexmafia', 'simex mafia'],
+  nitro: ['nitro', 'discord nitro'],
 }
 
-/**
- * Expand search term with synonyms
- */
-function expandSearchTerm(term: string): string[] {
+function expandSearchTokens(term: string): string[] {
   const normalized = normalizeSearchTerm(term)
-  const terms = [normalized]
-  
-  // Check for synonyms
+  const tokens = new Set<string>([normalized])
+
+  for (const word of normalized.split(/\s+/)) {
+    if (word.length > 1) tokens.add(word)
+  }
+
   for (const [key, synonyms] of Object.entries(SEARCH_SYNONYMS)) {
-    if (normalized.includes(key) || synonyms.some(s => normalized.includes(s))) {
-      terms.push(...synonyms)
-      terms.push(key)
+    if (normalized.includes(key) || synonyms.some((s) => normalized.includes(s))) {
+      tokens.add(key)
+      synonyms.forEach((s) => tokens.add(s))
     }
   }
-  
-  // Split into words and add individual words
-  const words = normalized.split(/\s+/)
-  words.forEach(word => {
-    if (word.length > 2) {
-      terms.push(word)
-    }
-  })
-  
-  return Array.from(new Set(terms)) // Remove duplicates
+
+  return Array.from(tokens)
+}
+
+export interface ProductSearchFields {
+  name: string
+  description?: string
+  platform?: string
+  category?: string
+  tags?: string[]
 }
 
 /**
- * Check if search term matches product (with fuzzy matching)
+ * Relevanz-Score 0–100 (höher = besser). 0 = kein Treffer.
  */
+export function scoreProduct(
+  product: ProductSearchFields,
+  searchTerm: string
+): number {
+  const query = normalizeSearchTerm(searchTerm)
+  if (!query) return 0
+
+  const name = normalizeSearchTerm(product.name)
+  const platform = normalizeSearchTerm(product.platform || '')
+  const category = normalizeSearchTerm(product.category || '')
+  const tagsText = (product.tags || []).map(normalizeSearchTerm).join(' ')
+  const description = normalizeSearchTerm(product.description || '')
+  const searchLower = searchTerm.toLowerCase().trim()
+
+  const isSimexDiscordSearch =
+    searchLower.includes('simex') ||
+    (searchLower.includes('discord') && !searchLower.includes('nitro'))
+
+  if (isSimexDiscordSearch && isSimexDiscordServerProduct(product)) {
+    return 100
+  }
+
+  if (name === query) return 100
+  if (name.startsWith(query)) return 96
+
+  const queryTokens = query.split(/\s+/).filter((t) => t.length > 1)
+  if (queryTokens.length > 0) {
+    const allInName = queryTokens.every((t) => name.includes(t))
+    if (allInName) return 94
+
+    const allInPrimary = queryTokens.every(
+      (t) => name.includes(t) || platform.includes(t) || tagsText.includes(t)
+    )
+    if (allInPrimary) return 88
+  }
+
+  if (query.length >= 3 && name.includes(query)) return 90
+  if (query.length >= 3 && platform.includes(query)) return 82
+  if (query.length >= 3 && tagsText.includes(query)) return 78
+  if (query.length >= 4 && category.includes(query)) return 72
+  if (query.length >= 4 && description.includes(query)) return 58
+
+  const expanded = expandSearchTokens(query)
+  for (const token of expanded) {
+    if (token.length < 3) continue
+    if (name.includes(token)) return Math.max(75, 70 + token.length)
+    if (platform.includes(token)) return 70
+    if (tagsText.includes(token)) return 68
+  }
+
+  if (query.length >= 4) {
+    const nameSimilarity = similarityScore(query, name)
+    if (nameSimilarity >= 0.82) return Math.round(nameSimilarity * 72)
+  }
+
+  if (queryTokens.length === 1 && queryTokens[0].length >= 3) {
+    const token = queryTokens[0]
+    if (name.split(/\s+/).some((w) => w.startsWith(token))) return 76
+  }
+
+  return 0
+}
+
 export function matchesProduct(
-  product: { name: string; description?: string; platform?: string; category?: string; tags?: string[] },
+  product: ProductSearchFields,
   searchTerm: string,
   options: { fuzzyThreshold?: number; requireExactMatch?: boolean } = {}
 ): { matches: boolean; score: number } {
-  const { fuzzyThreshold = 0.6, requireExactMatch = false } = options
-  
-  const normalizedSearch = normalizeSearchTerm(searchTerm)
-  const expandedTerms = expandSearchTerm(searchTerm)
-  
-  // Exact match check
-  const productText = [
-    product.name,
-    product.description || '',
-    product.platform || '',
-    product.category || '',
-    ...(product.tags || []),
-  ]
-    .join(' ')
-    .toLowerCase()
-  
-  // Check exact matches first
-  for (const term of expandedTerms) {
-    if (productText.includes(term)) {
-      return { matches: true, score: 1.0 }
-    }
-  }
-  
-  // If exact match required, return false
-  if (requireExactMatch) {
-    return { matches: false, score: 0 }
-  }
-  
-  // Fuzzy matching
-  const words = productText.split(/\s+/)
-  let bestScore = 0
-  
-  for (const term of expandedTerms) {
-    // Check word-by-word similarity
-    for (const word of words) {
-      if (word.length > 2) {
-        const score = similarityScore(term, word)
-        if (score > bestScore) {
-          bestScore = score
-        }
-      }
-    }
-    
-    // Check substring similarity
-    if (productText.length > 0) {
-      const substringScore = similarityScore(term, productText.substring(0, Math.min(term.length + 10, productText.length)))
-      if (substringScore > bestScore) {
-        bestScore = substringScore
-      }
-    }
-  }
-  
-  // Check if any word in search term is contained in product
-  const searchWords = normalizedSearch.split(/\s+/)
-  let containedWords = 0
-  for (const word of searchWords) {
-    if (word.length > 2 && productText.includes(word)) {
-      containedWords++
-    }
-  }
-  
-  // Boost score if multiple words match
-  if (containedWords > 0) {
-    const wordMatchScore = containedWords / searchWords.length
-    bestScore = Math.max(bestScore, wordMatchScore * 0.8)
-  }
-  
+  const score = scoreProduct(product, searchTerm)
+  const minScore = options.requireExactMatch
+    ? 90
+    : Math.round((options.fuzzyThreshold ?? 0.5) * 100)
+  const normalizedScore = score / 100
   return {
-    matches: bestScore >= fuzzyThreshold,
-    score: bestScore,
+    matches: score >= minScore,
+    score: normalizedScore,
   }
 }
 
-/**
- * Filter and rank products based on search term
- */
-export function searchProducts<T extends { name: string; description?: string; platform?: string; category?: string; tags?: string[] }>(
+function dedupeProducts<T extends ProductSearchFields & { id: string }>(products: T[]): T[] {
+  const seenIds = new Set<string>()
+  const seenNames = new Set<string>()
+  const result: T[] = []
+
+  for (const product of products) {
+    const nameKey = normalizeSearchTerm(product.name)
+    if (seenIds.has(product.id) || seenNames.has(nameKey)) continue
+    seenIds.add(product.id)
+    seenNames.add(nameKey)
+    result.push(product)
+  }
+
+  return result
+}
+
+export function searchProducts<T extends ProductSearchFields & { id: string }>(
   products: T[],
   searchTerm: string,
-  options: { fuzzyThreshold?: number; maxResults?: number } = {}
+  options: {
+    fuzzyThreshold?: number
+    minScore?: number
+    maxResults?: number
+  } = {}
 ): T[] {
-  const { fuzzyThreshold = 0.5, maxResults = 100 } = options
-  
+  const maxResults = options.maxResults ?? 100
+  const minScore =
+    options.minScore ??
+    (options.fuzzyThreshold != null
+      ? Math.round(options.fuzzyThreshold * 100)
+      : 52)
+
   if (!searchTerm.trim()) {
-    return products
+    return products.slice(0, maxResults)
   }
-  
-  const normalizedSearch = normalizeSearchTerm(searchTerm)
-  const searchLower = searchTerm.toLowerCase().trim()
-  
-  // Special handling for "simex" or "discord" searches - prioritize Discord-Server product
-  const isSimexDiscordSearch = searchLower.includes('simex') || 
-                                (searchLower.includes('discord') && !searchLower.includes('nitro'))
-  
-  // Score all products
-  const scoredProducts = products
-    .map(product => {
-      const match = matchesProduct(product, searchTerm, { fuzzyThreshold })
-      let score = match.score
-      
-      const productNameLower = product.name.toLowerCase().trim()
-      
-      // Special boost for "Simex Geheimer Discord-Server" when searching for "simex" or "discord"
-      if (isSimexDiscordSearch) {
-        if (productNameLower.includes('simex') && productNameLower.includes('discord') && productNameLower.includes('server')) {
-          // Maximum priority for Discord-Server product
-          score = 1.0
-        } else if (productNameLower.includes('discord') && !productNameLower.includes('nitro')) {
-          // Lower priority for other Discord products
-          score = Math.max(score, 0.3)
-        }
-      }
-      
-      // Boost score for exact name matches
-      if (productNameLower === normalizedSearch) {
-        score = 1.0
-      } else if (productNameLower.includes(normalizedSearch) && normalizedSearch.length > 3) {
-        score = Math.max(score, 0.9)
-      }
-      
-      return {
-        product,
-        match: { ...match, score },
-      }
-    })
-    .filter(item => item.match.matches)
+
+  const scored = products
+    .map((product) => ({
+      product,
+      score: scoreProduct(product, searchTerm),
+    }))
+    .filter((item) => item.score >= minScore)
     .sort((a, b) => {
-      const aName = a.product.name.toLowerCase().trim()
-      const bName = b.product.name.toLowerCase().trim()
-      
-      // Special priority for Discord-Server when searching for simex/discord
-      if (isSimexDiscordSearch) {
-        const aIsDiscordServer = aName.includes('simex') && aName.includes('discord') && aName.includes('server')
-        const bIsDiscordServer = bName.includes('simex') && bName.includes('discord') && bName.includes('server')
-        if (aIsDiscordServer && !bIsDiscordServer) return -1
-        if (!aIsDiscordServer && bIsDiscordServer) return 1
-      }
-      
-      // First sort by score
-      if (b.match.score !== a.match.score) {
-        return b.match.score - a.match.score
-      }
-      
-      // Then by exact name match
-      const aExact = aName === normalizedSearch
-      const bExact = bName === normalizedSearch
-      if (aExact && !bExact) return -1
-      if (!aExact && bExact) return 1
-      
-      // Finally by name length (shorter names first for exact matches)
+      if (b.score !== a.score) return b.score - a.score
       return a.product.name.length - b.product.name.length
     })
-    .slice(0, maxResults)
-    .map(item => item.product)
-  
-  return scoredProducts
+
+  const unique = dedupeProducts(scored.map((item) => item.product))
+  return unique.slice(0, maxResults)
 }
 
-/**
- * Generate search suggestions based on partial input
- */
 export function generateSearchSuggestions(
   products: { name: string; platform?: string; category?: string }[],
   partialInput: string,
@@ -304,42 +228,17 @@ export function generateSearchSuggestions(
   if (!partialInput.trim() || partialInput.length < 2) {
     return []
   }
-  
-  const normalized = normalizeSearchTerm(partialInput)
-  const suggestions = new Set<string>()
-  
-  // Extract common words/phrases from product names
-  const commonTerms = new Map<string, number>()
-  
-  products.forEach(product => {
-    const name = normalizeSearchTerm(product.name)
-    const words = name.split(/\s+/)
-    
-    // Add full product name if it starts with input
-    if (name.startsWith(normalized)) {
-      suggestions.add(product.name)
-    }
-    
-    // Count word occurrences
-    words.forEach(word => {
-      if (word.length >= 3 && word.startsWith(normalized.substring(0, Math.min(3, normalized.length)))) {
-        commonTerms.set(word, (commonTerms.get(word) || 0) + 1)
-      }
-    })
-  })
-  
-  // Add popular terms
-  Array.from(commonTerms.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, maxSuggestions)
-    .forEach(([term]) => {
-      if (term.length >= normalized.length) {
-        suggestions.add(term)
-      }
-    })
-  
-  return Array.from(suggestions).slice(0, maxSuggestions)
+
+  const ranked = searchProducts(
+    products.map((p, index) => ({
+      id: String(index),
+      name: p.name,
+      platform: p.platform,
+      category: p.category,
+    })),
+    partialInput,
+    { minScore: 70, maxResults: maxSuggestions }
+  )
+
+  return ranked.map((p) => p.name)
 }
-
-
-

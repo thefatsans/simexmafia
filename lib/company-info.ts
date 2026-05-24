@@ -1,5 +1,8 @@
 // Company information configuration
 
+/** Öffentliche Support-Adresse (Gmail) */
+export const SUPPORT_EMAIL = 'simexmafia.support@gmail.com'
+
 export const companyInfo = {
   // Company Name
   name: 'SimexMafia',
@@ -15,9 +18,9 @@ export const companyInfo = {
   
   // Contact Information
   contact: {
-    email: 'info@simexmafia.de',
+    email: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || SUPPORT_EMAIL,
     phone: '+49 0162/5330168',
-    website: 'www.simexmafia.de',
+    website: process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, '') || 'simexmafia.vercel.app',
   },
   
   // Responsible Person (for legal imprint)

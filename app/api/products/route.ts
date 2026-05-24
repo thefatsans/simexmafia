@@ -1,216 +1,138 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { handleApiError, checkDatabaseConfig } from '@/lib/api-error-handler'
+import { finalizeProductsForStorefront } from '@/lib/promotions/finalize-products'
+import { loadGeneratedProductsCatalog } from '@/lib/products/format-generated'
+import {
+  applyProductQueryFilters,
+  parseProductQueryFromSearchParams,
+} from '@/lib/products/query'
+import { ensureSimexDiscordServerInCatalog } from '@/lib/products/simex-discord-server'
+import {
+  ensureSimexMafiaSellerInDatabase,
+  linkDiscordServerProductToSimexMafia,
+} from '@/lib/sellers/ensure-simexmafia-seller'
+import { applySimexMafiaSellerToDiscordProducts } from '@/lib/products/simex-discord-server'
+import { searchProducts } from '@/lib/search-utils'
 
-// GET /api/products - Alle Produkte abrufen
-export async function GET(request: NextRequest) {
+function buildPrismaWhere(filters: ReturnType<typeof parseProductQueryFromSearchParams>) {
+  const where: Record<string, unknown> = {}
+
+  if (filters.category) where.category = filters.category
+  if (filters.platform) where.platform = filters.platform
+  if (filters.inStock) where.inStock = true
+
+  if (filters.minPrice != null || filters.maxPrice != null) {
+    where.price = {}
+    const price = where.price as Record<string, number>
+    if (filters.minPrice != null) price.gte = filters.minPrice
+    if (filters.maxPrice != null) price.lte = filters.maxPrice
+  }
+
+  return where
+}
+
+function normalizeDbProducts(products: Array<Record<string, any>>) {
+  return products.map((product) => {
+    const avgRating =
+      product.reviews?.length > 0
+        ? product.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
+          product.reviews.length
+        : product.rating
+
+    return {
+      ...product,
+      rating: avgRating,
+      reviewCount: product.reviews?.length || product.reviewCount,
+      originalPrice: product.originalPrice ?? undefined,
+      reviews: undefined,
+    }
+  })
+}
+
+async function loadCatalogWithFilters(
+  filters: ReturnType<typeof parseProductQueryFromSearchParams>
+) {
+  const generated = await loadGeneratedProductsCatalog()
+  return applyProductQueryFilters(generated as any, filters)
+}
+
+async function fetchProducts(
+  filters: ReturnType<typeof parseProductQueryFromSearchParams>
+) {
+  if (!process.env.DATABASE_URL || !prisma) {
+    return loadCatalogWithFilters(filters)
+  }
+
   try {
-    // Check if DATABASE_URL is set
-    if (!process.env.DATABASE_URL) {
-      console.warn('DATABASE_URL not set, using fallback to generated products')
-      // Importiere generierte Produkte als Fallback
-      const { generateProducts } = await import('@/prisma/product-data')
-      const { updateProductImages } = await import('@/lib/image-updater')
-      const sellerIds = ['seller1', 'seller2', 'seller3', 'seller4']
-      const generatedProducts = generateProducts(sellerIds)
-      
-      // Konvertiere zu Product-Format
-      const formattedProducts = generatedProducts.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        price: p.price,
-        originalPrice: p.originalPrice,
-        discount: p.discount,
-        image: p.image,
-        category: p.category,
-        platform: p.platform,
-        rating: p.rating,
-        reviewCount: p.reviewCount,
-        inStock: p.inStock,
-        tags: p.tags,
-        seller: {
-          id: p.sellerId,
-          name: p.sellerId === 'seller1' ? 'GameDeals Pro' : p.sellerId === 'seller2' ? 'DigitalKeys Store' : p.sellerId === 'seller3' ? 'GiftCard Masters' : 'Subscriptions Hub',
-          rating: 4.7,
-          reviewCount: 2000,
-          verified: true,
-        },
-      }))
-      
-      // Aktualisiere alle Bilder mit den neuesten aus complete-product-images.ts
-      const productsWithUpdatedImages = updateProductImages(formattedProducts)
-      
-      return NextResponse.json(productsWithUpdatedImages)
-    }
-
-    const searchParams = request.nextUrl.searchParams
-    const category = searchParams.get('category')
-    const platform = searchParams.get('platform')
-    const minPrice = searchParams.get('minPrice')
-    const maxPrice = searchParams.get('maxPrice')
-    const inStock = searchParams.get('inStock')
-    const search = searchParams.get('search')
-
-    const where: any = {}
-
-    if (category) where.category = category
-    if (platform) where.platform = platform
-    if (inStock === 'true') where.inStock = true
-    
-    if (minPrice || maxPrice) {
-      where.price = {}
-      if (minPrice) where.price.gte = parseFloat(minPrice)
-      if (maxPrice) where.price.lte = parseFloat(maxPrice)
-    }
-
-    if (search) {
-      // Use intelligent search with multiple patterns
-      const searchLower = search.toLowerCase().trim()
-      const searchPatterns = [
-        search, // Original search term
-        searchLower, // Lowercase
-        search.replace(/[^\w\s-]/g, ''), // Without special chars
-        search.replace(/\s+/g, ' '), // Normalized whitespace
-      ]
-      
-      // Remove duplicates
-      const uniquePatterns = Array.from(new Set(searchPatterns))
-      
-      // Build OR conditions for each pattern
-      where.OR = uniquePatterns.flatMap(pattern => [
-        { name: { contains: pattern, mode: 'insensitive' } },
-        { description: { contains: pattern, mode: 'insensitive' } },
-        { tags: { has: pattern } },
-        { platform: { contains: pattern, mode: 'insensitive' } },
-        { category: { contains: pattern, mode: 'insensitive' } },
-      ])
-    }
-
-    if (!prisma) {
-      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
-    }
-
+    await ensureSimexMafiaSellerInDatabase()
+    await linkDiscordServerProductToSimexMafia()
+    const where = buildPrismaWhere(filters)
     const products = await prisma.product.findMany({
       where,
       include: {
         seller: true,
         reviews: {
-          select: {
-            rating: true,
-          },
+          select: { rating: true },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     })
 
-    // Wenn keine Produkte in der Datenbank, verwende generierte Produkte
     if (products.length === 0) {
-      console.warn('No products in database, using fallback to generated products')
-      const { generateProducts } = await import('@/prisma/product-data')
-      const { updateProductImages } = await import('@/lib/image-updater')
-      const sellerIds = ['seller1', 'seller2', 'seller3', 'seller4']
-      const generatedProducts = generateProducts(sellerIds)
-      
-      // Konvertiere zu Product-Format
-      const formattedProducts = generatedProducts.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        price: p.price,
-        originalPrice: p.originalPrice,
-        discount: p.discount,
-        image: p.image,
-        category: p.category,
-        platform: p.platform,
-        rating: p.rating,
-        reviewCount: p.reviewCount,
-        inStock: p.inStock,
-        tags: p.tags,
-        seller: {
-          id: p.sellerId,
-          name: p.sellerId === 'seller1' ? 'GameDeals Pro' : p.sellerId === 'seller2' ? 'DigitalKeys Store' : p.sellerId === 'seller3' ? 'GiftCard Masters' : 'Subscriptions Hub',
-          rating: 4.7,
-          reviewCount: 2000,
-          verified: true,
-        },
-      }))
-      
-      // Aktualisiere alle Bilder mit den neuesten aus complete-product-images.ts
-      const productsWithUpdatedImages = updateProductImages(formattedProducts)
-      
-      return NextResponse.json(productsWithUpdatedImages)
+      return loadCatalogWithFilters(filters)
     }
 
-    // Berechne durchschnittliche Bewertung und aktualisiere Bilder
-    const { updateProductImages } = await import('@/lib/image-updater')
-    const productsWithRating = products.map((product: any) => {
-      const avgRating =
-        product.reviews.length > 0
-          ? product.reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / product.reviews.length
-          : product.rating
+    return normalizeDbProducts(products as any)
+  } catch (error) {
+    console.warn('Database error, using generated catalog:', error)
+    return loadCatalogWithFilters(filters)
+  }
+}
 
-      return {
-        ...product,
-        rating: avgRating,
-        reviewCount: product.reviews.length || product.reviewCount,
-        reviews: undefined, // Entferne reviews aus der Antwort
-      }
-    })
+// GET /api/products - Alle Produkte abrufen
+export async function GET(request: NextRequest) {
+  try {
+    const filters = parseProductQueryFromSearchParams(request.nextUrl.searchParams)
+    const { search, ...catalogFilters } = filters
+    let products = await fetchProducts(catalogFilters)
+    products = await ensureSimexDiscordServerInCatalog(products as any, catalogFilters)
+    products = applySimexMafiaSellerToDiscordProducts(products as any)
 
-    // Aktualisiere alle Bilder mit den neuesten aus complete-product-images.ts
-    // Konvertiere null zu undefined für originalPrice
-    const productsNormalized = productsWithRating.map((p: any) => ({
-      ...p,
-      originalPrice: p.originalPrice ?? undefined,
-    }))
-    const productsWithUpdatedImages = updateProductImages(productsNormalized as any)
+    if (search?.trim()) {
+      products = searchProducts(products as any, search.trim(), {
+        minScore: 45,
+        maxResults: 200,
+      }) as typeof products
+    }
 
-    return NextResponse.json(productsWithUpdatedImages)
-  } catch (error: any) {
-    console.warn('Database error, using fallback to generated products:', error.message)
-    // Fallback zu generierten Produkten bei Datenbankfehler
+    return NextResponse.json(finalizeProductsForStorefront(products as any))
+  } catch (error: unknown) {
+    console.error('Error fetching products:', error)
     try {
-      const { generateProducts } = await import('@/prisma/product-data')
-      const { updateProductImages } = await import('@/lib/image-updater')
-      const sellerIds = ['seller1', 'seller2', 'seller3', 'seller4']
-      const generatedProducts = generateProducts(sellerIds)
-      
-      // Konvertiere zu Product-Format
-      const formattedProducts = generatedProducts.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        price: p.price,
-        originalPrice: p.originalPrice,
-        discount: p.discount,
-        image: p.image,
-        category: p.category,
-        platform: p.platform,
-        rating: p.rating,
-        reviewCount: p.reviewCount,
-        inStock: p.inStock,
-        tags: p.tags,
-        seller: {
-          id: p.sellerId,
-          name: p.sellerId === 'seller1' ? 'GameDeals Pro' : p.sellerId === 'seller2' ? 'DigitalKeys Store' : p.sellerId === 'seller3' ? 'GiftCard Masters' : 'Subscriptions Hub',
-          rating: 4.7,
-          reviewCount: 2000,
-          verified: true,
-        },
-      }))
-      
-      // Aktualisiere alle Bilder mit den neuesten aus complete-product-images.ts
-      const productsWithUpdatedImages = updateProductImages(formattedProducts)
-      
-      return NextResponse.json(productsWithUpdatedImages)
-    } catch (fallbackError) {
-      // Letzter Fallback zu Mock-Daten
+      const filters = parseProductQueryFromSearchParams(request.nextUrl.searchParams)
+      const { search, ...catalogFilters } = filters
+      let fallback = await loadCatalogWithFilters(catalogFilters)
+      fallback = await ensureSimexDiscordServerInCatalog(fallback as any, catalogFilters)
+      if (search?.trim()) {
+        fallback = searchProducts(fallback as any, search.trim(), {
+          minScore: 45,
+          maxResults: 200,
+        }) as typeof fallback
+      }
+      return NextResponse.json(finalizeProductsForStorefront(fallback as any))
+    } catch {
       const { getProducts } = await import('@/data/products')
-      const mockProducts = getProducts()
-      return NextResponse.json(mockProducts)
+      const filters = parseProductQueryFromSearchParams(request.nextUrl.searchParams)
+      const { search, ...catalogFilters } = filters
+      let mock = applyProductQueryFilters(getProducts(), catalogFilters)
+      mock = await ensureSimexDiscordServerInCatalog(mock as any, catalogFilters)
+      if (search?.trim()) {
+        mock = searchProducts(mock as any, search.trim(), {
+          minScore: 45,
+          maxResults: 200,
+        }) as typeof mock
+      }
+      return NextResponse.json(finalizeProductsForStorefront(mock as any))
     }
   }
 }
@@ -233,7 +155,6 @@ export async function POST(request: NextRequest) {
       inStock,
     } = body
 
-    // Validierung
     if (!name || !description || !price || !category || !platform || !sellerId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
@@ -262,9 +183,8 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(product, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating product:', error)
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
   }
 }
-

@@ -7,6 +7,7 @@ import { isAdmin } from '@/data/admin'
 import { useToast } from '@/contexts/ToastContext'
 import { Mail, Send, Users, FileText, Loader2 } from 'lucide-react'
 import { sendEmail } from '@/lib/email'
+import { getSiteUrl } from '@/lib/site-url'
 
 type EmailType = 'custom' | 'newsletter' | 'announcement'
 
@@ -104,6 +105,7 @@ export default function AdminEmailsPage() {
     setIsSending(true)
 
     try {
+      const siteUrl = getSiteUrl()
       // Create HTML email
       const html = `
         <!DOCTYPE html>
@@ -115,12 +117,15 @@ export default function AdminEmailsPage() {
           </head>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1 style="color: white; margin: 0;">SimexMafia</h1>
+              <a href="${siteUrl}" style="color: white; text-decoration: none;">
+                <h1 style="color: white; margin: 0;">SimexMafia</h1>
+              </a>
             </div>
             <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
               <div style="white-space: pre-wrap; font-size: 16px;">${message.replace(/\n/g, '<br>')}</div>
             </div>
             <div style="text-align: center; margin-top: 20px; padding: 20px; color: #999; font-size: 12px;">
+              <p><a href="${siteUrl}" style="color: #667eea;">${siteUrl}</a></p>
               <p>© ${new Date().getFullYear()} SimexMafia. Alle Rechte vorbehalten.</p>
             </div>
           </body>
@@ -382,9 +387,10 @@ export default function AdminEmailsPage() {
         {/* Info Box */}
         <div className="mt-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
           <p className="text-sm text-blue-300">
-            <strong>Hinweis:</strong> Im Development-Modus werden E-Mails nur in der Konsole geloggt. Für
-            Production setzen Sie bitte die <code className="bg-blue-500/20 px-2 py-1 rounded">RESEND_API_KEY</code>{' '}
-            Environment-Variable.
+            <strong>Hinweis:</strong> Setzen Sie <code className="bg-blue-500/20 px-2 py-1 rounded">RESEND_API_KEY</code>{' '}
+            und optional <code className="bg-blue-500/20 px-2 py-1 rounded">RESEND_FROM_EMAIL</code>. Ohne verifizierte
+            Domain nutzen Sie <code className="bg-blue-500/20 px-2 py-1 rounded">onboarding@resend.dev</code> – Testmails
+            gehen nur an die E-Mail Ihres Resend-Accounts.
           </p>
         </div>
       </div>

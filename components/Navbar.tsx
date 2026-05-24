@@ -53,7 +53,7 @@ export default function Navbar() {
   // Autocomplete closes via onBlur on the input field - no global event listeners needed
 
   return (
-    <nav className="bg-fortnite-darker/95 dark:bg-fortnite-darker/95 bg-white/95 dark:border-winter-ice/30 border-gray-200 border-b sticky top-0 z-[9999] backdrop-blur-md pointer-events-auto transition-all duration-300 shadow-lg shadow-winter-blue/10" style={{
+    <nav className="bg-fortnite-darker/95 dark:bg-fortnite-darker/95 bg-white/95 dark:border-summer-sky-light/30 border-gray-200 border-b sticky top-0 z-[9999] backdrop-blur-md pointer-events-auto transition-all duration-300 shadow-lg shadow-summer-ocean/10" style={{
       background: 'linear-gradient(135deg, rgba(8, 20, 35, 0.95) 0%, rgba(4, 12, 24, 0.95) 100%)',
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
@@ -77,7 +77,7 @@ export default function Navbar() {
               </div>
               <div className="flex items-center sm:hidden">
                 <Logo width={48} height={48} showText={false} />
-                <span className="ml-2 text-lg font-bold bg-gradient-to-r from-winter-ice to-winter-blue-light bg-clip-text text-transparent">SimexMafia</span>
+                <span className="ml-2 text-lg font-bold bg-gradient-to-r from-summer-sky-light to-summer-ocean-light bg-clip-text text-transparent">SimexMafia</span>
               </div>
             </a>
 
@@ -90,7 +90,7 @@ export default function Navbar() {
                   e.stopPropagation()
                   window.location.href = '/'
                 }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
               >
                 Startseite
               </a>
@@ -101,7 +101,7 @@ export default function Navbar() {
                   e.stopPropagation()
                   window.location.href = '/products'
                 }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
               >
                 Produkte
               </a>
@@ -112,7 +112,7 @@ export default function Navbar() {
                   e.stopPropagation()
                   window.location.href = '/categories'
                 }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
               >
                 Kategorien
               </a>
@@ -123,7 +123,7 @@ export default function Navbar() {
                   e.stopPropagation()
                   window.location.href = '/sellers'
                 }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
+                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
               >
                 Verkäufer
               </a>
@@ -150,7 +150,7 @@ export default function Navbar() {
                   }
                 }}
                 placeholder="Suchen..."
-                className="w-full pl-11 pr-4 py-2.5 text-sm bg-fortnite-dark dark:bg-fortnite-dark bg-gray-100 dark:border-winter-ice/30 border-gray-300 rounded-lg text-white dark:text-white text-gray-900 dark:placeholder-gray-400 placeholder-gray-500 focus:outline-none focus:border-winter-ice dark:focus:border-winter-ice transition-colors"
+                className="w-full pl-11 pr-4 py-2.5 text-sm bg-fortnite-dark dark:bg-fortnite-dark bg-gray-100 dark:border-summer-sky-light/30 border-gray-300 rounded-lg text-white dark:text-white text-gray-900 dark:placeholder-gray-400 placeholder-gray-500 focus:outline-none focus:border-summer-sky-light dark:focus:border-summer-sky-light transition-colors"
               />
               {showAutocomplete && (
                 <SearchAutocomplete
@@ -188,7 +188,7 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/wishlist'
               }}
-              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               title="Wunschliste"
             >
               <Heart className="w-5 h-5" />
@@ -205,19 +205,19 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/compare'
               }}
-              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               title="Produktvergleich"
             >
               <GitCompare className="w-5 h-5" />
               {compareCount > 0 && (
-                <span className="absolute top-0 right-0 bg-winter-blue text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute top-0 right-0 bg-summer-ocean text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                   {compareCount > 9 ? '9+' : compareCount}
                 </span>
               )}
             </a>
             <button
               onClick={toggleTheme}
-              className="p-2 text-gray-300 hover:text-winter-ice transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="p-2 text-gray-300 hover:text-summer-sky-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               title={mounted ? (theme === 'dark' ? 'Light Mode aktivieren' : 'Dark Mode aktivieren') : 'Theme wechseln'}
               suppressHydrationWarning
             >
@@ -236,7 +236,7 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/cart'
               }}
-              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               title="Warenkorb"
             >
               <ShoppingCart className="w-5 h-5" />
@@ -254,7 +254,7 @@ export default function Navbar() {
                   e.stopPropagation()
                   window.location.href = '/auth/login'
                 }}
-                className="hidden lg:flex items-center space-x-2 px-3 py-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto relative z-[10003] cursor-pointer"
+                className="hidden lg:flex items-center space-x-2 px-3 py-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto relative z-[10003] cursor-pointer"
               >
                 <LogIn className="w-5 h-5" />
                 <span className="text-sm">Anmelden</span>
@@ -269,7 +269,7 @@ export default function Navbar() {
                       e.stopPropagation()
                       window.location.href = '/admin'
                     }}
-                    className="hidden lg:flex items-center space-x-2 px-3 py-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto relative z-[10003] cursor-pointer"
+                    className="hidden lg:flex items-center space-x-2 px-3 py-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto relative z-[10003] cursor-pointer"
                     title="Admin Panel"
                   >
                     <Settings className="w-5 h-5" />
@@ -283,7 +283,7 @@ export default function Navbar() {
                     e.stopPropagation()
                     window.location.href = '/account'
                   }}
-                  className="hidden lg:flex items-center space-x-2 px-3 py-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-winter-ice hover:text-winter-blue-light transition-colors pointer-events-auto relative z-[10003] cursor-pointer"
+                  className="hidden lg:flex items-center space-x-2 px-3 py-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto relative z-[10003] cursor-pointer"
                 >
                   <User className="w-5 h-5" />
                   <span className="text-sm">{user?.firstName || 'Konto'}</span>
@@ -303,7 +303,7 @@ export default function Navbar() {
             )}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2 text-gray-300 hover:text-winter-ice transition-colors pointer-events-auto relative z-[10003] min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="lg:hidden p-2 text-gray-300 hover:text-summer-sky-light transition-colors pointer-events-auto relative z-[10003] min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               suppressHydrationWarning
               aria-label="Menü öffnen"
             >

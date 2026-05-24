@@ -2,8 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { getLeaderboard, getUserRank, LeaderboardEntry } from '@/data/leaderboard'
-import { mockUser } from '@/data/user'
+import {
+  getLeaderboardAsync,
+  getUserRankAsync,
+  clearLeaderboardCache,
+  type LeaderboardEntry,
+} from '@/data/leaderboard'
 import { Trophy, Medal, Award, Crown, Gift, Coins, TrendingUp, Package, Star, Flame } from 'lucide-react'
 import { getSackByType } from '@/data/sacks'
 import { useAuth } from '@/contexts/AuthContext'
@@ -16,18 +20,27 @@ export default function LeaderboardPage() {
   const [selectedCategory, setSelectedCategory] = useState<'sacks' | 'spent' | 'products' | 'coins' | 'success'>('sacks')
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [userRank, setUserRank] = useState(0)
+  const [isLoadingBoard, setIsLoadingBoard] = useState(true)
 
   const { user } = useAuth()
-  
-  // Define loadLeaderboard function before using it in useEffect
-  const loadLeaderboard = () => {
+
+  const loadLeaderboard = async () => {
     if (!user) return
-    
-    const entries = getLeaderboard(selectedCategory, user.id)
-    console.log('[Leaderboard Page] Loaded entries:', entries.length)
-    console.log('[Leaderboard Page] Entry details:', entries.map(e => ({ userId: e.userId, userName: e.userName, sacks: e.stats.totalSacksOpened })))
-    setLeaderboard(entries)
-    setUserRank(getUserRank(user.id, selectedCategory))
+
+    setIsLoadingBoard(true)
+    clearLeaderboardCache()
+
+    try {
+      const entries = await getLeaderboardAsync(selectedCategory)
+      setLeaderboard(entries)
+      setUserRank(await getUserRankAsync(user.id, selectedCategory))
+    } catch (error) {
+      console.error('[Leaderboard Page] Load error:', error)
+      setLeaderboard([])
+      setUserRank(0)
+    } finally {
+      setIsLoadingBoard(false)
+    }
   }
 
   // Redirect to login if not authenticated
@@ -39,15 +52,13 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Migration entfernt - alte Einträge werden nicht mehr automatisch migriert
-      // Nur Einträge mit korrekter User-ID werden gezählt
-      
-      loadLeaderboard()
-      // Auto-refresh every 3 seconds for real-time updates (optimiert)
-      const interval = setInterval(loadLeaderboard, 3000)
+      void loadLeaderboard()
+      const interval = setInterval(() => {
+        void loadLeaderboard()
+      }, 5000)
       return () => clearInterval(interval)
     }
-  }, [selectedCategory, isAuthenticated, user])
+  }, [selectedCategory, isAuthenticated, user?.id])
   
   // Clear cache when component unmounts or user changes
   useEffect(() => {
@@ -227,7 +238,11 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Leaderboard */}
-        {leaderboard.length > 0 ? (
+        {isLoadingBoard ? (
+          <div className="text-center py-20">
+            <p className="text-gray-400">Leaderboard wird geladen…</p>
+          </div>
+        ) : leaderboard.length > 0 ? (
           <div className="space-y-4">
             {/* Top 3 Podium - nur wenn mindestens 3 Einträge vorhanden */}
             {leaderboard.length >= 3 && (

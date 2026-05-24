@@ -183,7 +183,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (apiResult.success && apiResult.user) {
         applyLoggedInUser(apiResult.user, passwordHash, password)
-        sendWelcomeEmail(normalizedEmail, firstName).catch(() => {})
+        sendWelcomeEmail(normalizedEmail, firstName).catch((err) => {
+          console.warn('[Auth] Willkommens-E-Mail fehlgeschlagen:', err)
+        })
         return { success: true }
       }
 
@@ -207,7 +209,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (localRegister.success && localRegister.user) {
           applyLoggedInUser(localRegister.user, passwordHash, password)
-          sendWelcomeEmail(normalizedEmail, firstName).catch(() => {})
+          sendWelcomeEmail(normalizedEmail, firstName).catch((err) => {
+          console.warn('[Auth] Willkommens-E-Mail fehlgeschlagen:', err)
+        })
           return { success: true }
         }
 

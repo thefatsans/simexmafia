@@ -1,5 +1,6 @@
 import { Product } from '@/types'
 import { getProductsFromAPI } from '@/lib/api/products'
+import { isSimexDiscordServerProduct } from '@/lib/products/simex-discord-server'
 import { getOrders, Order } from './payments'
 
 /**
@@ -122,6 +123,7 @@ export async function getCustomersAlsoBought(
  */
 export async function getHomePageRecommendations(limit: number = 8): Promise<Product[]> {
   const allProducts = (await getProductsFromAPI()).filter(p => p.inStock)
+  const discordExclusive = allProducts.find(isSimexDiscordServerProduct)
 
   // Beliebte Produkte (hohe Bewertung + viele Reviews)
   const popular = [...allProducts]
@@ -153,7 +155,20 @@ export async function getHomePageRecommendations(limit: number = 8): Promise<Pro
     unique.push(...additional)
   }
 
-  return unique.slice(0, limit)
+  const result = unique.slice(0, limit)
+
+  if (discordExclusive && !result.some((p) => p.id === discordExclusive.id)) {
+    return [discordExclusive, ...result.slice(0, limit - 1)]
+  }
+
+  if (discordExclusive) {
+    return [
+      discordExclusive,
+      ...result.filter((p) => p.id !== discordExclusive.id),
+    ].slice(0, limit)
+  }
+
+  return result
 }
 
 /**

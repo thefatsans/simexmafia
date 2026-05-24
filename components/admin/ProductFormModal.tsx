@@ -12,7 +12,7 @@ interface ProductFormModalProps {
 }
 
 const categories: Category[] = ['games', 'gift-cards', 'subscriptions', 'dlc', 'in-game-currency', 'top-ups']
-const platforms: Platform[] = ['Steam', 'PlayStation', 'Xbox', 'Nintendo', 'Epic Games', 'Origin', 'Battle.net', 'Other']
+const platforms: Platform[] = ['Steam', 'PlayStation', 'Xbox', 'Nintendo', 'Epic Games', 'Origin', 'Battle.net', 'Discord', 'Other']
 
 export default function ProductFormModal({ product, onClose, onSave }: ProductFormModalProps) {
   const [formData, setFormData] = useState({

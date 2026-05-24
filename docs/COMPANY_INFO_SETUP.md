@@ -33,9 +33,9 @@ address: {
 #### Kontaktinformationen
 ```typescript
 contact: {
-  email: 'info@simexmafia.de', // Ihre E-Mail-Adresse
+  email: 'simexmafia.support@gmail.com', // Support-Gmail (oder NEXT_PUBLIC_CONTACT_EMAIL)
   phone: '+49 0162/5330168', // Ihre Telefonnummer
-  website: 'www.simexmafia.de', // Ihre Domain
+  website: 'simexmafia.vercel.app', // Öffentliche Website
 },
 ```
 

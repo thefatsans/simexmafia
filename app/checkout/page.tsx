@@ -3,12 +3,20 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { CreditCard, Lock, Shield, CheckCircle, ArrowLeft, Coins, Banknote } from 'lucide-react'
+import { CreditCard, Lock, Shield, CheckCircle, ArrowLeft, Coins, Banknote, Wallet } from 'lucide-react'
 import Link from 'next/link'
 import { mockUser } from '@/data/user'
 import { calculateCoinsEarned, TIER_INFO } from '@/types/user'
 import { useCart } from '@/contexts/CartContext'
-import { createOrder, processPayment, OrderItem, PaymentDetails, Order } from '@/data/payments'
+import {
+  createOrder,
+  OrderItem,
+  Order,
+  confirmStripePayment,
+  updateOrderStatus,
+} from '@/data/payments'
+import { isStripeConfigured } from '@/lib/payments-config'
+import StripeCheckoutSection from '@/components/StripeCheckoutSection'
 import { addToInventory } from '@/data/inventory'
 import { useToast } from '@/contexts/ToastContext'
 import { validateDiscountCode, calculateDiscount, applyDiscountCode, DiscountCode } from '@/data/discountCodes'
@@ -42,8 +50,10 @@ export default function CheckoutPage() {
   const [discountCode, setDiscountCode] = useState('')
   const [appliedDiscountCode, setAppliedDiscountCode] = useState<DiscountCode | null>(null)
   const [discountError, setDiscountError] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'cash' | 'goofycoins'>('paypal')
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'credit-card' | 'cash' | 'goofycoins'>('paypal')
   const [mounted, setMounted] = useState(false)
+  const [stripeOrderId, setStripeOrderId] = useState<string | null>(null)
+  const stripeEnabled = isStripeConfigured()
   
   useEffect(() => {
     setMounted(true)
@@ -324,6 +334,47 @@ export default function CheckoutPage() {
       return
     }
 
+    // Stripe / Kreditkarte
+    if (paymentMethod === 'credit-card') {
+      if (!stripeEnabled) {
+        showError('Kartenzahlung ist derzeit nicht verfügbar. Bitte verwenden Sie PayPal.')
+        setIsProcessing(false)
+        return
+      }
+
+      try {
+        const newOrder = await createOrder({
+          userId: user?.id || 'user1',
+          items: orderItems,
+          subtotal,
+          serviceFee,
+          discount: totalDiscount,
+          total: finalTotal,
+          paymentMethod: 'credit-card',
+          coinsEarned,
+          discountCode: appliedDiscountCode?.code,
+        })
+
+        orderItems.forEach((item) => {
+          const cartItem = cartItems.find((ci) => ci.product.id === item.id)
+          if (cartItem) {
+            for (let i = 0; i < item.quantity; i++) {
+              addToInventory(cartItem.product, 'purchase', newOrder.id, 'Kauf')
+            }
+          }
+        })
+
+        setStripeOrderId(newOrder.id)
+        setIsProcessing(false)
+        return
+      } catch (error: unknown) {
+        console.error('Stripe checkout error:', error)
+        showError('Fehler beim Erstellen der Bestellung')
+        setIsProcessing(false)
+        return
+      }
+    }
+
     // PayPal-Zahlung
     if (paymentMethod === 'paypal') {
       try {
@@ -419,6 +470,43 @@ export default function CheckoutPage() {
         return
       }
     }
+  }
+
+  const handleStripePaymentSuccess = async (paymentIntentId: string) => {
+    if (!stripeOrderId) return
+
+    const confirmation = await confirmStripePayment(paymentIntentId)
+    if (!confirmation.success) {
+      showError(confirmation.error || 'Zahlung konnte nicht bestätigt werden')
+      return
+    }
+
+    await updateOrderStatus(stripeOrderId, 'completed')
+
+    if (coinsEarned > 0 && user) {
+      addCoins(coinsEarned)
+      updateUser({ totalSpent: (user.totalSpent || 0) + finalTotal })
+    }
+
+    if (user?.email && user?.firstName) {
+      sendOrderConfirmationEmail(
+        user.email,
+        user.firstName,
+        stripeOrderId,
+        finalTotal,
+        cartItems.map((item) => ({
+          name: item.product.name,
+          quantity: item.quantity,
+          price: item.product.price,
+        }))
+      ).catch((error) => {
+        console.error('Error sending order confirmation email:', error)
+      })
+    }
+
+    showSuccess('Zahlung erfolgreich!', 3000)
+    clearCart()
+    router.push(`/checkout/confirmation?orderId=${stripeOrderId}`)
   }
 
   if (cartItems.length === 0) {
@@ -605,11 +693,12 @@ export default function CheckoutPage() {
               {/* Payment Method Selection */}
               <div className="mb-6">
                 <label className="block text-gray-300 mb-3">Zahlungsmethode *</label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className={`grid grid-cols-1 gap-4 ${stripeEnabled ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
                   <button
                     type="button"
                     onClick={() => {
                       setPaymentMethod('paypal')
+                      setStripeOrderId(null)
                     }}
                     className={`p-4 sm:p-3 border-2 rounded-lg transition-all touch-manipulation min-h-[80px] sm:min-h-[auto] ${
                       paymentMethod === 'paypal'
@@ -618,7 +707,7 @@ export default function CheckoutPage() {
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <CreditCard className={`w-5 h-5 ${paymentMethod === 'paypal' ? 'text-purple-400' : 'text-gray-400'}`} />
+                      <Wallet className={`w-5 h-5 ${paymentMethod === 'paypal' ? 'text-purple-400' : 'text-gray-400'}`} />
                       <div className="text-left">
                         <div className={`font-semibold ${paymentMethod === 'paypal' ? 'text-white' : 'text-gray-300'}`}>
                           PayPal
@@ -627,10 +716,35 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </button>
+                  {stripeEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('credit-card')
+                        setStripeOrderId(null)
+                      }}
+                      className={`p-4 sm:p-3 border-2 rounded-lg transition-all touch-manipulation min-h-[80px] sm:min-h-[auto] ${
+                        paymentMethod === 'credit-card'
+                          ? 'border-purple-500 bg-purple-500/10'
+                          : 'border-purple-500/30 bg-fortnite-darker hover:border-purple-500/50'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <CreditCard className={`w-5 h-5 ${paymentMethod === 'credit-card' ? 'text-purple-400' : 'text-gray-400'}`} />
+                        <div className="text-left">
+                          <div className={`font-semibold ${paymentMethod === 'credit-card' ? 'text-white' : 'text-gray-300'}`}>
+                            Karte
+                          </div>
+                          <div className="text-xs text-gray-400">Visa, Mastercard via Stripe</div>
+                        </div>
+                      </div>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
                       setPaymentMethod('cash')
+                      setStripeOrderId(null)
                     }}
                     className={`p-4 sm:p-3 border-2 rounded-lg transition-all touch-manipulation min-h-[80px] sm:min-h-[auto] ${
                       paymentMethod === 'cash'
@@ -652,6 +766,7 @@ export default function CheckoutPage() {
                     type="button"
                     onClick={() => {
                       setPaymentMethod('goofycoins')
+                      setStripeOrderId(null)
                     }}
                     disabled={!canPayWithGoofyCoins}
                     className={`p-4 sm:p-3 border-2 rounded-lg transition-all touch-manipulation min-h-[80px] sm:min-h-[auto] ${
@@ -689,18 +804,47 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {paymentMethod === 'paypal' ? (
+              {paymentMethod === 'paypal' && !stripeOrderId && (
                 <div className="space-y-4">
                   <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
                     <p className="text-gray-300 text-sm mb-2">
-                      Sie werden nach dem Klick auf "Bestellung abschließen" zu PayPal weitergeleitet, um die Zahlung sicher abzuwickeln.
+                      Sie werden nach dem Klick auf &quot;Kauf abschließen&quot; zu PayPal weitergeleitet.
                     </p>
                     <p className="text-gray-400 text-xs">
                       Nach erfolgreicher Zahlung erhalten Sie eine Bestätigungs-E-Mail.
                     </p>
                   </div>
                 </div>
-              ) : null}
+              )}
+
+              {paymentMethod === 'credit-card' && !stripeOrderId && (
+                <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 mb-4">
+                  <p className="text-gray-300 text-sm">
+                    Nach dem Klick auf &quot;Kauf abschließen&quot; geben Sie Ihre Kartendaten sicher über Stripe ein.
+                  </p>
+                </div>
+              )}
+
+              {stripeOrderId && (
+                <div className="mb-6">
+                  <p className="text-gray-300 text-sm mb-4">
+                    Bestellung <span className="text-purple-400">{stripeOrderId}</span> – Kartendaten eingeben:
+                  </p>
+                  <StripeCheckoutSection
+                    amount={finalTotal}
+                    orderId={stripeOrderId}
+                    onSuccess={handleStripePaymentSuccess}
+                    onError={(msg) => showError(msg)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setStripeOrderId(null)}
+                    className="mt-4 text-sm text-gray-400 hover:text-white"
+                  >
+                    ← Andere Zahlungsmethode
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -845,23 +989,29 @@ export default function CheckoutPage() {
               </div>
 
               {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isProcessing}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-4 sm:py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-purple-500/50 flex items-center justify-center space-x-2 touch-manipulation min-h-[56px] sm:min-h-[48px] text-base sm:text-sm"
-              >
-                {mounted && isProcessing ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Lock className="w-5 h-5" />
-                    <span>Kauf abschließen</span>
-                  </>
-                )}
-              </button>
+              {!stripeOrderId && (
+                <button
+                  type="submit"
+                  disabled={isProcessing}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-4 sm:py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-purple-500/50 flex items-center justify-center space-x-2 touch-manipulation min-h-[56px] sm:min-h-[48px] text-base sm:text-sm"
+                >
+                  {mounted && isProcessing ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Wird verarbeitet...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-5 h-5" />
+                      <span>
+                        {paymentMethod === 'credit-card'
+                          ? 'Weiter zur Kartenzahlung'
+                          : 'Kauf abschließen'}
+                      </span>
+                    </>
+                  )}
+                </button>
+              )}
 
               <p className="text-gray-400 text-xs text-center mt-4">
                 Durch den Abschluss dieses Kaufs stimmen Sie unseren Allgemeinen Geschäftsbedingungen und der Datenschutzerklärung zu

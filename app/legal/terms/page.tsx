@@ -1,3 +1,5 @@
+import { companyInfo } from '@/lib/company-info'
+
 export default function TermsPage() {
   return (
     <div className="min-h-screen py-12 bg-fortnite-darker">
@@ -10,7 +12,21 @@ export default function TermsPage() {
             <p className="text-gray-300">
               Diese Allgemeinen Geschäftsbedingungen gelten für alle Verträge zwischen SimexMafia (nachfolgend "Anbieter") 
               und den Kunden (nachfolgend "Kunde") über die Lieferung von digitalen Produkten, Gutscheinen und Dienstleistungen 
-              über die Website www.simexmafia.de.
+              über die Website {companyInfo.contact.website} (erreichbar unter{' '}
+              <a
+                href="https://simexmafia.vercel.app"
+                className="text-purple-400 hover:text-purple-300"
+              >
+                simexmafia.vercel.app
+              </a>
+              ). Support:{' '}
+              <a
+                href={`mailto:${companyInfo.contact.email}`}
+                className="text-purple-400 hover:text-purple-300"
+              >
+                {companyInfo.contact.email}
+              </a>
+              .
             </p>
           </section>
 

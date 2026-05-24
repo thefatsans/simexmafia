@@ -32,11 +32,12 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID=...
 - **Woher?** Google Cloud Console → OAuth 2.0 Client IDs
 - **Wichtig:** Für Google-Login
 
-### 5. Website URL
+### 5. Website URL & Support-E-Mail
 ```
-NEXT_PUBLIC_SITE_URL=https://simexmafia.com
+NEXT_PUBLIC_SITE_URL=https://simexmafia.vercel.app
+NEXT_PUBLIC_CONTACT_EMAIL=simexmafia.support@gmail.com
 ```
-- **Wichtig:** Für E-Mail-Links und SEO
+- **Wichtig:** Für E-Mail-Links, Impressum, Kontakt und SEO
 
 ### 6. AI Chat (optional)
 ```
@@ -66,6 +67,7 @@ NEXT_PUBLIC_AI_MODEL=gpt-3.5-turbo
 - [ ] `RESEND_API_KEY` gesetzt (optional)
 - [ ] `NEXT_PUBLIC_GOOGLE_CLIENT_ID` gesetzt (optional)
 - [ ] `NEXT_PUBLIC_SITE_URL` gesetzt
+- [ ] `NEXT_PUBLIC_CONTACT_EMAIL=simexmafia.support@gmail.com` gesetzt
 - [ ] Projekt nach dem Hinzufügen der Variablen **redeployed**
 
 ## 🚨 Nach dem Hinzufügen:

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { sackTypes, openSack } from '@/data/sacks'
+import { recordSackOpenInDatabase } from '@/lib/leaderboard/record-sack-open'
 
 export async function POST(request: NextRequest) {
   try {
@@ -136,6 +137,17 @@ export async function POST(request: NextRequest) {
 
     // Generate reward (server-side to prevent manipulation)
     const reward = openSack(sack)
+
+    await recordSackOpenInDatabase({
+      userId: authenticatedUser.id,
+      sackType: sack.type,
+      sackName: sack.name,
+      sackIcon: sack.icon,
+      sackColor: sack.color,
+      purchaseMethod,
+      pricePaid: purchaseMethod === 'coins' ? sack.priceCoins : sack.priceMoney,
+      reward,
+    })
 
     // Create coin transaction for purchase
     if (purchaseMethod === 'coins') {

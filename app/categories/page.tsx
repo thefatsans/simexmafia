@@ -15,7 +15,7 @@ const categoryInfo: Record<Category, { name: string; icon: string; description: 
   'gift-cards': {
     name: 'Gutscheine',
     icon: '🎁',
-    description: 'Digitale Gutscheine für PlayStation, Xbox, Steam und andere Plattformen',
+    description: 'Sommer-Sale: min. 20% Rabatt auf alle Gutscheinkarten – bis zu 30%!',
   },
   'subscriptions': {
     name: 'Abonnements',

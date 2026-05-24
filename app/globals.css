@@ -4,10 +4,10 @@
 
 :root {
   --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 14, 30, 45;
-  --background-end-rgb: 8, 20, 35;
-  --winter-gradient-start: 14, 30, 45;
-  --winter-gradient-end: 8, 20, 35;
+  --background-start-rgb: 15, 32, 48;
+  --background-end-rgb: 8, 28, 42;
+  --summer-gradient-start: 15, 32, 48;
+  --summer-gradient-end: 8, 28, 42;
 }
 
 :root.light {
@@ -36,8 +36,8 @@ body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
       to bottom,
-      rgb(8, 20, 35),
-      rgb(4, 12, 24)
+      rgb(12, 36, 52),
+      rgb(6, 24, 38)
     );
   background-attachment: fixed;
   min-height: 100vh;
@@ -53,10 +53,10 @@ body::before {
   width: 100%;
   height: 100%;
   background-image: 
-    radial-gradient(circle at 20% 50%, rgba(186, 230, 253, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(224, 242, 254, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 40% 20%, rgba(179, 229, 252, 0.12) 0%, transparent 50%),
-    radial-gradient(circle at 60% 70%, rgba(56, 189, 248, 0.1) 0%, transparent 50%);
+    radial-gradient(circle at 15% 20%, rgba(251, 191, 36, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 85% 15%, rgba(6, 182, 212, 0.18) 0%, transparent 50%),
+    radial-gradient(circle at 70% 85%, rgba(251, 113, 133, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 40% 60%, rgba(34, 211, 238, 0.08) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
@@ -246,7 +246,7 @@ body::before {
   }
 }
 
-/* Navbar Winter Effects */
+/* Navbar summer accents */
 @keyframes shimmer {
   0% {
     background-position: -1000px 0;
@@ -258,10 +258,10 @@ body::before {
 
 @keyframes glow {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.3), 0 0 40px rgba(56, 189, 248, 0.2);
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.35), 0 0 40px rgba(251, 191, 36, 0.15);
   }
   50% {
-    box-shadow: 0 0 30px rgba(56, 189, 248, 0.5), 0 0 60px rgba(56, 189, 248, 0.3);
+    box-shadow: 0 0 30px rgba(6, 182, 212, 0.5), 0 0 60px rgba(251, 191, 36, 0.25);
   }
 }
 
@@ -276,10 +276,10 @@ body::before {
 
 @keyframes logoGlow {
   0%, 100% {
-    filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.4));
+    filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.45));
   }
   50% {
-    filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.7)) drop-shadow(0 0 30px rgba(186, 230, 253, 0.5));
+    filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.55)) drop-shadow(0 0 30px rgba(34, 211, 238, 0.4));
   }
 }
 
