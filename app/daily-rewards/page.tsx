@@ -113,13 +113,16 @@ export default function DailyRewardsPage() {
         },
         body: JSON.stringify({
           userId: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
         }),
       })
 
       const data = await response.json()
 
       if (!response.ok || !data.success) {
-        showError?.(data.error || 'Fehler beim Einlösen der täglichen Belohnung')
+        showError?.(data.error || data.message || 'Fehler beim Einlösen der täglichen Belohnung')
         return
       }
 

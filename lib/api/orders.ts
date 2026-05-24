@@ -24,14 +24,22 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
  * Ruft Bestellungen von der API ab
  * Fallback: Verwendet localStorage wenn API nicht verfügbar
  */
-export async function getOrdersFromAPI(userId: string): Promise<Order[]> {
+export async function getOrdersFromAPI(
+  userId: string,
+  profile?: { email: string; firstName: string; lastName: string }
+): Promise<Order[]> {
   try {
     if (!userId) {
       throw new Error('userId is required')
     }
     
-    const params = `?userId=${userId}`
-    const response = await fetch(`${API_BASE_URL}/api/orders${params}`, {
+    const searchParams = new URLSearchParams({ userId })
+    if (profile?.email) {
+      searchParams.set('email', profile.email)
+      searchParams.set('firstName', profile.firstName)
+      searchParams.set('lastName', profile.lastName)
+    }
+    const response = await fetch(`${API_BASE_URL}/api/orders?${searchParams}`, {
       credentials: 'include',
     })
     

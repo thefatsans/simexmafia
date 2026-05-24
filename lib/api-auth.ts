@@ -1,68 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { isAdmin as isAdminByEmail } from '@/data/admin'
+import { ensureUserInDatabase, type AuthUserProfile } from '@/lib/user-sync'
+
+function getProfileFromRequest(request: NextRequest, body?: any): AuthUserProfile {
+  const searchParams = request.nextUrl.searchParams
+  return {
+    userId:
+      searchParams.get('userId') ||
+      searchParams.get('id') ||
+      body?.userId ||
+      body?.id ||
+      null,
+    email: searchParams.get('email') || body?.email || null,
+    firstName: body?.firstName || null,
+    lastName: body?.lastName || null,
+    goofyCoins: body?.goofyCoins,
+    avatar: body?.avatar || null,
+  }
+}
+
+function isDatabaseConnectionError(error: unknown): boolean {
+  const code = (error as { code?: string })?.code
+  return (
+    code === 'ECONNREFUSED' ||
+    code === 'P1001' ||
+    code === 'P1002' ||
+    code === 'P1017' ||
+    code === 'ETIMEDOUT'
+  )
+}
 
 /**
- * Prüft ob ein User authentifiziert ist und gibt den User zurück
- * Liest userId aus Query-Parameter oder Request-Body
- * 
- * WICHTIG: Wenn body bereits gelesen wurde, muss es als Parameter übergeben werden
+ * Prüft ob ein User authentifiziert ist und gibt den User zurück.
+ * Liest userId/id und optional email aus Query-Parameter oder Request-Body.
+ * Erstellt den User in der DB, falls er nur in localStorage existiert.
  */
 export async function getAuthenticatedUser(
   request: NextRequest,
   body?: any
 ): Promise<{ user: any; error?: NextResponse } | null> {
   try {
-    // Hole userId aus Query-Parameter oder Request-Body
-    const searchParams = request.nextUrl.searchParams
-    const userId = searchParams.get('userId')
-    
-    const bodyUserId = body?.userId || null
-    const finalUserId = userId || bodyUserId
-    
-    if (!finalUserId) {
+    const profile = getProfileFromRequest(request, body)
+
+    if (!profile.userId && !profile.email) {
       return {
         user: null,
         error: NextResponse.json({ error: 'userId is required' }, { status: 400 }),
       }
     }
-    
-    // Prüfe ob User in der Datenbank existiert
+
     if (!prisma) {
-      return null
+      return {
+        user: null,
+        error: NextResponse.json({ error: 'Database not available' }, { status: 503 }),
+      }
     }
-    const user = await prisma.user.findUnique({
-      where: { id: finalUserId },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        isAdmin: true,
-        goofyCoins: true,
-        totalSpent: true,
-        tier: true,
-      },
-    })
-    
+
+    const user = await ensureUserInDatabase(profile)
+
     if (!user) {
       return {
         user: null,
-        error: NextResponse.json({ error: 'User not found' }, { status: 404 }),
+        error: NextResponse.json(
+          {
+            error:
+              'User not found. Please log out and log in again to sync your account.',
+          },
+          { status: 404 }
+        ),
       }
     }
-    
-    // Erweitere User mit E-Mail-basierter Admin-Prüfung (Fallback für Migration)
-    const isAdminUser = user.isAdmin || isAdminByEmail(user.email)
-    
-    return { 
-      user: {
-        ...user,
-        isAdmin: isAdminUser
-      }
-    }
-  } catch (error: any) {
+
+    return { user }
+  } catch (error: unknown) {
     console.error('[API Auth] Error authenticating user:', error)
+
+    if (isDatabaseConnectionError(error)) {
+      return {
+        user: null,
+        error: NextResponse.json(
+          { error: 'Database connection failed. Please try again later.' },
+          { status: 503 }
+        ),
+      }
+    }
+
     return {
       user: null,
       error: NextResponse.json({ error: 'Authentication failed' }, { status: 500 }),
@@ -78,18 +100,18 @@ export async function requireAdmin(
   body?: any
 ): Promise<{ user: any; error?: NextResponse } | null> {
   const authResult = await getAuthenticatedUser(request, body)
-  
+
   if (!authResult || authResult.error) {
     return authResult
   }
-  
+
   if (!authResult.user.isAdmin) {
     return {
       user: null,
       error: NextResponse.json({ error: 'Admin access required' }, { status: 403 }),
     }
   }
-  
+
   return authResult
 }
 
@@ -102,24 +124,25 @@ export async function requireResourceOwnership(
   body?: any
 ): Promise<{ user: any; error?: NextResponse } | null> {
   const authResult = await getAuthenticatedUser(request, body)
-  
+
   if (!authResult || authResult.error) {
     return authResult
   }
-  
-  // Admins können auf alle Ressourcen zugreifen
+
   if (authResult.user.isAdmin) {
     return authResult
   }
-  
-  // Normale User können nur auf ihre eigenen Ressourcen zugreifen
+
   if (authResult.user.id !== resourceUserId) {
     return {
       user: null,
-      error: NextResponse.json({ error: 'Access denied. You can only access your own resources.' }, { status: 403 }),
+      error: NextResponse.json(
+        { error: 'Access denied. You can only access your own resources.' },
+        { status: 403 }
+      ),
     }
   }
-  
+
   return authResult
 }
 
@@ -133,12 +156,11 @@ export async function requireOrderAccess(
 ): Promise<{ user: any; order: any; error?: NextResponse } | null> {
   try {
     const authResult = await getAuthenticatedUser(request, body)
-    
+
     if (!authResult || authResult.error) {
       return { user: null, order: null, error: authResult?.error }
     }
-    
-    // Hole Bestellung
+
     if (!prisma) {
       return {
         user: null,
@@ -146,6 +168,7 @@ export async function requireOrderAccess(
         error: NextResponse.json({ error: 'Database not available' }, { status: 503 }),
       }
     }
+
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       select: {
@@ -154,7 +177,7 @@ export async function requireOrderAccess(
         status: true,
       },
     })
-    
+
     if (!order) {
       return {
         user: null,
@@ -162,23 +185,24 @@ export async function requireOrderAccess(
         error: NextResponse.json({ error: 'Order not found' }, { status: 404 }),
       }
     }
-    
-    // Admins können auf alle Bestellungen zugreifen
+
     if (authResult.user.isAdmin) {
       return { user: authResult.user, order }
     }
-    
-    // Normale User können nur auf ihre eigenen Bestellungen zugreifen
+
     if (authResult.user.id !== order.userId) {
       return {
         user: null,
         order: null,
-        error: NextResponse.json({ error: 'Access denied. You can only access your own orders.' }, { status: 403 }),
+        error: NextResponse.json(
+          { error: 'Access denied. You can only access your own orders.' },
+          { status: 403 }
+        ),
       }
     }
-    
+
     return { user: authResult.user, order }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API Auth] Error checking order access:', error)
     return {
       user: null,
@@ -187,4 +211,3 @@ export async function requireOrderAccess(
     }
   }
 }
-

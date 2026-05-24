@@ -2,7 +2,17 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { User, calculateTier } from '@/types/user'
-import CryptoJS from 'crypto-js'
+import {
+  persistUserSession,
+  hashPasswordClient,
+  tryLocalLogin,
+} from '@/lib/auth-session'
+import {
+  loginAPI,
+  registerAPI,
+  googleLoginAPI,
+  migratePasswordAPI,
+} from '@/lib/api/auth'
 
 interface AuthContextType {
   user: User | null
@@ -14,21 +24,16 @@ interface AuthContextType {
   logout: () => void
   updateUser: (updates: Partial<User>) => void
   addCoins: (amount: number) => void
-  subtractCoins: (amount: number) => boolean // Returns true if successful, false if insufficient coins
-  syncUserFromDatabase: () => Promise<void> // Synchronisiert User-Daten mit der Datenbank
+  subtractCoins: (amount: number) => boolean
+  syncUserFromDatabase: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-interface StoredUser extends User {
-  password: string // In production, this would be hashed
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load user from localStorage on mount
   useEffect(() => {
     if (typeof window === 'undefined') {
       setIsLoading(false)
@@ -36,29 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Initialize default test user if no users exist
-      let usersJson = localStorage.getItem('simexmafia-users')
-      if (!usersJson) {
-        const defaultTestUser: StoredUser = {
-          id: 'test-user-1',
-          email: 'test@example.com',
-          firstName: 'Test',
-          lastName: 'User',
-          password: 'password',
-          goofyCoins: 500,
-          totalSpent: 120.50,
-          tier: calculateTier(500),
-          joinDate: new Date().toISOString().split('T')[0],
-          avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=Test',
-        }
-        localStorage.setItem('simexmafia-users', JSON.stringify([defaultTestUser]))
-      }
-
       const storedUser = localStorage.getItem('simexmafia-user')
       if (storedUser) {
         const parsed = JSON.parse(storedUser)
-        // Remove password from user object
-        const { password, ...userData } = parsed
+        const { password: _, ...userData } = parsed
         setUser(userData as User)
       }
     } catch (error) {
@@ -68,127 +54,94 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const applyLoggedInUser = useCallback((userData: User, passwordHash?: string) => {
+    setUser(userData)
+    persistUserSession(userData, passwordHash)
+  }, [])
+
   const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      console.log('Login attempt:', email)
-      
-      // Initialize default test user if no users exist
-      let usersJson = localStorage.getItem('simexmafia-users')
-      if (!usersJson) {
-        console.log('No users found, creating default test user')
-        const defaultTestUser: StoredUser = {
-          id: 'test-user-1',
-          email: 'test@example.com',
-          firstName: 'Test',
-          lastName: 'User',
-          password: 'password',
-          goofyCoins: 500,
-          totalSpent: 120.50,
-          tier: calculateTier(500),
-          joinDate: new Date().toISOString().split('T')[0],
-          avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=Test',
-        }
-        localStorage.setItem('simexmafia-users', JSON.stringify([defaultTestUser]))
-        usersJson = JSON.stringify([defaultTestUser])
-        console.log('Default test user created')
+      const normalizedEmail = email.trim().toLowerCase()
+      const passwordHash = hashPasswordClient(password)
+
+      // 1. Datenbank-Login (primär)
+      const apiResult = await loginAPI(normalizedEmail, password)
+
+      if (apiResult.success && apiResult.user) {
+        applyLoggedInUser(apiResult.user, passwordHash)
+        return { success: true }
       }
 
-      const users: StoredUser[] = JSON.parse(usersJson)
-      console.log('Users in storage:', users.length)
-      
-      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase())
-      console.log('Found user:', foundUser ? 'Yes' : 'No')
-
-      if (!foundUser) {
-        console.log('User not found')
-        return { success: false, error: 'Ungültige E-Mail oder Passwort' }
-      }
-
-      // Hash the provided password and compare with stored hash
-      const passwordHash = CryptoJS.SHA256(password).toString()
-      if (foundUser.password !== passwordHash && foundUser.password !== password) {
-        // Support both hashed and plain text passwords for migration
-        console.log('Password mismatch')
-        return { success: false, error: 'Ungültige E-Mail oder Passwort' }
-      }
-      
-      // If password is plain text, hash it and update
-      if (foundUser.password === password && password.length < 64) {
-        foundUser.password = passwordHash
-        const usersJson = localStorage.getItem('simexmafia-users')
-        if (usersJson) {
-          const users: StoredUser[] = JSON.parse(usersJson)
-          const userIndex = users.findIndex(u => u.id === foundUser.id)
-          if (userIndex !== -1) {
-            users[userIndex] = foundUser
-            localStorage.setItem('simexmafia-users', JSON.stringify(users))
+      // 2. Legacy-Konto ohne Passwort in DB: aus localStorage migrieren
+      if (apiResult.code === 'NO_PASSWORD') {
+        const localResult = tryLocalLogin(normalizedEmail, password)
+        if (localResult.success) {
+          const migrated = await migratePasswordAPI(normalizedEmail, password)
+          if (migrated.success) {
+            const retry = await loginAPI(normalizedEmail, password)
+            if (retry.success && retry.user) {
+              applyLoggedInUser(retry.user, passwordHash)
+              return { success: true }
+            }
+          }
+          if (localResult.user) {
+            applyLoggedInUser(localResult.user, passwordHash)
+            return { success: true }
           }
         }
       }
 
-      // Remove password and set user
-      const { password: _, ...userData } = foundUser
-      console.log('Setting user:', userData.email)
-      setUser(userData as User)
-      localStorage.setItem('simexmafia-user', JSON.stringify(userData))
+      // 3. Fallback: localStorage (wenn DB nicht erreichbar)
+      if (
+        apiResult.error?.includes('Datenbank') ||
+        apiResult.error?.includes('Verbindung')
+      ) {
+        const localResult = tryLocalLogin(normalizedEmail, password)
+        if (localResult.success && localResult.user) {
+          setUser(localResult.user)
+          return { success: true }
+        }
+      }
 
-      return { success: true }
+      return {
+        success: false,
+        error: apiResult.error || 'Ungültige E-Mail oder Passwort',
+      }
     } catch (error) {
       console.error('Login error:', error)
+      const localResult = tryLocalLogin(email, password)
+      if (localResult.success && localResult.user) {
+        setUser(localResult.user)
+        return { success: true }
+      }
       return { success: false, error: 'Ein Fehler ist aufgetreten' }
     }
-  }, [])
+  }, [applyLoggedInUser])
 
   const loginWithGoogle = useCallback(async (
     googleData: { email: string; name: string; picture?: string }
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const usersJson = localStorage.getItem('simexmafia-users')
-      const users: StoredUser[] = usersJson ? JSON.parse(usersJson) : []
+      const apiResult = await googleLoginAPI({
+        email: googleData.email,
+        name: googleData.name,
+        picture: googleData.picture,
+      })
 
-      // Split name into first and last name
-      const nameParts = googleData.name.split(' ')
-      const firstName = nameParts[0] || 'User'
-      const lastName = nameParts.slice(1).join(' ') || ''
-
-      // Check if user already exists
-      let foundUser = users.find(u => u.email.toLowerCase() === googleData.email.toLowerCase())
-
-      if (!foundUser) {
-        // Create new user from Google account
-        const newUser: StoredUser = {
-          id: `user-${Date.now()}`,
-          email: googleData.email.toLowerCase(),
-          password: '', // No password for Google users
-          firstName,
-          lastName,
-          goofyCoins: 100, // Welcome bonus
-          totalSpent: 0,
-          tier: 'Bronze',
-          joinDate: new Date().toISOString().split('T')[0],
-          avatar: googleData.picture,
-        }
-
-        users.push(newUser)
-        localStorage.setItem('simexmafia-users', JSON.stringify(users))
-        foundUser = newUser
+      if (apiResult.success && apiResult.user) {
+        applyLoggedInUser(apiResult.user)
+        return { success: true }
       }
 
-      // Remove password and set user
-      const { password: _, ...userData } = foundUser
-      // Update avatar if provided
-      if (googleData.picture) {
-        userData.avatar = googleData.picture
+      return {
+        success: false,
+        error: apiResult.error || 'Google-Anmeldung fehlgeschlagen',
       }
-      setUser(userData as User)
-      localStorage.setItem('simexmafia-user', JSON.stringify(userData))
-
-      return { success: true }
     } catch (error) {
       console.error('Google login error:', error)
       return { success: false, error: 'Ein Fehler ist aufgetreten' }
     }
-  }, [])
+  }, [applyLoggedInUser])
 
   const register = useCallback(async (
     email: string,
@@ -196,10 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     firstName: string,
     lastName: string
   ): Promise<{ success: boolean; error?: string }> => {
-    // Import email function dynamically to avoid SSR issues
     const { sendWelcomeEmail } = await import('@/lib/email')
+
     try {
-      // Validate input
       if (!email || !password || !firstName || !lastName) {
         return { success: false, error: 'Bitte füllen Sie alle Felder aus' }
       }
@@ -208,51 +160,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: 'Passwort muss mindestens 6 Zeichen lang sein' }
       }
 
-      // Check if user already exists
-      const usersJson = localStorage.getItem('simexmafia-users')
-      const users: StoredUser[] = usersJson ? JSON.parse(usersJson) : []
+      const normalizedEmail = email.trim().toLowerCase()
+      const passwordHash = hashPasswordClient(password)
 
-      if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-        return { success: false, error: 'Diese E-Mail ist bereits registriert' }
+      // Registrierung in der Datenbank (verhindert doppelte E-Mails)
+      const apiResult = await registerAPI(
+        normalizedEmail,
+        password,
+        firstName.trim(),
+        lastName.trim()
+      )
+
+      if (apiResult.success && apiResult.user) {
+        applyLoggedInUser(apiResult.user, passwordHash)
+
+        sendWelcomeEmail(normalizedEmail, firstName).catch((err) => {
+          console.error('Error sending welcome email:', err)
+        })
+
+        return { success: true }
       }
 
-      // Hash password before storing
-      const passwordHash = CryptoJS.SHA256(password).toString()
-      
-      // Create new user
-      const newUser: StoredUser = {
-        id: `user-${Date.now()}`,
-        email: email.toLowerCase(),
-        password: passwordHash, // Store hashed password
-        firstName,
-        lastName,
-        goofyCoins: 100, // Welcome bonus
-        totalSpent: 0,
-        tier: 'Bronze',
-        joinDate: new Date().toISOString().split('T')[0],
+      return {
+        success: false,
+        error: apiResult.error || 'Registrierung fehlgeschlagen',
       }
-
-      // Save user to users list
-      users.push(newUser)
-      localStorage.setItem('simexmafia-users', JSON.stringify(users))
-
-      // Remove password and set user
-      const { password: _, ...userData } = newUser
-      setUser(userData as User)
-      localStorage.setItem('simexmafia-user', JSON.stringify(userData))
-
-      // Send welcome email (non-blocking)
-      sendWelcomeEmail(email, firstName).catch((error) => {
-        console.error('Error sending welcome email:', error)
-        // Don't fail registration if email fails
-      })
-
-      return { success: true }
     } catch (error) {
       console.error('Registration error:', error)
       return { success: false, error: 'Ein Fehler ist aufgetreten' }
     }
-  }, [])
+  }, [applyLoggedInUser])
 
   const logout = useCallback(() => {
     setUser(null)
@@ -263,26 +200,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return
 
     const updatedUser = { ...user, ...updates }
-    // Recalculate tier if coins changed
     if (updates.goofyCoins !== undefined) {
       updatedUser.tier = calculateTier(updatedUser.goofyCoins)
     }
     setUser(updatedUser)
-    localStorage.setItem('simexmafia-user', JSON.stringify(updatedUser))
-
-    // Also update in users list
-    const usersJson = localStorage.getItem('simexmafia-users')
-    if (usersJson) {
-      const users: StoredUser[] = JSON.parse(usersJson)
-      const userIndex = users.findIndex(u => u.id === user.id)
-      if (userIndex !== -1) {
-        users[userIndex] = { ...users[userIndex], ...updates }
-        if (updates.goofyCoins !== undefined) {
-          users[userIndex].tier = calculateTier(updatedUser.goofyCoins)
-        }
-        localStorage.setItem('simexmafia-users', JSON.stringify(users))
-      }
-    }
+    persistUserSession(updatedUser)
   }, [user])
 
   const addCoins = useCallback((amount: number) => {
@@ -297,15 +219,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true
   }, [user, updateUser])
 
-  // Funktion zum Synchronisieren des Users mit der Datenbank
   const syncUserFromDatabase = useCallback(async () => {
     if (!user?.id) return
 
     try {
       const { getUserFromAPI } = await import('@/lib/api/users')
-      const dbUser = await getUserFromAPI(user.id)
-      
-      // Aktualisiere User mit Datenbank-Daten
+      const dbUser = await getUserFromAPI(user.id, {
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      })
+
       if (dbUser) {
         const updatedUser: User = {
           id: dbUser.id,
@@ -315,33 +239,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           goofyCoins: dbUser.goofyCoins || 0,
           totalSpent: dbUser.totalSpent || 0,
           tier: dbUser.tier || 'Bronze',
-          joinDate: dbUser.joinDate || user.joinDate,
+          joinDate: dbUser.joinDate
+            ? new Date(dbUser.joinDate).toISOString().split('T')[0]
+            : user.joinDate,
           avatar: dbUser.avatar,
         }
-        
+
         setUser(updatedUser)
-        
-        // Aktualisiere auch localStorage
-        localStorage.setItem('simexmafia-user', JSON.stringify(updatedUser))
-        
-        // Update in users list
-        const usersJson = localStorage.getItem('simexmafia-users')
-        if (usersJson) {
-          const users: StoredUser[] = JSON.parse(usersJson)
-          const userIndex = users.findIndex(u => u.id === user.id)
-          if (userIndex !== -1) {
-            users[userIndex] = { ...users[userIndex], ...updatedUser, password: users[userIndex].password }
-            localStorage.setItem('simexmafia-users', JSON.stringify(users))
-          }
-        }
-        
-        console.log('[AuthContext] Synced user from database:', updatedUser)
+        persistUserSession(updatedUser)
       }
     } catch (error) {
       console.error('[AuthContext] Error syncing user from database:', error)
-      // Fallback: Verwende localStorage-Daten
     }
-  }, [user?.id])
+  }, [user?.id, user?.email, user?.firstName, user?.lastName, user?.joinDate])
 
   return (
     <AuthContext.Provider
@@ -371,4 +281,3 @@ export function useAuth() {
   }
   return context
 }
-

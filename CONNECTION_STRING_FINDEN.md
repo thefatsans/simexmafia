@@ -75,3 +75,4 @@ postgresql://postgres:gNpIQDgC3em18YNh@db.bvsebymssjcazguyukdi.supabase.co:5432/
 
 
 
+

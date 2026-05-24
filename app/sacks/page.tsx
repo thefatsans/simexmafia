@@ -114,6 +114,9 @@ export default function SacksPage() {
             sackType: selectedSack.type,
             purchaseMethod: 'coins',
             userId: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
           }),
         })
 

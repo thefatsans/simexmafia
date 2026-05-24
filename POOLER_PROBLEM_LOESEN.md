@@ -56,3 +56,4 @@ Manchmal gibt Supabase den Connection String in einem anderen Format. Prüfe:
 
 
 
+

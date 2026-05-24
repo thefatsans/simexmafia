@@ -312,7 +312,11 @@ export default function InventoryPage() {
             const { getInventoryFromAPI, addInventoryItemToAPI, bulkUpdateInventoryItemsAPI } = await import('@/lib/api/inventory')
             
             // Hole alle Datenbank-Items für diesen User
-            const dbItems = await getInventoryFromAPI(user.id)
+            const dbItems = await getInventoryFromAPI(user.id, {
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+            })
             const dbItemsMap = new Map(dbItems.map((item: any) => [`${item.productId}-${item.sourceId || 'none'}`, item]))
             
             // Finde alle Items, die aktualisiert wurden
@@ -567,7 +571,13 @@ export default function InventoryPage() {
       
       // Nur für Items ohne Bestell-ID (z.B. aus Säcken): Normale Einlösung
       const { redeemItemAsync } = await import('@/data/inventory')
-      const code = await redeemItemAsync(item.id, user?.id)
+      const code = await redeemItemAsync(
+        item.id,
+        user?.id,
+        user
+          ? { email: user.email, firstName: user.firstName, lastName: user.lastName }
+          : undefined
+      )
       if (code) {
         loadInventory()
         showSuccess('Produkt erfolgreich eingelöst!', 4000)

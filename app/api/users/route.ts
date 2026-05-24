@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const email = searchParams.get('email')
-    const requestedId = searchParams.get('id')
+    const requestedId = searchParams.get('id') || searchParams.get('userId')
 
     if (!email && !requestedId) {
       return NextResponse.json({ error: 'email or id is required' }, { status: 400 })
@@ -99,9 +99,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { email, firstName, lastName, passwordHash, avatar } = body
+    const normalizedEmail = (email as string)?.trim().toLowerCase()
 
     // Validierung
-    if (!email || !firstName || !lastName) {
+    if (!normalizedEmail || !firstName || !lastName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     // Prüfe ob User bereits existiert
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     })
 
     if (existingUser) {
@@ -119,11 +120,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Prüfe ob E-Mail Admin-Rechte hat
-    const isAdmin = isAdminByEmail(email)
+    const isAdmin = isAdminByEmail(normalizedEmail)
     
     const user = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         firstName,
         lastName,
         passwordHash: passwordHash || null,

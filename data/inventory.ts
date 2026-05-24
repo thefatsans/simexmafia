@@ -179,7 +179,11 @@ const generateRedemptionCode = (): string => {
 }
 
 // ASYNC VERSION: Verwendet API und echten Key aus Bestellung
-export const redeemItemAsync = async (itemId: string, userId?: string): Promise<string | null> => {
+export const redeemItemAsync = async (
+  itemId: string,
+  userId?: string,
+  userProfile?: { email: string; firstName: string; lastName: string }
+): Promise<string | null> => {
   try {
     const inventory = getInventory()
     const item = inventory.find(i => i.id === itemId)
@@ -216,7 +220,7 @@ export const redeemItemAsync = async (itemId: string, userId?: string): Promise<
           return key
         }
         const { getOrdersFromAPI } = await import('@/lib/api/orders')
-        const orders = await getOrdersFromAPI(userId)
+        const orders = await getOrdersFromAPI(userId, userProfile)
         const order = orders.find((o: any) => o.id === item.sourceId)
         
         if (!order) {

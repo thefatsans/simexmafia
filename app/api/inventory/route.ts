@@ -170,6 +170,15 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    const authResult = await requireResourceOwnership(request, userId, body)
+    if (authResult?.error) {
+      return authResult.error
+    }
+
+    if (!authResult?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
     if (!prisma) {
       return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }

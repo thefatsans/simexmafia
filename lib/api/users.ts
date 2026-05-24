@@ -1,8 +1,45 @@
 // Client-side API functions for user operations
+import type { User } from '@/types/user'
+import { getAuthQueryParams } from '@/lib/api/auth-payload'
 
-export async function getUserFromAPI(userId: string): Promise<any> {
+export async function syncUserToDatabaseAPI(
+  user: Pick<User, 'id' | 'email' | 'firstName' | 'lastName' | 'goofyCoins' | 'avatar'>
+): Promise<any | null> {
   try {
-    const response = await fetch(`/api/users?id=${userId}`, {
+    const response = await fetch('/api/users/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        goofyCoins: user.goofyCoins,
+        avatar: user.avatar,
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error('Error syncing user to database:', error)
+    return null
+  }
+}
+
+export async function getUserFromAPI(
+  userId: string,
+  profile?: Pick<User, 'email' | 'firstName' | 'lastName'>
+): Promise<any> {
+  try {
+    const query = profile
+      ? getAuthQueryParams({ id: userId, ...profile })
+      : `userId=${encodeURIComponent(userId)}`
+    const response = await fetch(`/api/users?${query}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -73,6 +110,7 @@ export async function updateUserAPI(userId: string, updates: {
     throw error
   }
 }
+
 
 
 

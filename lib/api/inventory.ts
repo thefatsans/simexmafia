@@ -1,9 +1,17 @@
 import { InventoryItem } from '@/data/inventory'
+import { getAuthQueryParams } from '@/lib/api/auth-payload'
+import type { User } from '@/types/user'
 
 // Hole alle Inventar-Items für einen User
-export async function getInventoryFromAPI(userId: string): Promise<any[]> {
+export async function getInventoryFromAPI(
+  userId: string,
+  profile?: Pick<User, 'email' | 'firstName' | 'lastName'>
+): Promise<any[]> {
   try {
-    const response = await fetch(`/api/inventory?userId=${userId}`, {
+    const query = profile
+      ? getAuthQueryParams({ id: userId, ...profile })
+      : `userId=${encodeURIComponent(userId)}`
+    const response = await fetch(`/api/inventory?${query}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
