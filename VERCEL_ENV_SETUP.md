@@ -2,13 +2,14 @@
 
 ## 🔴 WICHTIG (für Produktion erforderlich)
 
-### 1. Database (Supabase Pooler — Projekt `byeftmpqmovxikdfajyj`)
+### 1. Database (Supabase — Projekt `byeftmpqmovxikdfajyj`)
 ```
-DATABASE_URL=postgresql://postgres.byeftmpqmovxikdfajyj:[DEIN-PASSWORT]@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require
+DATABASE_URL=postgresql://postgres.byeftmpqmovxikdfajyj:[DEIN-PASSWORT]@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require
 ```
-- **Woher?** Supabase → Project Settings → Database → Connection string (Session pooler, Port **5432**)
-- **Wichtig:** Nicht die localhost-URL aus `.env` verwenden! Nur `.env.local` / Vercel.
-- Nach Schema-Updates in Supabase SQL Editor ausführen: `prisma/add-sack-open.sql`, `prisma/add-seller-simexmafia.sql`
+- **Woher?** Supabase → Connect → **Transaction pooler** (Port **6543**, nicht 5432 für Vercel!)
+- Passwort-Sonderzeichen müssen URL-kodiert sein (`@` → `%40`, `#` → `%23`, …)
+- **Wichtig:** Nicht localhost. Nach Deploy: `/api/health` muss `"connected": true` zeigen.
+- SQL in Supabase: `prisma/add-sack-open.sql`, `prisma/add-seller-simexmafia.sql`
 
 ### 2. PayPal (für Zahlungen)
 ```

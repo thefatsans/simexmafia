@@ -1,4 +1,5 @@
 import { getDatabaseUrl, loadLocalEnv } from '@/lib/load-env'
+import { resolveSupabaseDatabaseUrl } from '@/lib/database-url'
 
 loadLocalEnv()
 
@@ -15,7 +16,10 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-const databaseUrl = getDatabaseUrl()
+const rawDatabaseUrl = getDatabaseUrl()
+const databaseUrl = rawDatabaseUrl
+  ? resolveSupabaseDatabaseUrl(rawDatabaseUrl)
+  : undefined
 
 if (!databaseUrl) {
   console.warn('[Prisma] DATABASE_URL is not set. Use .env.local (see .env.example).')
@@ -30,67 +34,11 @@ let adapter: PrismaPg | undefined
 
 if (databaseUrl) {
   try {
-    console.log('[Prisma] Initializing connection pool...')
-    let dbUrl = databaseUrl
-    
-    // Fix DATABASE_URL for Supabase if needed
-    if (dbUrl.includes('supabase')) {
-      // Parse the connection string
-      const urlMatch = dbUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^\/:]+)(?::(\d+))?\/([^?]+)(?:\?(.+))?/)
-      if (urlMatch) {
-        const [, username, password, host, port, database, queryParams] = urlMatch
-        let projectRef: string | null = null
-        
-        // Extract project ref from username if it's in format "postgres.projectref"
-        if (username.includes('.')) {
-          projectRef = username.split('.')[1]
-          console.log('[Prisma] Extracted project ref from username:', projectRef)
-        } else {
-          // Try to extract from host (db.projectref.supabase.co)
-          const dbMatch = host.match(/db\.([^.]+)\.supabase\.co/)
-          projectRef = dbMatch?.[1] || null
-          if (projectRef) {
-            console.log('[Prisma] Extracted project ref from host:', projectRef)
-          }
-        }
-        
-        // Use Session Pooler for IPv4 compatibility (recommended by Supabase)
-        // Session Pooler format: postgres.projectref@pooler.supabase.com:6543
-        // Direct format: postgres@db.projectref.supabase.co:5432 (IPv6 only, not compatible)
-        if (projectRef) {
-          // If already using pooler, keep it
-          if (dbUrl.includes('pooler')) {
-            console.log('[Prisma] Using existing pooler connection')
-            console.log('[Prisma] Project ref:', projectRef)
-          } else {
-            // Convert direct connection to Session Pooler (use env override or default region)
-            const poolerHost =
-              process.env.SUPABASE_POOLER_HOST ||
-              'aws-0-eu-west-1.pooler.supabase.com'
-            const poolerPort = process.env.SUPABASE_POOLER_PORT || '5432'
-            const poolerUsername = `postgres.${projectRef}`
-            const newQuery = queryParams ? `${queryParams}&sslmode=require` : 'sslmode=require'
+    const dbUrl = databaseUrl
+    const hostMatch = dbUrl.match(/@([^/]+)/)
+    console.log('[Prisma] Connecting to:', hostMatch?.[1] || 'unknown')
+    console.log('[Prisma] Runtime:', process.env.VERCEL ? 'vercel-serverless' : 'local')
 
-            dbUrl = `postgresql://${poolerUsername}:${password}@${poolerHost}:${poolerPort}/${database}?${newQuery}`
-            console.log('[Prisma] Using Session Pooler (IPv4 compatible)')
-            console.log('[Prisma] Project ref:', projectRef)
-            console.log('[Prisma] Pooler host:', poolerHost)
-            console.log('[Prisma] Pooler username:', poolerUsername)
-          }
-        }
-      }
-    }
-    
-    const hostMatch = dbUrl.match(/@([^:]+)/)
-    const userMatch = dbUrl.match(/postgresql:\/\/([^:]+):/)
-    console.log('[Prisma] DATABASE_URL host:', hostMatch?.[1] || 'unknown')
-    console.log('[Prisma] DATABASE_URL user:', userMatch?.[1] || 'unknown')
-    
-    // Ensure SSL parameters are in the connection string for Supabase
-    if (dbUrl.includes('supabase') && !dbUrl.includes('sslmode=')) {
-      dbUrl += (dbUrl.includes('?') ? '&' : '?') + 'sslmode=require'
-    }
-    
     const pool = new Pool({
       connectionString: dbUrl,
       ssl: dbUrl.includes('supabase') 
@@ -145,7 +93,8 @@ export const prisma: PrismaClient | null =
       })()
     : null)
 
-if (process.env.NODE_ENV !== 'production' && prisma) {
+// Reuse client across hot serverless invocations (Vercel) and local dev
+if (prisma) {
   globalForPrisma.prisma = prisma
 }
 
