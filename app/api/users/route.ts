@@ -25,14 +25,55 @@ export async function GET(request: NextRequest) {
     }
     
     const { user: authenticatedUser } = authResult
-    
-    // Normale User können nur ihre eigenen Daten abrufen
-    // Admins können alle User-Daten abrufen
-    if (requestedId && requestedId !== authenticatedUser.id && !authenticatedUser.isAdmin) {
-      return NextResponse.json({ error: 'You can only access your own user data' }, { status: 403 })
+
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
-    
-    if (email && email !== authenticatedUser.email && !authenticatedUser.isAdmin) {
+
+    // Non-admins always get their canonical DB record (fixes stale localStorage userId)
+    if (!authenticatedUser.isAdmin) {
+      if (email && email.toLowerCase() !== authenticatedUser.email.toLowerCase()) {
+        return NextResponse.json({ error: 'You can only access your own user data' }, { status: 403 })
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: authenticatedUser.id },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          goofyCoins: true,
+          totalSpent: true,
+          tier: true,
+          joinDate: true,
+          avatar: true,
+          isAdmin: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      })
+
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      }
+
+      const isAdminUser = user.isAdmin || isAdminByEmail(user.email)
+      if (isAdminUser !== user.isAdmin) {
+        try {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { isAdmin: isAdminUser },
+          })
+        } catch (updateError) {
+          console.warn('[Users API] Failed to update isAdmin field:', updateError)
+        }
+      }
+
+      return NextResponse.json({ ...user, isAdmin: isAdminUser })
+    }
+
+    if (email && email !== authenticatedUser.email) {
       return NextResponse.json({ error: 'You can only access your own user data' }, { status: 403 })
     }
 
@@ -40,10 +81,6 @@ export async function GET(request: NextRequest) {
 
     if (!where) {
       return NextResponse.json({ error: 'email or id is required' }, { status: 400 })
-    }
-
-    if (!prisma) {
-      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
 
     const user = await prisma.user.findUnique({

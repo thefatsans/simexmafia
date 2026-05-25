@@ -29,11 +29,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify userId matches
-    if (clientUserId && authenticatedUser.id !== clientUserId) {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden: User ID mismatch' },
-        { status: 403 }
+    if (clientUserId && clientUserId !== authenticatedUser.id) {
+      console.warn(
+        '[Daily Rewards] Stale client userId — using database id:',
+        clientUserId,
+        '→',
+        authenticatedUser.id
       )
     }
 

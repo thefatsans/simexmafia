@@ -33,11 +33,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify userId matches
-    if (userId && authenticatedUser.id !== userId) {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden: User ID mismatch' },
-        { status: 403 }
+    if (userId && userId !== authenticatedUser.id) {
+      console.warn(
+        '[PayPal Verify] Stale client userId — using database id:',
+        userId,
+        '→',
+        authenticatedUser.id
       )
     }
 

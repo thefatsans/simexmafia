@@ -32,11 +32,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify userId matches
-    if (clientUserId && authenticatedUser.id !== clientUserId) {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden: User ID mismatch' },
-        { status: 403 }
+    if (clientUserId && clientUserId !== authenticatedUser.id) {
+      console.warn(
+        '[Sacks Purchase] Stale client userId — using database id:',
+        clientUserId,
+        '→',
+        authenticatedUser.id
       )
     }
 
@@ -196,6 +197,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      userId: authenticatedUser.id,
       reward,
       newBalance: purchaseMethod === 'coins' 
         ? (await prisma.user.findUnique({ where: { id: authenticatedUser.id }, select: { goofyCoins: true } }))?.goofyCoins || 0

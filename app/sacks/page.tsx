@@ -51,6 +51,13 @@ export default function SacksPage() {
     }
   }, [isAuthenticated, authLoading, router])
 
+  // Sync localStorage user id with database (prevents "User ID mismatch")
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user?.email) {
+      syncUserFromDatabase().catch(() => {})
+    }
+  }, [authLoading, isAuthenticated, user?.email, syncUserFromDatabase])
+
   // Cleanup animation on unmount
   useEffect(() => {
     return () => {
@@ -125,11 +132,14 @@ export default function SacksPage() {
         if (!response.ok || !data.success) {
           setIsOpening(false)
           showError(data.error || 'Fehler beim Kauf des Sacks')
-          // Synchronisiere User-Daten, falls sich der Balance geändert hat
           if (user?.id) {
             await syncUserFromDatabase()
           }
           return
+        }
+
+        if (data.userId && user && data.userId !== user.id) {
+          updateUser({ id: data.userId })
         }
 
         // Server hat Coins abgezogen und Belohnung generiert

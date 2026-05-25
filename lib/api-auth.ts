@@ -58,6 +58,21 @@ export async function getAuthenticatedUser(
 
     const user = await ensureUserInDatabase(profile)
 
+    if (
+      profile.userId &&
+      user &&
+      profile.userId !== user.id &&
+      profile.email &&
+      profile.email.toLowerCase() === user.email.toLowerCase()
+    ) {
+      console.warn(
+        '[API Auth] Resolved user by email; client should sync id:',
+        profile.userId,
+        '→',
+        user.id
+      )
+    }
+
     if (!user) {
       return {
         user: null,

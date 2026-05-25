@@ -43,17 +43,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    try {
-      const storedUser = localStorage.getItem('simexmafia-user')
-      if (storedUser) {
+    let cancelled = false
+
+    const loadSession = async () => {
+      try {
+        const storedUser = localStorage.getItem('simexmafia-user')
+        if (!storedUser) return
+
         const parsed = JSON.parse(storedUser)
-        const { password: _, ...userData } = parsed
-        setUser(userData as User)
+        const { password: _, ...userData } = parsed as User & { password?: string }
+        if (cancelled) return
+        setUser(userData)
+
+        if (userData.email) {
+          const { getUserFromAPI } = await import('@/lib/api/users')
+          const dbUser = await getUserFromAPI(userData.id, {
+            email: userData.email,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+          })
+          if (cancelled || !dbUser || dbUser.error) return
+
+          const synced: User = {
+            id: dbUser.id,
+            email: dbUser.email,
+            firstName: dbUser.firstName,
+            lastName: dbUser.lastName,
+            goofyCoins: dbUser.goofyCoins ?? userData.goofyCoins ?? 0,
+            totalSpent: dbUser.totalSpent ?? userData.totalSpent ?? 0,
+            tier: dbUser.tier || userData.tier || 'Bronze',
+            joinDate: dbUser.joinDate
+              ? new Date(dbUser.joinDate).toISOString().split('T')[0]
+              : userData.joinDate,
+            avatar: dbUser.avatar ?? userData.avatar,
+          }
+          setUser(synced)
+          persistUserSession(synced)
+        }
+      } catch (error) {
+        console.error('Error loading user from localStorage:', error)
+      } finally {
+        if (!cancelled) setIsLoading(false)
       }
-    } catch (error) {
-      console.error('Error loading user from localStorage:', error)
-    } finally {
-      setIsLoading(false)
+    }
+
+    loadSession()
+
+    return () => {
+      cancelled = true
     }
   }, [])
 
