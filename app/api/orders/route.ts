@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getAuthenticatedUser, requireAdmin } from '@/lib/api-auth'
+import { getAuthenticatedUser, requireAdmin, requireSecureSession } from '@/lib/api-auth'
+import { completeOrder } from '@/lib/orders/complete-order'
 
 // Prüfe ob Prisma verfügbar ist
 function isPrismaAvailable(): boolean {
@@ -159,7 +160,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
-      userId,
       items,
       subtotal,
       serviceFee,
@@ -171,27 +171,21 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validierung
-    if (!userId || !items || !Array.isArray(items) || items.length === 0) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
-    
-    // Prüfe Authentifizierung
-    const authResult = await getAuthenticatedUser(request, body)
+
+    const authResult = await requireSecureSession(request)
     if (authResult?.error) {
       return authResult.error
     }
-    
+
     if (!authResult?.user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
-    
+
     const { user: authenticatedUser } = authResult
-    
-    // User kann nur Bestellungen für sich selbst erstellen
-    // (Admins können auch für andere User erstellen, aber das sollte normalerweise nicht nötig sein)
-    if (authenticatedUser.id !== userId && !authenticatedUser.isAdmin) {
-      return NextResponse.json({ error: 'You can only create orders for yourself' }, { status: 403 })
-    }
+    const userId = authenticatedUser.id
 
     if (!prisma) {
       return NextResponse.json({ 
@@ -372,7 +366,32 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Update User: GoofyCoins und totalSpent
+    if (paymentMethod === 'goofycoins') {
+      try {
+        await db.user.update({
+          where: { id: userId },
+          data: { goofyCoins: { decrement: requiredCoins } },
+        })
+        const userAfter = await db.user.findUnique({
+          where: { id: userId },
+          select: { goofyCoins: true },
+        })
+        await db.coinTransaction.create({
+          data: {
+            userId,
+            type: 'spent',
+            amount: -requiredCoins,
+            balance: userAfter?.goofyCoins ?? 0,
+            description: `Order ${order.id} (GoofyCoins payment)`,
+            orderId: order.id,
+          },
+        })
+        await completeOrder(order.id, 'goofycoins')
+      } catch (err) {
+        console.error('[Orders API] GoofyCoins completion error:', err)
+      }
+    }
+
     if (coinsEarned > 0) {
       await db.user.update({
         where: { id: userId },

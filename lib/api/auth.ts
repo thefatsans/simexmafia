@@ -40,14 +40,22 @@ export async function registerAPI(
   email: string,
   password: string,
   firstName: string,
-  lastName: string
+  lastName: string,
+  extras?: { captchaToken?: string; referralCode?: string }
 ): Promise<AuthApiResponse> {
   try {
     const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ email, password, firstName, lastName }),
+      body: JSON.stringify({
+        email,
+        password,
+        firstName,
+        lastName,
+        captchaToken: extras?.captchaToken,
+        referralCode: extras?.referralCode,
+      }),
     })
 
     const data = await response.json()

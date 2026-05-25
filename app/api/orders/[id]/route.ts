@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOrderAccess } from '@/lib/api-auth'
+import { completeOrder } from '@/lib/orders/complete-order'
 
 /**
  * Fügt GoofyCoins hinzu, wenn eine Bestellung auf 'completed' gesetzt wird
@@ -322,11 +323,15 @@ export async function PATCH(
         }
       }
       
-      // Wenn Status auf 'completed' gesetzt wurde, füge GoofyCoins hinzu
       if (status === 'completed' && currentOrder?.status !== 'completed') {
         await addCoinsForCompletedOrder(orderWithStatusReason)
+        try {
+          await completeOrder(params.id, 'admin')
+        } catch (err) {
+          console.warn('[Orders API] completeOrder helper failed:', err)
+        }
       }
-      
+
       console.log('[Orders API] Order updated successfully, statusReason:', orderWithStatusReason.statusReason)
       return NextResponse.json(orderWithStatusReason)
     } catch (updateError: any) {
@@ -404,11 +409,15 @@ export async function PATCH(
           }
         }
         
-        // Wenn Status auf 'completed' gesetzt wurde, füge GoofyCoins hinzu
         if (status === 'completed' && currentOrder?.status !== 'completed') {
           await addCoinsForCompletedOrder(orderWithStatusReason)
+          try {
+            await completeOrder(params.id, 'admin')
+          } catch (err) {
+            console.warn('[Orders API] completeOrder helper failed:', err)
+          }
         }
-        
+
         return NextResponse.json(orderWithStatusReason)
       }
       throw updateError

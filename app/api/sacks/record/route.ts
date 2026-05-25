@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthenticatedUser } from '@/lib/api-auth'
+import { requireSecureSession } from '@/lib/api-auth'
 import { recordSackOpenInDatabase } from '@/lib/leaderboard/record-sack-open'
 
 /** Client-seitige Sack-Öffnung (z. B. Echtgeld-Flow) ins Leaderboard übernehmen */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const authResult = await getAuthenticatedUser(request, body)
+    const authResult = await requireSecureSession(request)
 
     if (!authResult || authResult.error) {
       return authResult?.error ?? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

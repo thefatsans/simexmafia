@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ensureUserInDatabase, type AuthUserProfile } from '@/lib/user-sync'
+import { readSessionPayload } from '@/lib/api-session'
+import { publicUserSelect } from '@/lib/auth-user'
+import { isAdmin as isAdminByEmail } from '@/data/admin'
 
 function getProfileFromRequest(request: NextRequest, body?: any): AuthUserProfile {
   const searchParams = request.nextUrl.searchParams
@@ -108,25 +111,90 @@ export async function getAuthenticatedUser(
 }
 
 /**
+ * Verlangt ein gültiges signiertes Session-Cookie. Ignoriert userId/email aus Body/Query.
+ * Nutzung für kritische Routen (Käufe, Zahlungen, Coin-Operationen).
+ */
+export async function requireSecureSession(
+  request: NextRequest
+): Promise<{ user: any; error?: NextResponse } | null> {
+  try {
+    const payload = readSessionPayload(request)
+    if (!payload) {
+      return {
+        user: null,
+        error: NextResponse.json(
+          { error: 'Authentifizierung erforderlich. Bitte erneut anmelden.', code: 'SESSION_MISSING' },
+          { status: 401 }
+        ),
+      }
+    }
+
+    if (!prisma) {
+      return {
+        user: null,
+        error: NextResponse.json({ error: 'Database not available' }, { status: 503 }),
+      }
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: publicUserSelect,
+    })
+
+    if (!user) {
+      return {
+        user: null,
+        error: NextResponse.json(
+          { error: 'Konto nicht gefunden. Bitte erneut anmelden.', code: 'SESSION_INVALID' },
+          { status: 401 }
+        ),
+      }
+    }
+
+    return {
+      user: { ...user, isAdmin: user.isAdmin || isAdminByEmail(user.email) },
+    }
+  } catch (error: unknown) {
+    console.error('[API Auth] Secure session error:', error)
+    if (isDatabaseConnectionError(error)) {
+      return {
+        user: null,
+        error: NextResponse.json(
+          { error: 'Database connection failed. Please try again later.' },
+          { status: 503 }
+        ),
+      }
+    }
+    return {
+      user: null,
+      error: NextResponse.json({ error: 'Authentication failed' }, { status: 500 }),
+    }
+  }
+}
+
+/**
  * Prüft ob ein User Admin ist
  */
 export async function requireAdmin(
   request: NextRequest,
   body?: any
 ): Promise<{ user: any; error?: NextResponse } | null> {
-  const authResult = await getAuthenticatedUser(request, body)
+  const sessionResult = await requireSecureSession(request)
+  if (sessionResult && !sessionResult.error && sessionResult.user?.isAdmin) {
+    return sessionResult
+  }
 
+  // Fallback (older clients without cookie): legacy lookup
+  const authResult = await getAuthenticatedUser(request, body)
   if (!authResult || authResult.error) {
     return authResult
   }
-
   if (!authResult.user.isAdmin) {
     return {
       user: null,
       error: NextResponse.json({ error: 'Admin access required' }, { status: 403 }),
     }
   }
-
   return authResult
 }
 

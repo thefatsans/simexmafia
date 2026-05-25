@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { requireSecureSession } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid amount' },
         { status: 400 }
+      )
+    }
+
+    const authResult = await requireSecureSession(request)
+    if (!authResult || authResult.error) {
+      return authResult?.error || NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
       )
     }
 

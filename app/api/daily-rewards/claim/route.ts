@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getAuthenticatedUser } from '@/lib/api-auth'
+import { requireSecureSession } from '@/lib/api-auth'
 import { dailyRewards } from '@/data/dailyRewards'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { userId: clientUserId } = body
-
-    console.log('[Daily Rewards] Received claim request:', {
-      clientUserId
-    })
-
-    // Verify authentication
-    const authResult = await getAuthenticatedUser(request, body)
+    const authResult = await requireSecureSession(request)
     if (!authResult || authResult.error) {
       return authResult?.error || NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -22,19 +14,10 @@ export async function POST(request: NextRequest) {
     }
 
     const authenticatedUser = authResult.user
-    if (!authenticatedUser || !authenticatedUser.id) {
+    if (!authenticatedUser?.id) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
-      )
-    }
-
-    if (clientUserId && clientUserId !== authenticatedUser.id) {
-      console.warn(
-        '[Daily Rewards] Stale client userId — using database id:',
-        clientUserId,
-        '→',
-        authenticatedUser.id
       )
     }
 

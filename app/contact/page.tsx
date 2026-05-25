@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react'
 import { Mail, Phone, MapPin, Send, MessageSquare, HelpCircle, ShoppingBag, CreditCard, User } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
 import { companyInfo, getFullAddress, getOpeningHoursFormatted } from '@/lib/company-info'
+import TurnstileWidget, { isTurnstileConfigured } from '@/components/TurnstileWidget'
 
 type ContactCategory = 'general' | 'order' | 'payment' | 'account' | 'product' | 'technical' | 'refund'
 
@@ -36,6 +37,8 @@ export default function ContactPage() {
   })
   const [errors, setErrors] = useState<Partial<Record<keyof ContactFormData, string>>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState('')
+  const captchaRequired = isTurnstileConfigured()
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof ContactFormData, string>> = {}
@@ -69,6 +72,11 @@ export default function ContactPage() {
 
     if (!validateForm()) {
       showError('Bitte füllen Sie alle Felder korrekt aus')
+      return
+    }
+
+    if (captchaRequired && !captchaToken) {
+      showError('Bitte bestätige das Captcha.')
       return
     }
 
@@ -297,7 +305,10 @@ export default function ContactPage() {
                   {errors.message && <p className="text-red-400 text-sm mt-1">{errors.message}</p>}
                 </div>
 
-                {/* Submit Button */}
+                {captchaRequired && (
+                  <TurnstileWidget onVerify={setCaptchaToken} />
+                )}
+
                 <button
                   type="submit"
                   disabled={isSubmitting}

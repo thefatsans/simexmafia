@@ -86,6 +86,7 @@ function PayPalCallbackContent() {
         try {
           const response = await fetch(`/api/payments/paypal/verify`, {
             method: 'POST',
+            credentials: 'include',
             headers: {
               'Content-Type': 'application/json',
             },
@@ -95,7 +96,6 @@ function PayPalCallbackContent() {
               payerId,
               token,
               amount,
-              userId: user?.id,
             }),
           })
 

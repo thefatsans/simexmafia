@@ -6,6 +6,8 @@ import { sendWelcomeEmailServer } from '@/lib/email-server'
 import { validateEmailForRegistration } from '@/lib/email-validation'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { getClientIp } from '@/lib/request-ip'
+import { setSessionCookie } from '@/lib/api-session'
+import { isAdmin as isAdminByEmail } from '@/data/admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -62,11 +64,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (user.emailVerified) {
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         user: dbUserToClientUser(user),
         alreadyVerified: true,
       })
+      setSessionCookie(response, {
+        id: user.id,
+        email: user.email,
+        isAdmin: user.isAdmin || isAdminByEmail(user.email),
+      })
+      return response
     }
 
     if ((user.emailVerifyAttempts ?? 0) >= 8) {
@@ -112,10 +120,16 @@ export async function POST(request: NextRequest) {
       console.warn('[Verify Email] Welcome mail failed:', err)
     })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       user: dbUserToClientUser(updated),
     })
+    setSessionCookie(response, {
+      id: updated.id,
+      email: updated.email,
+      isAdmin: updated.isAdmin || isAdminByEmail(updated.email),
+    })
+    return response
   } catch (error) {
     console.error('[Verify Email] Error:', error)
     return NextResponse.json(

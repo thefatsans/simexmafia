@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { requireSecureSession } from '@/lib/api-auth'
+import { completeOrder } from '@/lib/orders/complete-order'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +12,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Payment intent ID is required' },
         { status: 400 }
+      )
+    }
+
+    const authResult = await requireSecureSession(request)
+    if (!authResult || authResult.error) {
+      return authResult?.error || NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
       )
     }
 
@@ -29,11 +39,20 @@ export async function POST(request: NextRequest) {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
 
     if (paymentIntent.status === 'succeeded') {
+      const orderId = (paymentIntent.metadata?.orderId as string | undefined) || undefined
+      if (orderId) {
+        try {
+          await completeOrder(orderId, 'stripe', { paymentIntentId: paymentIntent.id })
+        } catch (err) {
+          console.warn('[Stripe Confirm] completeOrder failed:', err)
+        }
+      }
       return NextResponse.json({
         success: true,
         paymentIntentId: paymentIntent.id,
-        amount: paymentIntent.amount / 100, // Convert from cents
+        amount: paymentIntent.amount / 100,
         status: paymentIntent.status,
+        orderId,
       })
     } else if (paymentIntent.status === 'requires_payment_method') {
       return NextResponse.json(

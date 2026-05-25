@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
-import { Mail, Lock, User, UserPlus } from 'lucide-react'
+import { Mail, Lock, User, UserPlus, Gift } from 'lucide-react'
+import TurnstileWidget, { isTurnstileConfigured } from '@/components/TurnstileWidget'
 
-export default function RegisterPage() {
+function RegisterInner() {
   const router = useRouter()
+  const params = useSearchParams()
   const { register, isAuthenticated } = useAuth()
   const { showSuccess, showError, showInfo } = useToast()
   const [formData, setFormData] = useState({
@@ -16,8 +18,18 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
+    referralCode: '',
   })
+  const [captchaToken, setCaptchaToken] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const captchaRequired = isTurnstileConfigured()
+
+  useEffect(() => {
+    const ref = params.get('ref') || params.get('referral')
+    if (ref) {
+      setFormData((prev) => ({ ...prev, referralCode: ref.toUpperCase() }))
+    }
+  }, [params])
 
   // Redirect if already logged in
   if (isAuthenticated) {
@@ -39,6 +51,11 @@ export default function RegisterPage() {
       return
     }
 
+    if (captchaRequired && !captchaToken) {
+      showError('Bitte bestätige das Captcha.')
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -46,7 +63,8 @@ export default function RegisterPage() {
         formData.email,
         formData.password,
         formData.firstName,
-        formData.lastName
+        formData.lastName,
+        { captchaToken, referralCode: formData.referralCode }
       )
       
       if (result.success && result.needsVerification) {
@@ -209,7 +227,33 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
+            <div>
+              <label htmlFor="referralCode" className="block text-sm font-medium text-gray-300 mb-2">
+                Einladungscode (optional)
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Gift className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="referralCode"
+                  name="referralCode"
+                  type="text"
+                  value={formData.referralCode}
+                  onChange={(e) =>
+                    setFormData({ ...formData, referralCode: e.target.value.toUpperCase().slice(0, 16) })
+                  }
+                  className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-purple-500/30 bg-fortnite-darker placeholder-gray-500 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent uppercase tracking-wider"
+                  placeholder="ABCD1234"
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-400">Du und der Einladende erhalten GoofyCoins.</p>
+            </div>
           </div>
+
+          {captchaRequired && (
+            <TurnstileWidget onVerify={setCaptchaToken} />
+          )}
 
           <div>
             <button
@@ -236,6 +280,14 @@ export default function RegisterPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterInner />
+    </Suspense>
   )
 }
 

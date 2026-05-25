@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getAuthenticatedUser } from '@/lib/api-auth'
+import { requireSecureSession } from '@/lib/api-auth'
 import { sackTypes, openSack } from '@/data/sacks'
 import { recordSackOpenInDatabase } from '@/lib/leaderboard/record-sack-open'
 import { assertSackOpenAllowed, recordSackOpenDayCount } from '@/lib/sack-limits'
@@ -8,16 +8,9 @@ import { assertSackOpenAllowed, recordSackOpenDayCount } from '@/lib/sack-limits
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { sackType, purchaseMethod, userId: clientUserId } = body
+    const { sackType, purchaseMethod } = body
 
-    console.log('[Sacks Purchase] Received request:', {
-      sackType,
-      purchaseMethod,
-      clientUserId
-    })
-
-    // Verify authentication - pass body so userId can be read
-    const authResult = await getAuthenticatedUser(request, body)
+    const authResult = await requireSecureSession(request)
     if (!authResult || authResult.error) {
       return authResult?.error || NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -26,19 +19,10 @@ export async function POST(request: NextRequest) {
     }
 
     const authenticatedUser = authResult.user
-    if (!authenticatedUser || !authenticatedUser.id) {
+    if (!authenticatedUser?.id) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
-      )
-    }
-
-    if (clientUserId && clientUserId !== authenticatedUser.id) {
-      console.warn(
-        '[Sacks Purchase] Stale client userId — using database id:',
-        clientUserId,
-        '→',
-        authenticatedUser.id
       )
     }
 

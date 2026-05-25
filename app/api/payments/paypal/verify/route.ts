@@ -1,23 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getAuthenticatedUser } from '@/lib/api-auth'
+import { requireSecureSession } from '@/lib/api-auth'
+import { getPayPalOrder } from '@/lib/paypal'
+import { completeOrder } from '@/lib/orders/complete-order'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { orderId, paymentId, payerId, token, amount, userId } = body
+    const { orderId, paymentId, payerId, amount } = body
 
-    console.log('[PayPal Verify] Received verification request:', {
-      orderId,
-      paymentId,
-      payerId,
-      hasToken: !!token,
-      amount,
-      userId
-    })
-
-    // Verify authentication
-    const authResult = await getAuthenticatedUser(request, body)
+    const authResult = await requireSecureSession(request)
     if (!authResult || authResult.error) {
       return authResult?.error || NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -26,19 +18,10 @@ export async function POST(request: NextRequest) {
     }
 
     const authenticatedUser = authResult.user
-    if (!authenticatedUser || !authenticatedUser.id) {
+    if (!authenticatedUser?.id) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
-      )
-    }
-
-    if (userId && userId !== authenticatedUser.id) {
-      console.warn(
-        '[PayPal Verify] Stale client userId — using database id:',
-        userId,
-        '→',
-        authenticatedUser.id
       )
     }
 
@@ -103,26 +86,66 @@ export async function POST(request: NextRequest) {
       // Don't fail - amounts might differ due to PayPal fees or rounding
     }
 
-    // In a real implementation, you would verify the payment with PayPal's API here
-    // For now, we'll just log the verification and return success
-    // TODO: Implement actual PayPal API verification
-    console.log('[PayPal Verify] Payment verified (mock):', {
-      orderId: order.id,
-      paymentId,
-      payerId,
-      amount: orderAmount,
-    })
+    const verifyPaymentId = (paymentId as string | undefined) || orderId
+    if (!verifyPaymentId) {
+      return NextResponse.json(
+        { success: false, error: 'PayPal payment id missing' },
+        { status: 400 }
+      )
+    }
 
-    // Update order with PayPal payment details (if you have a field for this)
-    // For now, we'll just mark it as processing
-    // The admin will set it to completed after manually verifying the payment
+    let paypalOrder
+    try {
+      paypalOrder = await getPayPalOrder(verifyPaymentId)
+    } catch (err: any) {
+      console.error('[PayPal Verify] PayPal API error:', err)
+      if (err?.code === 'PAYPAL_NOT_CONFIGURED') {
+        return NextResponse.json(
+          { success: false, error: 'PayPal verification not configured on server.', code: 'PAYPAL_NOT_CONFIGURED' },
+          { status: 503 }
+        )
+      }
+      return NextResponse.json(
+        { success: false, error: 'PayPal verification failed.', details: err?.message },
+        { status: 502 }
+      )
+    }
 
-    return NextResponse.json({
-      success: true,
-      orderId: order.id,
-      message: 'Payment verified successfully',
-      // In production, you would return actual verification data from PayPal
-    })
+    if (paypalOrder.status !== 'COMPLETED' && paypalOrder.status !== 'APPROVED') {
+      return NextResponse.json(
+        { success: false, error: `PayPal payment not completed (status: ${paypalOrder.status})` },
+        { status: 400 }
+      )
+    }
+
+    const paypalAmount = paypalOrder.purchase_units?.[0]?.amount?.value
+      ? parseFloat(paypalOrder.purchase_units[0].amount.value)
+      : (amount ? parseFloat(amount.toString()) : null)
+    if (paypalAmount !== null && paypalAmount + 0.01 < orderAmount) {
+      return NextResponse.json(
+        { success: false, error: `PayPal amount (${paypalAmount}) below order total (${orderAmount}).` },
+        { status: 400 }
+      )
+    }
+
+    try {
+      const completed = await completeOrder(order.id, 'paypal', {
+        paypalPaymentId: verifyPaymentId,
+        paypalPayerId: payerId ?? null,
+      })
+      return NextResponse.json({
+        success: true,
+        orderId: completed.id,
+        status: completed.status,
+        message: 'Payment verified successfully',
+      })
+    } catch (err: any) {
+      console.error('[PayPal Verify] completeOrder error:', err)
+      return NextResponse.json(
+        { success: false, error: err?.message || 'Order completion failed' },
+        { status: 500 }
+      )
+    }
   } catch (error: any) {
     console.error('[PayPal Verify] Error:', error)
     return NextResponse.json(

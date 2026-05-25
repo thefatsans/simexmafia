@@ -4,24 +4,49 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/contexts/ToastContext'
 import { Mail, ArrowLeft } from 'lucide-react'
+import TurnstileWidget, { isTurnstileConfigured } from '@/components/TurnstileWidget'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
   const { showSuccess, showError } = useToast()
   const [email, setEmail] = useState('')
+  const [captchaToken, setCaptchaToken] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSent, setIsSent] = useState(false)
+  const captchaRequired = isTurnstileConfigured()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
 
-    // Simulate password reset (in production, this would send an email)
-    setTimeout(() => {
+    if (captchaRequired && !captchaToken) {
+      showError('Bitte bestätige das Captcha.')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: email.trim().toLowerCase(), captchaToken }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        showError(data?.error || 'Anfrage fehlgeschlagen')
+      } else {
+        setIsSent(true)
+        showSuccess('Wenn ein Konto existiert, wurde ein Code gesendet.')
+        setTimeout(() => {
+          router.push(`/auth/reset-password?email=${encodeURIComponent(email.trim().toLowerCase())}`)
+        }, 1500)
+      }
+    } catch (err) {
+      console.error(err)
+      showError('Ein Fehler ist aufgetreten')
+    } finally {
       setIsLoading(false)
-      setIsSent(true)
-      showSuccess('Passwort-Reset-Link wurde an Ihre E-Mail gesendet!')
-    }, 1000)
+    }
   }
 
   if (isSent) {
@@ -36,16 +61,13 @@ export default function ForgotPasswordPage() {
               E-Mail gesendet!
             </h2>
             <p className="text-gray-400 mb-6">
-              Wir haben einen Passwort-Reset-Link an <strong className="text-white">{email}</strong> gesendet.
-            </p>
-            <p className="text-sm text-gray-500 mb-6">
-              Bitte überprüfen Sie Ihr E-Mail-Postfach und folgen Sie den Anweisungen.
+              Wenn ein Konto mit <strong className="text-white">{email}</strong> existiert, haben wir einen 6-stelligen Code geschickt.
             </p>
             <button
-              onClick={() => router.push('/auth/login')}
+              onClick={() => router.push(`/auth/reset-password?email=${encodeURIComponent(email)}`)}
               className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-lg transition-all"
             >
-              Zurück zur Anmeldung
+              Code eingeben
             </button>
           </div>
         </div>
@@ -68,7 +90,7 @@ export default function ForgotPasswordPage() {
             Passwort zurücksetzen
           </h2>
           <p className="mt-2 text-sm text-gray-400">
-            Geben Sie Ihre E-Mail-Adresse ein und wir senden Ihnen einen Link zum Zurücksetzen Ihres Passworts.
+            Gib deine E-Mail-Adresse ein — wir senden dir einen 6-stelligen Code.
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -94,23 +116,17 @@ export default function ForgotPasswordPage() {
             </div>
           </div>
 
+          {captchaRequired && (
+            <TurnstileWidget onVerify={setCaptchaToken} />
+          )}
+
           <div>
             <button
               type="submit"
               disabled={isLoading}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              {isLoading ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Wird gesendet...
-                </span>
-              ) : (
-                'Reset-Link senden'
-              )}
+              {isLoading ? 'Wird gesendet...' : 'Reset-Code senden'}
             </button>
           </div>
         </form>
@@ -118,17 +134,3 @@ export default function ForgotPasswordPage() {
     </div>
   )
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

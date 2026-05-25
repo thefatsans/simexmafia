@@ -25,10 +25,40 @@ NEXT_PUBLIC_PAYPAL_PAYMENT_LINK=https://paypal.me/SimexMafia
 RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=SimexMafia <onboarding@resend.dev>
 EMAIL_VERIFY_SECRET=ein-langer-zufaelliger-string
+PASSWORD_RESET_SECRET=ein-anderer-langer-zufaelliger-string
 ```
 - **Woher?** [Resend.com](https://resend.com) Dashboard → API Keys
 - Ohne `RESEND_API_KEY` werden **keine Bestätigungscodes** versendet
-- `EMAIL_VERIFY_SECRET` optional (schützt Code-Hashes)
+- `EMAIL_VERIFY_SECRET` & `PASSWORD_RESET_SECRET` schützen die Code-Hashes (in Production zwingend setzen)
+
+### 3b. Session-Cookie (HMAC) — **Pflicht in Production**
+```
+SESSION_SECRET=mindestens-32-zeichen-zufaellig
+```
+- Verwendet von `lib/session-token.ts` für `sm_session`-Cookie (30 Tage)
+- Ohne Setzen wird ein unsicheres Default-Secret genutzt → in Production immer überschreiben
+
+### 3c. Captcha (Cloudflare Turnstile) — empfohlen
+```
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
+```
+- Wenn beide gesetzt → Captcha aktiv bei Register / Forgot-Password / Contact
+- Leer lassen → Captcha automatisch deaktiviert (Dev-Modus)
+
+### 3d. PayPal Server-Verifizierung
+```
+PAYPAL_CLIENT_ID=
+PAYPAL_CLIENT_SECRET=
+PAYPAL_MODE=live   # oder "sandbox"
+```
+- Benötigt für `/api/payments/paypal/verify` (Orders v2 API). Fehlen die Keys → Route liefert 503.
+
+### 3e. Auto-Lieferung Discord-Server
+```
+DISCORD_INVITE_URL=https://discord.gg/simex-geheim
+```
+- Wird bei abgeschlossener Bestellung als „Key“ des Discord-Produkts automatisch ausgeliefert.
 
 ### 4. Google OAuth (für Login)
 ```
@@ -67,12 +97,18 @@ NEXT_PUBLIC_AI_MODEL=gpt-3.5-turbo
 
 ## ✅ Checkliste:
 
-- [ ] `DATABASE_URL` gesetzt
+- [ ] `DATABASE_URL` gesetzt (Transaction Pooler, Port 6543)
+- [ ] `SESSION_SECRET` gesetzt (≥32 Zeichen)
+- [ ] `RESEND_API_KEY` + `EMAIL_VERIFY_SECRET` + `PASSWORD_RESET_SECRET` gesetzt
 - [ ] `NEXT_PUBLIC_PAYPAL_PAYMENT_LINK` gesetzt
-- [ ] `RESEND_API_KEY` gesetzt (optional)
+- [ ] `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` / `PAYPAL_MODE` gesetzt (für echte Verifizierung)
+- [ ] `STRIPE_SECRET_KEY` + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` gesetzt (für Kreditkarten)
+- [ ] `NEXT_PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` (optional, für Captcha)
+- [ ] `DISCORD_INVITE_URL` gesetzt
 - [ ] `NEXT_PUBLIC_GOOGLE_CLIENT_ID` gesetzt (optional)
 - [ ] `NEXT_PUBLIC_SITE_URL` gesetzt
 - [ ] `NEXT_PUBLIC_CONTACT_EMAIL=simexmafia.support@gmail.com` gesetzt
+- [ ] SQL-Migrationen ausgeführt: `prisma/add-sack-open.sql`, `prisma/add-seller-simexmafia.sql`, `prisma/add-email-verification.sql`, `prisma/add-password-reset.sql`, `prisma/add-referrals.sql`
 - [ ] Projekt nach dem Hinzufügen der Variablen **redeployed**
 
 ## 🚨 Nach dem Hinzufügen:

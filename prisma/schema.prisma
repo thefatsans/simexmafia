@@ -27,7 +27,14 @@ model User {
   emailVerifyAttempts        Int       @default(0)
   sackOpensDayCount          Int       @default(0)
   sackOpensDayDate           String?
-  
+  passwordResetCodeHash      String?
+  passwordResetExpires       DateTime?
+  passwordResetAttempts      Int       @default(0)
+  referralCode               String?   @unique
+  referredById               String?
+  referredAt                 DateTime?
+  referralRewardGiven        Boolean   @default(false)
+
   // Relations
   orders        Order[]
   reviews       Review[]

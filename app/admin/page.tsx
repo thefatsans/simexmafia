@@ -9,24 +9,38 @@ import {
   TrendingUp, DollarSign, Gift, BarChart3,
   Settings, LogOut
 } from 'lucide-react'
-import { getOrders } from '@/data/payments'
-import { getSackHistory } from '@/data/sackHistory'
-import { getInventory } from '@/data/inventory'
-import { getDiscountCodes } from '@/data/discountCodes'
+
+interface DashboardData {
+  generatedAt: string
+  orders: {
+    total: number
+    pending: number
+    completed: number
+    last24h: number
+    last7d: number
+    last30d: number
+  }
+  revenue: { total: number; last30d: number }
+  users: { new24h: number; new7d: number; new30d: number }
+  sackOpens: { last24h: number; last7d: number }
+  coinTransactions: { last24h: number; last7d: number }
+  catalog: { products: number; sellers: number }
+  integrations: {
+    resendConfigured: boolean
+    paypalConfigured: boolean
+    stripeConfigured: boolean
+    turnstileConfigured: boolean
+    discordInvite: boolean
+  }
+}
 
 export default function AdminDashboard() {
   const router = useRouter()
   const { user, logout, isLoading: authLoading } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
-  const [stats, setStats] = useState({
-    orders: [] as any[],
-    totalRevenue: 0,
-    totalOrders: 0,
-    pendingOrders: 0,
-    sackHistory: [] as any[],
-    inventory: [] as any[],
-    discountCodes: [] as any[],
-  })
+  const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [recentOrders, setRecentOrders] = useState<any[]>([])
 
   useEffect(() => {
     if (authLoading) {
@@ -49,37 +63,25 @@ export default function AdminDashboard() {
       return
     }
     
-    console.log('User is admin, showing dashboard')
-    
-    // Load statistics
-    const loadStats = () => {
+    const loadStats = async () => {
       try {
-        // getOrders() ist synchron, kein await nötig
-        const orders = getOrders()
-        console.log('[Admin Dashboard] Loaded orders:', orders.length)
-        const sackHistory = getSackHistory()
-        const inventory = getInventory()
-        const discountCodes = getDiscountCodes()
-
-        const totalRevenue = orders
-          .filter((o: any) => o.status === 'completed')
-          .reduce((sum: number, o: any) => sum + o.total, 0)
-
-        const totalOrders = orders.length
-        const pendingOrders = orders.filter((o: any) => o.status === 'pending' || o.status === 'processing').length
-
-        setStats({
-          orders,
-          totalRevenue,
-          totalOrders,
-          pendingOrders,
-          sackHistory,
-          inventory,
-          discountCodes,
-        })
-        setIsLoading(false)
-      } catch (error) {
-        console.error('Error loading stats:', error)
+        const [dashRes, ordersRes] = await Promise.all([
+          fetch('/api/admin/dashboard', { credentials: 'include', cache: 'no-store' }),
+          fetch('/api/orders', { credentials: 'include', cache: 'no-store' }),
+        ])
+        if (!dashRes.ok) {
+          throw new Error(`Dashboard error: ${dashRes.status}`)
+        }
+        const dashboard = (await dashRes.json()) as DashboardData
+        setData(dashboard)
+        if (ordersRes.ok) {
+          const orders = await ordersRes.json()
+          setRecentOrders(Array.isArray(orders) ? orders.slice(0, 6) : [])
+        }
+      } catch (err: any) {
+        console.error('Error loading dashboard:', err)
+        setError(err?.message || 'Dashboard konnte nicht geladen werden.')
+      } finally {
         setIsLoading(false)
       }
     }
@@ -99,24 +101,29 @@ export default function AdminDashboard() {
     return null
   }
 
-  // Calculate statistics from state
-  const { orders, totalRevenue, totalOrders, pendingOrders, sackHistory, inventory, discountCodes } = stats
-
-  const totalSacksOpened = sackHistory?.length || 0
-  const totalItemsWon = inventory?.length || 0
-  const activeDiscountCodes = discountCodes?.filter((c: any) => c.isActive).length || 0
+  const totalRevenue = data?.revenue?.total ?? 0
+  const totalRevenue30d = data?.revenue?.last30d ?? 0
+  const totalOrders = data?.orders?.total ?? 0
+  const pendingOrders = data?.orders?.pending ?? 0
+  const completedOrders = data?.orders?.completed ?? 0
+  const orders24h = data?.orders?.last24h ?? 0
+  const orders7d = data?.orders?.last7d ?? 0
+  const newUsers7d = data?.users?.new7d ?? 0
+  const sackOpens7d = data?.sackOpens?.last7d ?? 0
 
   const dashboardStats = [
     {
       label: 'Gesamtumsatz',
       value: `€${totalRevenue.toFixed(2)}`,
+      subtitle: `€${totalRevenue30d.toFixed(2)} in 30 Tagen`,
       icon: DollarSign,
       color: 'text-green-400',
       bgColor: 'bg-green-500/20',
     },
     {
-      label: 'Bestellungen',
+      label: 'Bestellungen gesamt',
       value: totalOrders.toString(),
+      subtitle: `${orders7d} in 7 Tagen · ${orders24h} heute`,
       icon: ShoppingCart,
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/20',
@@ -124,32 +131,38 @@ export default function AdminDashboard() {
     {
       label: 'Offene Bestellungen',
       value: pendingOrders.toString(),
+      subtitle: `${completedOrders} abgeschlossen`,
       icon: BarChart3,
       color: 'text-yellow-400',
       bgColor: 'bg-yellow-500/20',
     },
     {
-      label: 'Säcke geöffnet',
-      value: totalSacksOpened.toString(),
+      label: 'Säcke (7 Tage)',
+      value: sackOpens7d.toString(),
+      subtitle: `${data?.sackOpens?.last24h ?? 0} in 24h`,
       icon: Gift,
       color: 'text-pink-400',
       bgColor: 'bg-pink-500/20',
     },
     {
-      label: 'Items gewonnen',
-      value: totalItemsWon.toString(),
-      icon: Package,
+      label: 'Neue Nutzer (7 Tage)',
+      value: newUsers7d.toString(),
+      subtitle: `${data?.users?.new24h ?? 0} in 24h`,
+      icon: Users,
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/20',
     },
     {
-      label: 'Aktive Rabattcodes',
-      value: activeDiscountCodes.toString(),
-      icon: Tag,
+      label: 'Coin-Transaktionen (7 Tage)',
+      value: (data?.coinTransactions?.last7d ?? 0).toString(),
+      subtitle: `${data?.coinTransactions?.last24h ?? 0} in 24h`,
+      icon: TrendingUp,
       color: 'text-orange-400',
       bgColor: 'bg-orange-500/20',
     },
   ]
+
+  const integrations = data?.integrations
 
   const quickActions = [
     {
@@ -228,7 +241,11 @@ export default function AdminDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Statistics */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-200 text-sm">
+            {error}
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {dashboardStats.map((stat, index) => {
             const Icon = stat.icon
@@ -241,6 +258,9 @@ export default function AdminDashboard() {
                   <div>
                     <p className="text-gray-400 text-sm mb-1">{stat.label}</p>
                     <p className="text-3xl font-bold text-white">{stat.value}</p>
+                    {stat.subtitle && (
+                      <p className="text-gray-500 text-xs mt-1">{stat.subtitle}</p>
+                    )}
                   </div>
                   <div className={`${stat.bgColor} p-4 rounded-lg`}>
                     <Icon className={`w-8 h-8 ${stat.color}`} />
@@ -250,6 +270,38 @@ export default function AdminDashboard() {
             )
           })}
         </div>
+
+        {integrations && (
+          <div className="mb-8 bg-fortnite-dark border border-purple-500/20 rounded-lg p-6">
+            <h2 className="text-xl font-bold text-white mb-4">Integrationen</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
+              {[
+                { key: 'resendConfigured', label: 'Resend (E-Mail)' },
+                { key: 'stripeConfigured', label: 'Stripe' },
+                { key: 'paypalConfigured', label: 'PayPal Verify' },
+                { key: 'turnstileConfigured', label: 'Turnstile' },
+                { key: 'discordInvite', label: 'Discord Invite' },
+              ].map((row) => {
+                const enabled = (integrations as any)[row.key]
+                return (
+                  <div
+                    key={row.key}
+                    className={`px-3 py-2 rounded border ${
+                      enabled
+                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                        : 'border-yellow-500/40 bg-yellow-500/10 text-yellow-200'
+                    }`}
+                  >
+                    <div className="font-semibold">{row.label}</div>
+                    <div className="text-xs mt-1">
+                      {enabled ? 'aktiv' : 'fehlt (ENV setzen)'}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="mb-8">
@@ -279,11 +331,13 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Recent Activity */}
         <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6">
           <h2 className="text-2xl font-bold text-white mb-6">Letzte Aktivitäten</h2>
           <div className="space-y-4">
-            {orders.slice(0, 5).map((order) => (
+            {recentOrders.length === 0 && (
+              <p className="text-gray-400 text-sm">Keine aktuellen Bestellungen.</p>
+            )}
+            {recentOrders.map((order: any) => (
               <div
                 key={order.id}
                 className="flex items-center justify-between p-4 bg-fortnite-darker rounded-lg border border-purple-500/10"

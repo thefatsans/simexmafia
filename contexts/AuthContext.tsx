@@ -31,7 +31,8 @@ interface AuthContextType {
     email: string,
     password: string,
     firstName: string,
-    lastName: string
+    lastName: string,
+    extras?: { captchaToken?: string; referralCode?: string }
   ) => Promise<{
     success: boolean
     error?: string
@@ -223,7 +224,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     firstName: string,
-    lastName: string
+    lastName: string,
+    extras?: { captchaToken?: string; referralCode?: string }
   ): Promise<{
     success: boolean
     error?: string
@@ -247,7 +249,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         normalizedEmail,
         password,
         firstName.trim(),
-        lastName.trim()
+        lastName.trim(),
+        extras
       )
 
       if (apiResult.success && apiResult.needsVerification) {
@@ -324,6 +327,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setUser(null)
     localStorage.removeItem('simexmafia-user')
+    if (typeof window !== 'undefined') {
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      }).catch(() => {})
+    }
   }, [])
 
   const updateUser = useCallback((updates: Partial<User>) => {

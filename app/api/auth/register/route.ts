@@ -6,6 +6,11 @@ import { validateEmailForRegistration } from '@/lib/email-validation'
 import { issueEmailVerificationCode } from '@/lib/auth-email'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { getClientIp } from '@/lib/request-ip'
+import { isTurnstileEnabled, verifyTurnstile } from '@/lib/captcha'
+import {
+  ensureReferralCode,
+  redeemReferralCode,
+} from '@/lib/referral'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,6 +19,8 @@ export async function POST(request: NextRequest) {
     const password = body.password as string | undefined
     const firstName = (body.firstName as string | undefined)?.trim()
     const lastName = (body.lastName as string | undefined)?.trim()
+    const captchaToken = (body.captchaToken as string | undefined) || ''
+    const referralCode = (body.referralCode as string | undefined)?.trim().toUpperCase() || null
 
     if (!emailCheck.valid) {
       return NextResponse.json({ success: false, error: emailCheck.error }, { status: 400 })
@@ -45,6 +52,17 @@ export async function POST(request: NextRequest) {
     }
 
     const ip = getClientIp(request)
+
+    if (isTurnstileEnabled()) {
+      const captchaOk = await verifyTurnstile(captchaToken, ip)
+      if (!captchaOk) {
+        return NextResponse.json(
+          { success: false, error: 'Captcha-Überprüfung fehlgeschlagen.' },
+          { status: 400 }
+        )
+      }
+    }
+
     const ipLimit = await checkRateLimit(`register:ip:${ip}`, 5, 60 * 60 * 1000)
     if (!ipLimit.allowed) {
       return NextResponse.json(
@@ -114,6 +132,14 @@ export async function POST(request: NextRequest) {
       })
       userId = created.id
       displayName = created.firstName
+    }
+
+    await ensureReferralCode(userId).catch(() => {})
+
+    if (referralCode) {
+      await redeemReferralCode(userId, referralCode).catch((err) => {
+        console.warn('[Register] redeemReferralCode failed:', err)
+      })
     }
 
     const mail = await issueEmailVerificationCode(userId, email, displayName)

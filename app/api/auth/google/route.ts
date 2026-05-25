@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { dbUserToClientUser, publicUserSelect } from '@/lib/auth-user'
 import { isAdmin as isAdminByEmail } from '@/data/admin'
+import { setSessionCookie } from '@/lib/api-session'
 
 export async function POST(request: NextRequest) {
   try {
@@ -62,10 +63,16 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       user: dbUserToClientUser(user),
     })
+    setSessionCookie(response, {
+      id: user.id,
+      email: user.email,
+      isAdmin: user.isAdmin || isAdminByEmail(user.email),
+    })
+    return response
   } catch (error) {
     console.error('[Auth Google] Error:', error)
     return NextResponse.json(

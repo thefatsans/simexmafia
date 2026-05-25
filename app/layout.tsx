@@ -12,6 +12,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ChatProvider } from '@/contexts/ChatContext'
 import StructuredData from '@/components/StructuredData'
 import ChatWidget from '@/components/ChatWidget'
+import CookieConsent from '@/components/CookieConsent'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -110,6 +111,7 @@ export default function RootLayout({
                       </main>
                       <Footer />
                       <ChatWidget />
+                      <CookieConsent />
                     </ChatProvider>
                   </ToastProvider>
                 </CompareProvider>

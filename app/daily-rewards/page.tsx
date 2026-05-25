@@ -105,18 +105,13 @@ export default function DailyRewardsPage() {
     if (!user?.id) return
     
     try {
-      // Rufe API auf für serverseitige Validierung
       const response = await fetch('/api/daily-rewards/claim', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userId: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-        }),
+        body: JSON.stringify({}),
       })
 
       const data = await response.json()

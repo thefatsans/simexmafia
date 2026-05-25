@@ -1,11 +1,34 @@
+'use client'
+
 import { companyInfo, getFullAddress } from '@/lib/company-info'
 
 export default function PrivacyPage() {
+  const openCookieBanner = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('cookie-consent')
+      } catch {
+        /* noop */
+      }
+      window.openCookieConsent?.()
+    }
+  }
+
   return (
     <div className="min-h-screen py-12 bg-fortnite-darker">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl font-bold text-white mb-8">Datenschutzerklärung</h1>
-        
+
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={openCookieBanner}
+            className="px-5 py-2 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-200 text-sm hover:bg-purple-500/30 transition-all"
+          >
+            Cookie-Einstellungen ändern
+          </button>
+        </div>
+
         <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-8 space-y-6">
           <section>
             <h2 className="text-2xl font-semibold text-white mb-4">1. Datenschutz auf einen Blick</h2>

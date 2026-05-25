@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { verifyPassword, isDatabaseConnectionError } from '@/lib/password'
 import { dbUserToClientUser, publicUserSelect } from '@/lib/auth-user'
 import { isAdmin as isAdminByEmail } from '@/data/admin'
+import { setSessionCookie } from '@/lib/api-session'
+import { ensureReferralCode } from '@/lib/referral'
 
 export async function POST(request: NextRequest) {
   try {
@@ -75,12 +77,17 @@ export async function POST(request: NextRequest) {
     }
 
     const { passwordHash: _, emailVerified: __, ...safeUser } = user
+    const isAdmin = safeUser.isAdmin || isAdminByEmail(safeUser.email)
 
-    return NextResponse.json({
+    ensureReferralCode(safeUser.id).catch(() => {})
+
+    const response = NextResponse.json({
       success: true,
       user: dbUserToClientUser(safeUser),
-      isAdmin: safeUser.isAdmin || isAdminByEmail(safeUser.email),
+      isAdmin,
     })
+    setSessionCookie(response, { id: safeUser.id, email: safeUser.email, isAdmin })
+    return response
   } catch (error) {
     console.error('[Auth Login] Error:', error)
 

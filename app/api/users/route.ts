@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getAuthenticatedUser, requireResourceOwnership, requireAdmin } from '@/lib/api-auth'
+import { getAuthenticatedUser, requireResourceOwnership, requireAdmin, requireSecureSession } from '@/lib/api-auth'
 import { isAdmin as isAdminByEmail } from '@/data/admin'
 
 // GET /api/users?email=xxx oder /api/users?id=xxx - User abrufen
@@ -202,13 +202,12 @@ export async function PATCH(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 })
     }
-    
-    // Prüfe Authentifizierung
-    const authResult = await getAuthenticatedUser(request, body)
+
+    const authResult = await requireSecureSession(request)
     if (authResult?.error) {
       return authResult.error
     }
-    
+
     if (!authResult?.user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }

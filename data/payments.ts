@@ -261,6 +261,7 @@ export const confirmStripePayment = async (
   try {
     const response = await fetch('/api/payments/confirm', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },

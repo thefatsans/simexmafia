@@ -111,19 +111,15 @@ export default function SacksPage() {
       try {
         setIsOpening(true)
         
-        // Rufe API auf für serverseitige Validierung und Coin-Abzug
         const response = await fetch('/api/sacks/purchase', {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             sackType: selectedSack.type,
             purchaseMethod: 'coins',
-            userId: user.id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
           }),
         })
 
