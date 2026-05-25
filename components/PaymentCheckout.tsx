@@ -16,7 +16,7 @@ import {
 import { calculateCoinsEarned, TIER_INFO } from '@/types/user'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { isStripeConfigured } from '@/lib/payments-config'
+import { isStripeConfigured, isPayPalEnabled } from '@/lib/payments-config'
 import StripeCheckoutSection from '@/components/StripeCheckoutSection'
 
 interface PaymentCheckoutProps {
@@ -37,15 +37,17 @@ export default function PaymentCheckout({
   const router = useRouter()
   const { user, addCoins, updateUser } = useAuth()
   const [mounted, setMounted] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('paypal')
+  const stripeEnabled = isStripeConfigured()
+  const paypalEnabled = isPayPalEnabled()
+  const defaultMethod: PaymentMethod = stripeEnabled ? 'credit-card' : 'paypal'
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(defaultMethod)
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({
-    method: 'paypal',
+    method: defaultMethod,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isProcessing, setIsProcessing] = useState(false)
   const [stripeOrder, setStripeOrder] = useState<Order | null>(null)
   const { showSuccess, showError } = useToast()
-  const stripeEnabled = isStripeConfigured()
 
   useEffect(() => {
     setMounted(true)
@@ -78,6 +80,12 @@ export default function PaymentCheckout({
     setStripeOrder(null)
     setErrors({})
   }
+
+  useEffect(() => {
+    if (!paypalEnabled && paymentMethod === 'paypal') {
+      handlePaymentMethodChange(stripeEnabled ? 'credit-card' : 'paypal')
+    }
+  }, [paypalEnabled, paymentMethod, stripeEnabled])
 
   const redirectToPayPal = (order: Order) => {
     const paypalLink =
@@ -172,12 +180,18 @@ export default function PaymentCheckout({
       return
     }
 
-    if ((isSackPurchase || isGoofyCoinsPurchase) && paymentMethod === 'paypal') {
+    if (paymentMethod === 'paypal' && !paypalEnabled) {
+      setIsProcessing(false)
+      showError('PayPal ist deaktiviert. Bitte Karte wählen.')
+      return
+    }
+
+    if ((isSackPurchase || isGoofyCoinsPurchase) && paymentMethod === 'paypal' && paypalEnabled) {
       redirectToPayPal(order)
       return
     }
 
-    if (paymentMethod === 'paypal') {
+    if (paymentMethod === 'paypal' && paypalEnabled) {
       redirectToPayPal(order)
       return
     }
@@ -264,20 +278,30 @@ export default function PaymentCheckout({
           <form onSubmit={handleSubmit}>
             <div className="mb-6">
               <label className="block text-white font-semibold mb-3">Zahlungsmethode:</label>
-              <div className={`grid gap-4 ${stripeEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                <button
-                  type="button"
-                  onClick={() => handlePaymentMethodChange('paypal')}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    paymentMethod === 'paypal'
-                      ? 'border-blue-500 bg-blue-500/20'
-                      : 'border-purple-500/30 bg-fortnite-darker'
-                  }`}
-                >
-                  <Wallet className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-                  <div className="text-white font-semibold text-sm">PayPal</div>
-                  <div className="text-gray-400 text-xs mt-1">Sichere Online-Zahlung</div>
-                </button>
+              <div
+                className={`grid gap-4 ${
+                  stripeEnabled && paypalEnabled
+                    ? 'grid-cols-2'
+                    : stripeEnabled || paypalEnabled
+                      ? 'grid-cols-1'
+                      : 'grid-cols-1'
+                }`}
+              >
+                {paypalEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => handlePaymentMethodChange('paypal')}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'paypal'
+                        ? 'border-blue-500 bg-blue-500/20'
+                        : 'border-purple-500/30 bg-fortnite-darker'
+                    }`}
+                  >
+                    <Wallet className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                    <div className="text-white font-semibold text-sm">PayPal</div>
+                    <div className="text-gray-400 text-xs mt-1">Sichere Online-Zahlung</div>
+                  </button>
+                )}
                 {stripeEnabled && (
                   <button
                     type="button"
@@ -294,7 +318,7 @@ export default function PaymentCheckout({
                   </button>
                 )}
               </div>
-              {paymentMethod === 'paypal' && (
+              {paypalEnabled && paymentMethod === 'paypal' && (
                 <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                   <p className="text-blue-400 text-sm">
                     <strong>Hinweis:</strong> Sie werden nach dem Klick auf &quot;Jetzt bezahlen&quot; zu
@@ -312,7 +336,7 @@ export default function PaymentCheckout({
               )}
             </div>
 
-            {paymentMethod === 'paypal' && (
+            {paypalEnabled && paymentMethod === 'paypal' && (
               <div className="mb-6">
                 <label className="block text-gray-300 text-sm mb-2">PayPal-E-Mail (optional)</label>
                 <input

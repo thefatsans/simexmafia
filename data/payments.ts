@@ -198,7 +198,7 @@ export const processPayment = async (
       return {
         success: false,
         orderId: order.id,
-        error: 'Barzahlung ist für Säcke und GoofyCoins nicht verfügbar. Bitte verwenden Sie PayPal oder eine Kreditkarte.',
+        error: 'Barzahlung ist für Säcke und GoofyCoins nicht verfügbar. Bitte verwenden Sie eine Kreditkarte.',
       }
     }
     
@@ -208,7 +208,7 @@ export const processPayment = async (
         return {
           success: false,
           orderId: order.id,
-          error: 'Kreditkartenzahlung ist derzeit nicht verfügbar. Bitte verwenden Sie PayPal.',
+          error: 'Kreditkartenzahlung ist derzeit nicht verfügbar. Bitte Stripe in Vercel konfigurieren.',
         }
       }
     }
@@ -295,7 +295,7 @@ export const validatePaymentDetails = (details: PaymentDetails): { valid: boolea
   
   if (details.method === 'credit-card') {
     if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
-      errors.method = 'Kartenzahlung ist derzeit nicht verfügbar. Bitte verwenden Sie PayPal.'
+      errors.method = 'Kartenzahlung ist derzeit nicht verfügbar. Bitte Stripe in Vercel konfigurieren.'
     }
   }
   

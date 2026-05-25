@@ -26,11 +26,32 @@ function getResendClient(): Resend | null {
   return resendClient
 }
 
-/** Absender – Domain muss in Resend verifiziert sein, sonst onboarding@resend.dev nutzen */
+function rootDomainFromSiteUrl(): string | null {
+  const url = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  if (!url) return null
+  try {
+    const host = new URL(url.startsWith('http') ? url : `https://${url}`).hostname
+    if (!host || host === 'localhost' || host.endsWith('.vercel.app')) return null
+    return host.replace(/^www\./, '')
+  } catch {
+    return null
+  }
+}
+
+/** Absender – nach Domain-Verifizierung: noreply@deine-domain.de (nicht onboarding@resend.dev) */
 export function getDefaultFromEmail(): string {
-  return (
-    process.env.RESEND_FROM_EMAIL?.trim() || 'SimexMafia <onboarding@resend.dev>'
-  )
+  const configured = process.env.RESEND_FROM_EMAIL?.trim()
+  const domain = rootDomainFromSiteUrl()
+
+  if (configured && !/onboarding@resend\.dev/i.test(configured)) {
+    return configured
+  }
+
+  if (domain) {
+    return `SimexMafia <noreply@${domain}>`
+  }
+
+  return configured || 'SimexMafia <onboarding@resend.dev>'
 }
 
 export async function sendEmailViaResend(
@@ -56,7 +77,8 @@ export async function sendEmailViaResend(
   })
 
   if (error) {
-    console.error('[Resend] Send failed:', error)
+    const from = options.from || getDefaultFromEmail()
+    console.error('[Resend] Send failed:', { from, to, message: error.message, name: error.name })
     return {
       success: false,
       error: error.message || 'Resend konnte die E-Mail nicht senden',

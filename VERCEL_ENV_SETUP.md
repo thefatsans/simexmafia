@@ -11,12 +11,21 @@ DATABASE_URL=postgresql://postgres.byeftmpqmovxikdfajyj:[DEIN-PASSWORT]@aws-0-eu
 - **Wichtig:** Nicht localhost. Nach Deploy: `/api/health` muss `"connected": true` zeigen.
 - SQL in Supabase: `prisma/add-sack-open.sql`, `prisma/add-seller-simexmafia.sql`
 
-### 2. PayPal (für Zahlungen)
+### 2. Stripe (für Zahlungen — aktuell aktiv)
 ```
-NEXT_PUBLIC_PAYPAL_PAYMENT_LINK=https://paypal.me/SimexMafia
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_SECRET_KEY=sk_live_...
 ```
-- **Woher?** PayPal Dashboard → Zahlungslinks erstellen
-- **Wichtig:** Für Zahlungen erforderlich! Dies ist dein PayPal-Zahlungslink oder PayPal.me-Link
+- **Woher?** [Stripe Dashboard](https://dashboard.stripe.com) → API keys
+- **Wichtig:** Ohne diese Keys funktioniert Kartenzahlung im Checkout nicht.
+
+### 2b. PayPal (derzeit deaktiviert)
+PayPal ist im Checkout **standardmäßig aus**. Nur Stripe wird angezeigt.
+```
+# NEXT_PUBLIC_PAYPAL_ENABLED=true
+# NEXT_PUBLIC_PAYPAL_PAYMENT_LINK=https://paypal.me/SimexMafia
+```
+- Zum Reaktivieren: `NEXT_PUBLIC_PAYPAL_ENABLED=true` setzen + Payment-Link + Server-Keys (3d)
 
 ## 🟡 OPTIONAL (aber empfohlen)
 
@@ -100,9 +109,8 @@ NEXT_PUBLIC_AI_MODEL=gpt-3.5-turbo
 - [ ] `DATABASE_URL` gesetzt (Transaction Pooler, Port 6543)
 - [ ] `SESSION_SECRET` gesetzt (≥32 Zeichen)
 - [ ] `RESEND_API_KEY` + `EMAIL_VERIFY_SECRET` + `PASSWORD_RESET_SECRET` gesetzt
-- [ ] `NEXT_PUBLIC_PAYPAL_PAYMENT_LINK` gesetzt
-- [ ] `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` / `PAYPAL_MODE` gesetzt (für echte Verifizierung)
-- [ ] `STRIPE_SECRET_KEY` + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` gesetzt (für Kreditkarten)
+- [ ] `STRIPE_SECRET_KEY` + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` gesetzt (Pflicht für Kartenzahlung)
+- [ ] PayPal optional: `NEXT_PUBLIC_PAYPAL_ENABLED=true` + Link + API-Keys (sonst aus)
 - [ ] `NEXT_PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` (optional, für Captcha)
 - [ ] `DISCORD_INVITE_URL` gesetzt
 - [ ] `NEXT_PUBLIC_GOOGLE_CLIENT_ID` gesetzt (optional)

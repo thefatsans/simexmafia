@@ -150,7 +150,8 @@ export async function POST(request: NextRequest) {
           success: false,
           error:
             mail.error ||
-            'Konto angelegt, aber Bestätigungs-E-Mail konnte nicht gesendet werden. Bitte RESEND_API_KEY prüfen.',
+            'Bestätigungs-E-Mail konnte nicht gesendet werden. Prüfe RESEND_API_KEY und RESEND_FROM_EMAIL (noreply@simexmafia.de).',
+          code: 'EMAIL_SEND_FAILED',
         },
         { status: 422 }
       )

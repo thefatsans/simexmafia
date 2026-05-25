@@ -87,7 +87,7 @@ export default function StripeCheckoutSection({
   if (!stripePromise) {
     return (
       <p className="text-red-400 text-sm">
-        Kartenzahlung ist nicht konfiguriert. Bitte verwenden Sie PayPal.
+        Kartenzahlung ist nicht konfiguriert. Bitte STRIPE_SECRET_KEY und NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY in Vercel setzen.
       </p>
     )
   }

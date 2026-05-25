@@ -341,7 +341,7 @@ export async function POST(request: NextRequest) {
         serviceFee: validatedServiceFee,
         discount: validatedDiscount,
         total: validatedTotal, // Verwende validierten Total
-        paymentMethod: paymentMethod || 'paypal',
+        paymentMethod: paymentMethod || 'credit-card',
         coinsEarned: coinsEarned ? parseInt(coinsEarned) : 0,
         discountCode: discountCode || null,
         status: 'pending',

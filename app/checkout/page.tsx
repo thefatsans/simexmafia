@@ -15,7 +15,7 @@ import {
   confirmStripePayment,
   updateOrderStatus,
 } from '@/data/payments'
-import { isStripeConfigured } from '@/lib/payments-config'
+import { isStripeConfigured, isPayPalEnabled } from '@/lib/payments-config'
 import StripeCheckoutSection from '@/components/StripeCheckoutSection'
 import { addToInventory } from '@/data/inventory'
 import { useToast } from '@/contexts/ToastContext'
@@ -50,14 +50,24 @@ export default function CheckoutPage() {
   const [discountCode, setDiscountCode] = useState('')
   const [appliedDiscountCode, setAppliedDiscountCode] = useState<DiscountCode | null>(null)
   const [discountError, setDiscountError] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'credit-card' | 'cash' | 'goofycoins'>('paypal')
+  const stripeEnabled = isStripeConfigured()
+  const paypalEnabled = isPayPalEnabled()
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'credit-card' | 'cash' | 'goofycoins'>(
+    stripeEnabled ? 'credit-card' : 'goofycoins'
+  )
   const [mounted, setMounted] = useState(false)
   const [stripeOrderId, setStripeOrderId] = useState<string | null>(null)
-  const stripeEnabled = isStripeConfigured()
   
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!paypalEnabled && paymentMethod === 'paypal') {
+      setPaymentMethod(stripeEnabled ? 'credit-card' : 'goofycoins')
+      setStripeOrderId(null)
+    }
+  }, [paypalEnabled, paymentMethod, stripeEnabled])
   const [order, setOrder] = useState<Order | null>(null)
 
   // Redirect to login if not authenticated
@@ -337,7 +347,7 @@ export default function CheckoutPage() {
     // Stripe / Kreditkarte
     if (paymentMethod === 'credit-card') {
       if (!stripeEnabled) {
-        showError('Kartenzahlung ist derzeit nicht verfügbar. Bitte verwenden Sie PayPal.')
+        showError('Kartenzahlung ist derzeit nicht verfügbar. Bitte Stripe in Vercel konfigurieren.')
         setIsProcessing(false)
         return
       }
@@ -375,8 +385,14 @@ export default function CheckoutPage() {
       }
     }
 
-    // PayPal-Zahlung
-    if (paymentMethod === 'paypal') {
+    if (paymentMethod === 'paypal' && !paypalEnabled) {
+      showError('PayPal ist derzeit deaktiviert. Bitte Karte oder GoofyCoins wählen.')
+      setIsProcessing(false)
+      return
+    }
+
+    // PayPal-Zahlung (nur wenn NEXT_PUBLIC_PAYPAL_ENABLED=true)
+    if (paymentMethod === 'paypal' && paypalEnabled) {
       try {
         // Erstelle Bestellung
         console.log('[Checkout] Creating order with PayPal:', {
@@ -693,29 +709,41 @@ export default function CheckoutPage() {
               {/* Payment Method Selection */}
               <div className="mb-6">
                 <label className="block text-gray-300 mb-3">Zahlungsmethode *</label>
-                <div className={`grid grid-cols-1 gap-4 ${stripeEnabled ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPaymentMethod('paypal')
-                      setStripeOrderId(null)
-                    }}
-                    className={`p-4 sm:p-3 border-2 rounded-lg transition-all touch-manipulation min-h-[80px] sm:min-h-[auto] ${
-                      paymentMethod === 'paypal'
-                        ? 'border-purple-500 bg-purple-500/10'
-                        : 'border-purple-500/30 bg-fortnite-darker hover:border-purple-500/50'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Wallet className={`w-5 h-5 ${paymentMethod === 'paypal' ? 'text-purple-400' : 'text-gray-400'}`} />
-                      <div className="text-left">
-                        <div className={`font-semibold ${paymentMethod === 'paypal' ? 'text-white' : 'text-gray-300'}`}>
-                          PayPal
+                <div
+                  className={`grid grid-cols-1 gap-4 ${
+                    stripeEnabled && paypalEnabled
+                      ? 'md:grid-cols-2 lg:grid-cols-4'
+                      : stripeEnabled
+                        ? 'md:grid-cols-2 lg:grid-cols-3'
+                        : paypalEnabled
+                          ? 'md:grid-cols-3'
+                          : 'md:grid-cols-2'
+                  }`}
+                >
+                  {paypalEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('paypal')
+                        setStripeOrderId(null)
+                      }}
+                      className={`p-4 sm:p-3 border-2 rounded-lg transition-all touch-manipulation min-h-[80px] sm:min-h-[auto] ${
+                        paymentMethod === 'paypal'
+                          ? 'border-purple-500 bg-purple-500/10'
+                          : 'border-purple-500/30 bg-fortnite-darker hover:border-purple-500/50'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Wallet className={`w-5 h-5 ${paymentMethod === 'paypal' ? 'text-purple-400' : 'text-gray-400'}`} />
+                        <div className="text-left">
+                          <div className={`font-semibold ${paymentMethod === 'paypal' ? 'text-white' : 'text-gray-300'}`}>
+                            PayPal
+                          </div>
+                          <div className="text-xs text-gray-400">Sichere Online-Zahlung</div>
                         </div>
-                        <div className="text-xs text-gray-400">Sichere Online-Zahlung</div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                  )}
                   {stripeEnabled && (
                     <button
                       type="button"
@@ -804,7 +832,7 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {paymentMethod === 'paypal' && !stripeOrderId && (
+              {paypalEnabled && paymentMethod === 'paypal' && !stripeOrderId && (
                 <div className="space-y-4">
                   <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
                     <p className="text-gray-300 text-sm mb-2">
