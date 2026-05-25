@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     const siteUrl = getSiteUrl()
-    const unsubscribeFooter = `<p style="text-align:center;font-size:11px;color:#aaa;margin-top:16px;">Du erhältst diese Mail, weil du dich für unseren Newsletter angemeldet hast. <a href="${siteUrl}/?unsubscribe=newsletter" style="color:#667eea;">Abmelden</a></p>`
+    const unsubscribeFooter = `<p style="text-align:center;font-size:11px;color:#aaa;margin-top:16px;">Du erhältst diese Mail, weil du dich für unseren Newsletter angemeldet hast. <a href="${siteUrl}/newsletter/unsubscribe" style="color:#667eea;">Abmelden</a></p>`
 
     const result = await sendBulkEmail({
       subject,

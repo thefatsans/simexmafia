@@ -121,6 +121,28 @@ export async function completeOrder(
       },
     })
 
+    // Inventar-Items in DB anlegen (einmalig, falls noch nicht vorhanden)
+    for (const item of order.items) {
+      const productId = item.productId
+      if (!productId) continue
+      const exists = await tx.inventoryItem.findFirst({
+        where: { userId: order.userId, productId, orderId: order.id },
+        select: { id: true },
+      })
+      if (!exists) {
+        await tx.inventoryItem.create({
+          data: {
+            userId: order.userId,
+            productId,
+            source: 'purchase',
+            orderId: order.id,
+            sourceId: order.id,
+            notes: item.product?.name || item.name || null,
+          },
+        }).catch((err) => console.error('[completeOrder] inventoryItem create failed:', err))
+      }
+    }
+
     if (order.coinsEarned && order.coinsEarned > 0) {
       const alreadyRewarded = await tx.coinTransaction.findFirst({
         where: { orderId: order.id, type: 'earned' },

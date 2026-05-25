@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthenticatedUser, requireAdmin, requireSecureSession } from '@/lib/api-auth'
 import { completeOrder } from '@/lib/orders/complete-order'
+import { sendOrderConfirmationEmailServer } from '@/lib/email-server'
 
 // Prüfe ob Prisma verfügbar ist
 function isPrismaAvailable(): boolean {
@@ -309,8 +310,38 @@ export async function POST(request: NextRequest) {
     // WICHTIG: Berechne Total serverseitig neu mit validierten Preisen
     const validatedSubtotal = orderItemsData.reduce((sum, item) => sum + (item.price * item.quantity), 0)
     const validatedServiceFee = parseFloat(serviceFee || 0.99)
-    const validatedDiscount = parseFloat(discount || 0)
-    const validatedTotal = validatedSubtotal + validatedServiceFee - validatedDiscount
+
+    // Serverseitige Rabattcode-Validierung
+    let validatedDiscount = 0
+    let serverDiscountCode: string | null = null
+    if (discountCode && typeof discountCode === 'string' && prisma) {
+      const dbCode = await prisma.discountCode.findUnique({
+        where: { code: discountCode.trim().toUpperCase() },
+      })
+      if (dbCode && dbCode.active) {
+        const now = new Date()
+        const codeValid =
+          now >= dbCode.validFrom &&
+          (!dbCode.validUntil || now <= dbCode.validUntil) &&
+          (!dbCode.usageLimit || dbCode.usageCount < dbCode.usageLimit) &&
+          (!dbCode.minAmount || validatedSubtotal + validatedServiceFee >= dbCode.minAmount)
+
+        if (codeValid) {
+          if (dbCode.type === 'percentage') {
+            validatedDiscount = (validatedSubtotal + validatedServiceFee) * dbCode.value / 100
+            if (dbCode.maxDiscount) validatedDiscount = Math.min(validatedDiscount, dbCode.maxDiscount)
+          } else {
+            validatedDiscount = Math.min(dbCode.value, validatedSubtotal + validatedServiceFee)
+          }
+          validatedDiscount = Math.round(validatedDiscount * 100) / 100
+          serverDiscountCode = dbCode.code
+        } else {
+          console.warn(`[Orders API] Discount code ${discountCode} failed server validation`)
+        }
+      }
+    }
+
+    const validatedTotal = Math.max(0, validatedSubtotal + validatedServiceFee - validatedDiscount)
 
     // Prüfe ob berechneter Total mit Client-Total übereinstimmt (mit Toleranz)
     const clientTotal = parseFloat(total)
@@ -343,7 +374,7 @@ export async function POST(request: NextRequest) {
         total: validatedTotal, // Verwende validierten Total
         paymentMethod: paymentMethod || 'credit-card',
         coinsEarned: coinsEarned ? parseInt(coinsEarned) : 0,
-        discountCode: discountCode || null,
+        discountCode: serverDiscountCode,
         status: 'pending',
         items: {
           create: orderItemsData,
@@ -365,6 +396,14 @@ export async function POST(request: NextRequest) {
         },
       },
     })
+
+    // Rabattcode-Nutzung hochzählen
+    if (serverDiscountCode && prisma) {
+      await prisma.discountCode.update({
+        where: { code: serverDiscountCode },
+        data: { usageCount: { increment: 1 } },
+      }).catch((err) => console.error('[Orders API] Failed to increment discount usage:', err))
+    }
 
     if (paymentMethod === 'goofycoins') {
       try {
@@ -419,6 +458,23 @@ export async function POST(request: NextRequest) {
           },
         })
       }
+    }
+
+    // Bestellbestätigung per E-Mail senden (fire-and-forget)
+    const userEmail = order.user?.email
+    const userFirstName = (order.user as any)?.firstName || 'Spieler'
+    if (userEmail) {
+      sendOrderConfirmationEmailServer(
+        userEmail,
+        userFirstName,
+        order.id,
+        validatedTotal,
+        orderItemsData.map((it) => ({
+          name: it.name,
+          quantity: it.quantity,
+          price: it.price,
+        }))
+      ).catch((err) => console.error('[Orders API] Confirmation email failed:', err))
     }
 
     return NextResponse.json(order, { status: 201 })
