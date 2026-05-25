@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, isDatabaseConnectionError } from '@/lib/password'
-import { dbUserToClientUser, publicUserSelect } from '@/lib/auth-user'
 import { isAdmin as isAdminByEmail } from '@/data/admin'
+import { validateEmailForRegistration } from '@/lib/email-validation'
+import { issueEmailVerificationCode } from '@/lib/auth-email'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { getClientIp } from '@/lib/request-ip'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const email = (body.email as string | undefined)?.trim().toLowerCase()
+    const emailCheck = validateEmailForRegistration((body.email as string) || '')
     const password = body.password as string | undefined
     const firstName = (body.firstName as string | undefined)?.trim()
     const lastName = (body.lastName as string | undefined)?.trim()
 
-    if (!email || !password || !firstName || !lastName) {
+    if (!emailCheck.valid) {
+      return NextResponse.json({ success: false, error: emailCheck.error }, { status: 400 })
+    }
+
+    if (!password || !firstName || !lastName) {
       return NextResponse.json(
         { success: false, error: 'Bitte füllen Sie alle Felder aus' },
         { status: 400 }
@@ -37,29 +44,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const ip = getClientIp(request)
+    const ipLimit = await checkRateLimit(`register:ip:${ip}`, 5, 60 * 60 * 1000)
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Zu viele Registrierungen von dieser Verbindung. Bitte später erneut.',
+        },
+        { status: 429 }
+      )
+    }
+
+    const email = emailCheck.email
+
     const existingUser = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, passwordHash: true },
+      select: {
+        id: true,
+        firstName: true,
+        passwordHash: true,
+        emailVerified: true,
+      },
     })
 
-    if (existingUser) {
-      // Konto existiert ohne Passwort (z.B. früher nur per Sync) → Passwort setzen
-      if (!existingUser.passwordHash) {
-        const updated = await prisma.user.update({
-          where: { email },
-          data: {
-            passwordHash: hashPassword(password),
-            firstName,
-            lastName,
-          },
-          select: publicUserSelect,
-        })
-        return NextResponse.json({
-          success: true,
-          user: dbUserToClientUser(updated),
-        })
-      }
-
+    if (existingUser?.passwordHash && existingUser.emailVerified) {
       return NextResponse.json(
         {
           success: false,
@@ -70,24 +79,64 @@ export async function POST(request: NextRequest) {
     }
 
     const isAdmin = isAdminByEmail(email)
-    const user = await prisma.user.create({
-      data: {
-        email,
-        firstName,
-        lastName,
-        passwordHash: hashPassword(password),
-        goofyCoins: 100,
-        totalSpent: 0,
-        tier: 'Bronze',
-        isAdmin,
-      },
-      select: publicUserSelect,
-    })
+    const passwordHash = hashPassword(password)
+
+    let userId: string
+    let displayName: string
+
+    if (existingUser) {
+      await prisma.user.update({
+        where: { email },
+        data: {
+          firstName,
+          lastName,
+          passwordHash,
+          emailVerified: false,
+          goofyCoins: 0,
+        },
+      })
+      userId = existingUser.id
+      displayName = firstName
+    } else {
+      const created = await prisma.user.create({
+        data: {
+          email,
+          firstName,
+          lastName,
+          passwordHash,
+          goofyCoins: 0,
+          totalSpent: 0,
+          tier: 'Bronze',
+          isAdmin,
+          emailVerified: false,
+        },
+        select: { id: true, firstName: true },
+      })
+      userId = created.id
+      displayName = created.firstName
+    }
+
+    const mail = await issueEmailVerificationCode(userId, email, displayName)
+
+    if (!mail.sent) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            mail.error ||
+            'Konto angelegt, aber Bestätigungs-E-Mail konnte nicht gesendet werden. Bitte RESEND_API_KEY prüfen.',
+        },
+        { status: 422 }
+      )
+    }
 
     return NextResponse.json(
       {
         success: true,
-        user: dbUserToClientUser(user),
+        needsVerification: true,
+        email,
+        message: 'Bestätigungscode wurde an deine E-Mail gesendet.',
+        ...(mail.devCode ? { devCode: mail.devCode } : {}),
       },
       { status: 201 }
     )

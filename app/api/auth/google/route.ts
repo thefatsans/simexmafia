@@ -44,7 +44,14 @@ export async function POST(request: NextRequest) {
           totalSpent: 0,
           tier: 'Bronze',
           isAdmin: isAdminByEmail(email),
+          emailVerified: true,
         },
+        select: publicUserSelect,
+      })
+    } else if (!user.emailVerified) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true },
         select: publicUserSelect,
       })
     } else if (picture) {

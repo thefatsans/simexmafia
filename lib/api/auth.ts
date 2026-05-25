@@ -5,6 +5,10 @@ export type AuthApiResponse = {
   user?: User
   error?: string
   code?: string
+  needsVerification?: boolean
+  email?: string
+  devCode?: string
+  message?: string
 }
 
 export function isDbUnavailableResponse(result: AuthApiResponse): boolean {
@@ -71,6 +75,39 @@ export async function googleLoginAPI(googleData: {
     return data
   } catch (error) {
     console.error('[Auth API] Google login error:', error)
+    return { success: false, error: 'Verbindungsfehler. Bitte versuchen Sie es erneut.' }
+  }
+}
+
+export async function verifyEmailAPI(
+  email: string,
+  code: string
+): Promise<AuthApiResponse> {
+  try {
+    const response = await fetch('/api/auth/verify-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, code }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error('[Auth API] Verify email error:', error)
+    return { success: false, error: 'Verbindungsfehler. Bitte versuchen Sie es erneut.' }
+  }
+}
+
+export async function resendVerificationAPI(email: string): Promise<AuthApiResponse> {
+  try {
+    const response = await fetch('/api/auth/resend-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error('[Auth API] Resend verification error:', error)
     return { success: false, error: 'Verbindungsfehler. Bitte versuchen Sie es erneut.' }
   }
 }

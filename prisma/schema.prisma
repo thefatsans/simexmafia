@@ -21,6 +21,12 @@ model User {
   joinDate      DateTime @default(now())
   avatar        String?
   isAdmin       Boolean  @default(false)
+  emailVerified              Boolean   @default(false)
+  emailVerifyCodeHash        String?
+  emailVerifyExpires         DateTime?
+  emailVerifyAttempts        Int       @default(0)
+  sackOpensDayCount          Int       @default(0)
+  sackOpensDayDate           String?
   
   // Relations
   orders        Order[]
@@ -34,6 +40,12 @@ model User {
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model RateLimitEntry {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
 }
 
 model SackOpen {

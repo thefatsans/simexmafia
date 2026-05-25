@@ -10,6 +10,7 @@ export function dbUserToClientUser(dbUser: {
   tier: string
   joinDate?: Date | string | null
   avatar?: string | null
+  emailVerified?: boolean
 }): User {
   return {
     id: dbUser.id,
@@ -23,6 +24,7 @@ export function dbUserToClientUser(dbUser: {
       ? new Date(dbUser.joinDate).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0],
     avatar: dbUser.avatar || undefined,
+    emailVerified: dbUser.emailVerified ?? true,
   }
 }
 
@@ -37,4 +39,5 @@ export const publicUserSelect = {
   joinDate: true,
   avatar: true,
   isAdmin: true,
+  emailVerified: true,
 } as const

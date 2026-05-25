@@ -8,6 +8,7 @@ export interface User {
   tier: Tier
   joinDate: string
   avatar?: string
+  emailVerified?: boolean
 }
 
 export type Tier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond'

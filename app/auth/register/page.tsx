@@ -9,7 +9,7 @@ import { Mail, Lock, User, UserPlus } from 'lucide-react'
 export default function RegisterPage() {
   const router = useRouter()
   const { register, isAuthenticated } = useAuth()
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showError, showInfo } = useToast()
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -49,7 +49,15 @@ export default function RegisterPage() {
         formData.lastName
       )
       
-      if (result.success) {
+      if (result.success && result.needsVerification) {
+        showSuccess('Bestätigungscode wurde an deine E-Mail gesendet.')
+        if (result.devCode) {
+          showInfo(`Development: Dein Code ist ${result.devCode}`)
+        }
+        router.push(
+          `/auth/verify?email=${encodeURIComponent(result.email || formData.email)}`
+        )
+      } else if (result.success) {
         showSuccess('Konto erfolgreich erstellt! Willkommen!')
         router.push('/account')
       } else {

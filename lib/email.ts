@@ -23,9 +23,16 @@ interface EmailResult {
 /**
  * Sendet eine E-Mail über die API-Route
  */
+function getEmailApiBase(): string {
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+  return process.env.NEXT_PUBLIC_SITE_URL || 'https://simexmafia.vercel.app'
+}
+
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   try {
-    const response = await fetch('/api/email/send', {
+    const response = await fetch(`${getEmailApiBase()}/api/email/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

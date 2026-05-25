@@ -14,6 +14,7 @@ import {
   registerAPI,
   googleLoginAPI,
   migratePasswordAPI,
+  verifyEmailAPI,
   isDbUnavailableResponse,
 } from '@/lib/api/auth'
 
@@ -21,9 +22,24 @@ interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: string; needsVerification?: boolean; email?: string }>
   loginWithGoogle: (googleData: { email: string; name: string; picture?: string }) => Promise<{ success: boolean; error?: string }>
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<{ success: boolean; error?: string }>
+  register: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string
+  ) => Promise<{
+    success: boolean
+    error?: string
+    needsVerification?: boolean
+    email?: string
+    devCode?: string
+  }>
+  verifyEmail: (email: string, code: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   updateUser: (updates: Partial<User>) => void
   addCoins: (amount: number) => void
@@ -102,7 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = useCallback(async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string; needsVerification?: boolean; email?: string }> => {
     try {
       const normalizedEmail = email.trim().toLowerCase()
       const passwordHash = hashPasswordClient(password)
@@ -140,6 +159,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return {
           success: false,
           error: localResult.error || 'Anmeldung offline nicht möglich. Kein lokales Konto gefunden.',
+        }
+      }
+
+      if (apiResult.code === 'EMAIL_NOT_VERIFIED') {
+        return {
+          success: false,
+          error: apiResult.error || 'Bitte E-Mail bestätigen',
+          needsVerification: true,
+          email: apiResult.email,
         }
       }
 
@@ -196,9 +224,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     firstName: string,
     lastName: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    const { sendWelcomeEmail } = await import('@/lib/email')
-
+  ): Promise<{
+    success: boolean
+    error?: string
+    needsVerification?: boolean
+    email?: string
+    devCode?: string
+  }> => {
     try {
       if (!email || !password || !firstName || !lastName) {
         return { success: false, error: 'Bitte füllen Sie alle Felder aus' }
@@ -218,12 +250,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         lastName.trim()
       )
 
-      if (apiResult.success && apiResult.user) {
-        applyLoggedInUser(apiResult.user, passwordHash, password)
-        sendWelcomeEmail(normalizedEmail, firstName).catch((err) => {
-          console.warn('[Auth] Willkommens-E-Mail fehlgeschlagen:', err)
-        })
-        return { success: true }
+      if (apiResult.success && apiResult.needsVerification) {
+        return {
+          success: true,
+          needsVerification: true,
+          email: apiResult.email || normalizedEmail,
+          devCode: apiResult.devCode,
+        }
       }
 
       // E-Mail schon in DB → mit Passwort anmelden (z.B. nach Sync ohne Passwort)
@@ -246,10 +279,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (localRegister.success && localRegister.user) {
           applyLoggedInUser(localRegister.user, passwordHash, password)
-          sendWelcomeEmail(normalizedEmail, firstName).catch((err) => {
-          console.warn('[Auth] Willkommens-E-Mail fehlgeschlagen:', err)
-        })
-          return { success: true }
+          return {
+            success: true,
+            needsVerification: true,
+            email: normalizedEmail,
+          }
         }
 
         if (localRegister.error?.includes('bereits registriert')) {
@@ -308,6 +342,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateUser({ goofyCoins: user.goofyCoins + amount })
   }, [user, updateUser])
 
+  const verifyEmail = useCallback(async (email: string, code: string) => {
+    try {
+      const apiResult = await verifyEmailAPI(email.trim().toLowerCase(), code.trim())
+      if (apiResult.success && apiResult.user) {
+        applyLoggedInUser(apiResult.user)
+        return { success: true }
+      }
+      return { success: false, error: apiResult.error || 'Bestätigung fehlgeschlagen' }
+    } catch (error) {
+      console.error('Verify email error:', error)
+      return { success: false, error: 'Ein Fehler ist aufgetreten' }
+    }
+  }, [applyLoggedInUser])
+
   const subtractCoins = useCallback((amount: number): boolean => {
     if (!user || amount <= 0) return false
     if (user.goofyCoins < amount) return false
@@ -358,6 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         loginWithGoogle,
         register,
+        verifyEmail,
         logout,
         updateUser,
         addCoins,

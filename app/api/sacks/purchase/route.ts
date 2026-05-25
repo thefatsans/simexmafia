@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { sackTypes, openSack } from '@/data/sacks'
 import { recordSackOpenInDatabase } from '@/lib/leaderboard/record-sack-open'
+import { assertSackOpenAllowed, recordSackOpenDayCount } from '@/lib/sack-limits'
 
 export async function POST(request: NextRequest) {
   try {
@@ -64,12 +65,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (purchaseMethod === 'coins') {
+      const sackLimit = await assertSackOpenAllowed(authenticatedUser.id)
+      if (!sackLimit.allowed) {
+        return NextResponse.json(
+          { success: false, error: sackLimit.error || 'Sack-Limit erreicht' },
+          { status: 403 }
+        )
+      }
+    }
+
     // Get user from database
     const dbUser = await prisma.user.findUnique({
       where: { id: authenticatedUser.id },
       select: {
         id: true,
         goofyCoins: true,
+        emailVerified: true,
       },
     })
 
@@ -77,6 +89,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
         { status: 404 }
+      )
+    }
+
+    if (!dbUser.emailVerified) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Bitte bestätige deine E-Mail-Adresse, bevor du Säcke öffnest.',
+          code: 'EMAIL_NOT_VERIFIED',
+        },
+        { status: 403 }
       )
     }
 
@@ -138,6 +161,10 @@ export async function POST(request: NextRequest) {
 
     // Generate reward (server-side to prevent manipulation)
     const reward = openSack(sack)
+
+    if (purchaseMethod === 'coins') {
+      await recordSackOpenDayCount(authenticatedUser.id)
+    }
 
     await recordSackOpenInDatabase({
       userId: authenticatedUser.id,

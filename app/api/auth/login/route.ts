@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       select: {
         ...publicUserSelect,
         passwordHash: true,
+        emailVerified: true,
       },
     })
 
@@ -61,7 +62,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { passwordHash: _, ...safeUser } = user
+    if (!user.emailVerified && !isAdminByEmail(email)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Bitte bestätige zuerst deine E-Mail mit dem Bestätigungscode.',
+          code: 'EMAIL_NOT_VERIFIED',
+          email,
+        },
+        { status: 403 }
+      )
+    }
+
+    const { passwordHash: _, emailVerified: __, ...safeUser } = user
 
     return NextResponse.json({
       success: true,

@@ -43,6 +43,11 @@ export default function LoginPage() {
       if (result.success) {
         showSuccess('Erfolgreich angemeldet!')
         router.push(getRedirectUrl())
+      } else if (result.needsVerification) {
+        showError(result.error || 'Bitte E-Mail bestätigen')
+        router.push(
+          `/auth/verify?email=${encodeURIComponent(result.email || email)}`
+        )
       } else {
         showError(result.error || 'Anmeldung fehlgeschlagen')
       }

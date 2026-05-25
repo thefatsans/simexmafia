@@ -20,12 +20,15 @@ NEXT_PUBLIC_PAYPAL_PAYMENT_LINK=https://paypal.me/SimexMafia
 
 ## 🟡 OPTIONAL (aber empfohlen)
 
-### 3. E-Mail-Versand (Resend)
+### 3. E-Mail-Versand (Resend) — **Pflicht für Registrierung**
 ```
 RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=SimexMafia <onboarding@resend.dev>
+EMAIL_VERIFY_SECRET=ein-langer-zufaelliger-string
 ```
-- **Woher?** Resend.com Dashboard
-- **Wichtig:** Für Registrierungs- und Bestellbestätigungs-E-Mails
+- **Woher?** [Resend.com](https://resend.com) Dashboard → API Keys
+- Ohne `RESEND_API_KEY` werden **keine Bestätigungscodes** versendet
+- `EMAIL_VERIFY_SECRET` optional (schützt Code-Hashes)
 
 ### 4. Google OAuth (für Login)
 ```
