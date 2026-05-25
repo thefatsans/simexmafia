@@ -14,15 +14,19 @@ import {
   syncOrdersToInventory,
   removeDuplicateInventoryItems,
 } from '@/data/inventory'
-import { Package, CheckCircle, XCircle, Trash2, Gift, ShoppingBag, Trophy, X, Key, Copy, Check, Clock, Eye } from 'lucide-react'
+import { Package, CheckCircle, XCircle, Trash2, Gift, ShoppingBag, Trophy, X, Key, Copy, Check, Clock, Eye, Loader2 } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import Image from 'next/image'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
-// Hilfsfunktion: Prüft ob eine sourceId eine gültige Order-ID ist (ORD- oder CUID)
+// Hilfsfunktion: Prüft ob eine sourceId eine gültige Order-ID ist (ORD- oder echte CUID)
+// Sack-IDs wie "gold" oder "sack-a-holic" werden bewusst NICHT als Order erkannt.
+const CUID_REGEX = /^c[a-z0-9]{24}$/
 const isOrderId = (sourceId: string | undefined | null): boolean => {
   if (!sourceId) return false
-  return sourceId.startsWith('ORD-') || sourceId.length > 10
+  if (sourceId.startsWith('ORD-')) return true
+  return CUID_REGEX.test(sourceId)
 }
 
 export default function InventoryPage() {
@@ -37,6 +41,8 @@ export default function InventoryPage() {
   const [orderDetails, setOrderDetails] = useState<Record<string, { status: string; updatedAt?: string; statusReason?: string }>>({}) // orderId -> details
   const [isLoadingStatuses, setIsLoadingStatuses] = useState(false) // Verhindere mehrfache Aufrufe
   const [isSyncing, setIsSyncing] = useState(false) // Verhindere mehrfache Synchronisation
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [redeemingId, setRedeemingId] = useState<string | null>(null)
   const { showSuccess, showError, showInfo } = useToast()
 
   const loadInventory = () => {
@@ -458,16 +464,24 @@ export default function InventoryPage() {
   }
 
   useEffect(() => {
-    if (!user?.id) return
+    if (!user?.id) {
+      setIsInitialLoading(false)
+      return
+    }
     
+    setIsInitialLoading(true)
     // Synchronisiere zuerst Bestellungen mit Inventar
-    syncInventory().then(() => {
-      loadInventory()
-      // Warte kurz, damit syncInventory fertig ist
-      setTimeout(() => {
-        loadOrderStatuses()
-      }, 500)
-    })
+    syncInventory()
+      .then(() => {
+        loadInventory()
+        // Warte kurz, damit syncInventory fertig ist
+        setTimeout(() => {
+          loadOrderStatuses()
+        }, 500)
+      })
+      .finally(() => {
+        setIsInitialLoading(false)
+      })
     
     // Automatisches Aktualisieren alle 30 Sekunden, um Status-Updates zu sehen
     // ABER: Nur wenn nicht bereits geladen wird
@@ -562,6 +576,8 @@ export default function InventoryPage() {
   }
 
   const handleRedeem = async (item: InventoryItem) => {
+    if (redeemingId) return
+    setRedeemingId(item.id)
     try {
       // Für Produkte mit Bestell-ID: KEINE Einlösung erlaubt - nur Key anzeigen
       if (isOrderId(item.sourceId)) {
@@ -569,23 +585,35 @@ export default function InventoryPage() {
         return
       }
       
-      // Nur für Items ohne Bestell-ID (z.B. aus Säcken): Normale Einlösung
+      if (!user?.id) {
+        showError('Bitte melde dich an, um dieses Produkt einzulösen.')
+        return
+      }
+
+      // Nur für Items ohne Bestell-ID (z.B. aus Säcken): Anfrage an Server
       const { redeemItemAsync } = await import('@/data/inventory')
       const code = await redeemItemAsync(
         item.id,
-        user?.id,
-        user
-          ? { email: user.email, firstName: user.firstName, lastName: user.lastName }
-          : undefined
+        user.id,
+        { email: user.email, firstName: user.firstName, lastName: user.lastName }
       )
       if (code) {
         loadInventory()
-        showSuccess('Produkt erfolgreich eingelöst!', 4000)
+        if (code === 'pending') {
+          showSuccess(
+            'Anfrage gesendet! Wir senden dir den Key innerhalb von 24h per E-Mail.',
+            6000
+          )
+        } else {
+          showSuccess('Produkt erfolgreich eingelöst!', 4000)
+        }
       } else {
         showError('Produkt konnte nicht eingelöst werden.')
       }
     } catch (error: any) {
       showError(error.message || 'Produkt konnte nicht eingelöst werden.')
+    } finally {
+      setRedeemingId(null)
     }
   }
 
@@ -796,7 +824,9 @@ export default function InventoryPage() {
         )}
 
         {/* Inventory List */}
-        {inventory.length === 0 ? (
+        {isInitialLoading ? (
+          <LoadingSpinner size="lg" centered label="Inventar wird geladen..." />
+        ) : inventory.length === 0 ? (
           <div className="text-center py-20">
             <Package className="w-20 h-20 text-gray-600 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">Inventar ist leer</h2>
@@ -975,19 +1005,27 @@ export default function InventoryPage() {
                           <>
                             {(() => {
                               const pending = isItemPending(item)
+                              const isLoading = redeemingId === item.id
+                              const disabled = pending || isLoading
                               return (
                                 <button
                                   onClick={() => handleRedeem(item)}
-                                  disabled={pending}
+                                  disabled={disabled}
                                   className={`flex-1 font-semibold px-4 py-3 sm:py-2 rounded-lg transition-colors flex items-center justify-center space-x-2 touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm ${
-                                    pending
+                                    disabled
                                       ? 'bg-gray-500/20 border border-gray-500/30 text-gray-400 cursor-not-allowed'
                                       : 'bg-green-500 hover:bg-green-600 text-white'
                                   }`}
                                   title={pending ? 'Die Bestellung ist noch nicht abgeschlossen. Bitte warten Sie, bis die Bestellung bestätigt wurde.' : ''}
                                 >
-                                  <Key className="w-5 h-5 sm:w-4 sm:h-4" />
-                                  <span>{pending ? 'Ausstehend' : 'Einlösen'}</span>
+                                  {isLoading ? (
+                                    <Loader2 className="w-5 h-5 sm:w-4 sm:h-4 animate-spin" />
+                                  ) : (
+                                    <Key className="w-5 h-5 sm:w-4 sm:h-4" />
+                                  )}
+                                  <span>
+                                    {isLoading ? 'Sende...' : pending ? 'Ausstehend' : 'Einlösen'}
+                                  </span>
                                 </button>
                               )
                             })()}
@@ -1018,7 +1056,7 @@ export default function InventoryPage() {
                                   <button
                                     onClick={() => {
                                       navigator.clipboard.writeText(item.redemptionCode!)
-                                      alert('Code in Zwischenablage kopiert!')
+                                      showSuccess('Code in Zwischenablage kopiert!', 2000)
                                     }}
                                     className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 px-3 py-3 sm:py-2 rounded-lg transition-colors flex items-center space-x-1 touch-manipulation min-h-[44px] sm:min-h-[36px] min-w-[44px] sm:min-w-[36px]"
                                     title="Code kopieren"
@@ -1026,6 +1064,17 @@ export default function InventoryPage() {
                                     <Copy className="w-5 h-5 sm:w-4 sm:h-4" />
                                   </button>
                                 </div>
+                              </div>
+                            ) : item.redemptionStatus === 'pending' ? (
+                              <div className="flex-1 bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-sm">
+                                <div className="flex items-center gap-2 text-blue-300 font-semibold mb-1">
+                                  <Clock className="w-4 h-4" />
+                                  <span>Anfrage gesendet</span>
+                                </div>
+                                <p className="text-gray-400 text-xs leading-relaxed">
+                                  Wir senden dir den Key innerhalb von 24h per E-Mail an{' '}
+                                  <strong className="text-gray-200">{user?.email ?? 'deine E-Mail'}</strong>.
+                                </p>
                               </div>
                             ) : (
                               <div className="flex-1 text-center text-yellow-400 text-sm py-2">
@@ -1226,7 +1275,11 @@ function KeyDisplayButton({
           disabled={isLoading}
           className="w-full bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Eye className="w-4 h-4" />
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
           <span>{isLoading ? 'Lädt...' : 'Key anzeigen'}</span>
         </button>
         {keyError && (

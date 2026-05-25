@@ -212,6 +212,12 @@ model InventoryItem {
   orderId   String?
   sourceId  String?  // Bestell-ID (ORD-...) oder Sack-ID für sourceId
   notes     String?
+
+  // Redemption tracking
+  isRedeemed       Boolean   @default(false)
+  redeemedAt       DateTime?
+  redemptionCode   String?
+  redemptionStatus String?   // 'pending' (waiting for admin), 'fulfilled', null (not redeemed)
   
   createdAt DateTime @default(now())
 }

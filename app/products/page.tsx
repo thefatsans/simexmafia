@@ -1,15 +1,10 @@
 import { Suspense } from 'react'
 import ProductsPageContent from '@/components/ProductsPageContent'
+import { LoadingPage } from '@/components/LoadingSpinner'
 
 export default function ProductsPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center text-gray-400">
-          Produkte werden geladen…
-        </div>
-      }
-    >
+    <Suspense fallback={<LoadingPage label="Produkte werden geladen..." />}>
       <ProductsPageContent />
     </Suspense>
   )

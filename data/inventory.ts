@@ -1,10 +1,14 @@
 import { Product } from '@/types'
 import { getCompleteProductImage } from '@/prisma/complete-product-images'
 
-// Hilfsfunktion: Prüft ob eine sourceId eine gültige Order-ID ist (ORD- oder CUID)
+// Hilfsfunktion: Prüft ob eine sourceId eine gültige Order-ID ist
+// Erkennt entweder das interne ORD- Format oder eine echte CUID (25 Zeichen, beginnt mit "c", lowercase alphanumerisch)
+// Achtung: kurze Sack-IDs wie "gold" oder "sack-a-holic" dürfen NICHT als Order erkannt werden.
+const CUID_REGEX = /^c[a-z0-9]{24}$/
 const isOrderId = (sourceId: string | undefined | null): boolean => {
   if (!sourceId) return false
-  return sourceId.startsWith('ORD-') || sourceId.length > 10
+  if (sourceId.startsWith('ORD-')) return true
+  return CUID_REGEX.test(sourceId)
 }
 
 export interface InventoryItem {
@@ -17,6 +21,7 @@ export interface InventoryItem {
   isRedeemed: boolean
   redeemedAt?: string
   redemptionCode?: string // Der generierte Code/Key
+  redemptionStatus?: 'pending' | 'fulfilled' | string // Status der Sack-Einlöse-Anfrage
   isPending?: boolean // true wenn Bestellung noch nicht bestätigt wurde
 }
 
@@ -285,15 +290,62 @@ export const redeemItemAsync = async (
       }
     }
     
-    // Für Items ohne Bestell-ID (z.B. aus Säcken): Generiere einen Code
-    const code = generateRedemptionCode()
-    
-    item.isRedeemed = true
-    item.redeemedAt = new Date().toISOString()
-    item.redemptionCode = code
-    
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory))
-    return code
+    // Für Items ohne Bestell-ID (z.B. aus Säcken):
+    // KEIN lokal generierter Fake-Code mehr. Stattdessen Server-API aufrufen,
+    // die den Admin per E-Mail benachrichtigt und das Item als "pending" markiert.
+    if (!userId) {
+      throw new Error('Bitte melde dich erneut an, um dieses Produkt einzulösen.')
+    }
+
+    try {
+      const res = await fetch('/api/inventory/redeem', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, userId }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        // Wenn das Item bereits eingelöst ist (409), übernimm den Server-Status lokal,
+        // damit der Nutzer den korrekten Zustand sieht.
+        if (res.status === 409 && data?.item) {
+          item.isRedeemed = true
+          item.redeemedAt = data.item.redeemedAt
+            ? new Date(data.item.redeemedAt).toISOString()
+            : item.redeemedAt
+          if (data.item.redemptionCode) item.redemptionCode = data.item.redemptionCode
+          ;(item as any).redemptionStatus = data.item.redemptionStatus || 'pending'
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory))
+        }
+        throw new Error(
+          data?.error ||
+            'Anfrage konnte nicht gesendet werden. Bitte versuche es später erneut.'
+        )
+      }
+
+      const data = await res.json().catch(() => ({}))
+      const fulfilledCode: string | undefined = data?.item?.redemptionCode
+      const status: string = data?.item?.redemptionStatus || 'pending'
+
+      // Lokales Mirror aktualisieren, damit UI sofort den neuen Status zeigt
+      item.isRedeemed = true
+      item.redeemedAt = new Date().toISOString()
+      if (fulfilledCode) {
+        item.redemptionCode = fulfilledCode
+      }
+      ;(item as any).redemptionStatus = status
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory))
+
+      // Wir geben "pending" zurück, wenn noch kein Key vorliegt – der UI-Layer
+      // unterscheidet anhand von redemptionCode + redemptionStatus.
+      return fulfilledCode || 'pending'
+    } catch (apiError: any) {
+      throw new Error(
+        apiError?.message ||
+          'Anfrage konnte nicht gesendet werden. Bitte versuche es später erneut.'
+      )
+    }
   } catch (error: any) {
     console.error('Error redeeming item:', error)
     throw error // Wirf den Fehler weiter, damit handleRedeem ihn behandeln kann

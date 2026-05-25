@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Product } from '@/types'
 import { getOrders } from '@/data/payments'
 import { saveReviewToLocalStorage } from '@/data/reviews'
+import { LoadingPage } from '@/components/LoadingSpinner'
 
 export default function WriteReviewPage() {
   const router = useRouter()
@@ -81,13 +82,7 @@ export default function WriteReviewPage() {
   }, [productId, isAuthenticated, user])
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400 text-lg">Lade Produkt...</p>
-        </div>
-      </div>
-    )
+    return <LoadingPage label="Produkt wird geladen..." />
   }
 
   if (!product) {

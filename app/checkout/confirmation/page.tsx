@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 import { Order } from '@/data/payments'
 import { getOrdersFromAPI } from '@/lib/api/orders'
 import { useAuth } from '@/contexts/AuthContext'
+import { LoadingPage } from '@/components/LoadingSpinner'
 
 function ConfirmationContent() {
   const searchParams = useSearchParams()
@@ -328,13 +329,7 @@ function ConfirmationContent() {
 
 export default function ConfirmationPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen py-20">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400 text-lg">Lade Bestätigung...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingPage label="Bestätigung wird geladen..." />}>
       <ConfirmationContent />
     </Suspense>
   )

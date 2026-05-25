@@ -21,6 +21,8 @@ import SocialShare from '@/components/SocialShare'
 import PriceAlertButton from '@/components/PriceAlertButton'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
+import { LoadingPage } from '@/components/LoadingSpinner'
+import { Loader2 } from 'lucide-react'
 
 function ProductDetailContent({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -84,15 +86,7 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
   }, [searchParams, product])
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen py-8 relative z-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center py-12">
-            <p className="text-gray-400 text-lg">Lade Produkt...</p>
-          </div>
-        </div>
-      </div>
-    )
+    return <LoadingPage label="Produkt wird geladen..." />
   }
 
   if (!product) {
@@ -277,7 +271,11 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
                   disabled={isAddingToCart}
                   className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-4 rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-purple-500/50 flex items-center justify-center space-x-2"
                 >
-                  <ShoppingCart className={`w-5 h-5 ${isAddingToCart ? 'animate-pulse' : ''}`} />
+                  {isAddingToCart ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <ShoppingCart className="w-5 h-5" />
+                  )}
                   <span>{isAddingToCart ? 'Wird hinzugefügt...' : 'In den Warenkorb'}</span>
                 </button>
                 <a

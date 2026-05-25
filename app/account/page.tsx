@@ -7,6 +7,7 @@ import { useToast } from '@/contexts/ToastContext'
 import { User, Edit2, Save, X, LogOut, Coins, ShoppingBag, Calendar, Award, Gift, Trophy, Sparkles } from 'lucide-react'
 import { TIER_INFO, calculateTier } from '@/types/user'
 import { loadAccountStats } from '@/lib/api/account-stats'
+import { LoadingPage } from '@/components/LoadingSpinner'
 
 export default function AccountPage() {
   const router = useRouter()
@@ -57,11 +58,7 @@ export default function AccountPage() {
   }, [user])
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-white text-xl">Lädt...</div>
-      </div>
-    )
+    return <LoadingPage label="Konto wird geladen..." />
   }
 
   if (!user) {
