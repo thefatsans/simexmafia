@@ -1,15 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { isAdmin } from '@/data/admin'
 import { useToast } from '@/contexts/ToastContext'
-import { Mail, Send, Users, FileText, Loader2 } from 'lucide-react'
-import { sendEmail } from '@/lib/email'
-import { getSiteUrl } from '@/lib/site-url'
+import { Mail, Send, Users, FileText, Loader2, AlertCircle } from 'lucide-react'
 
 type EmailType = 'custom' | 'newsletter' | 'announcement'
+
+interface DbUser {
+  email: string
+  firstName: string
+  lastName: string
+  emailVerified: boolean
+}
 
 export default function AdminEmailsPage() {
   const router = useRouter()
@@ -18,11 +23,13 @@ export default function AdminEmailsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
   const [emailType, setEmailType] = useState<EmailType>('custom')
-  const [recipients, setRecipients] = useState<string>('')
+  const [recipients, setRecipients] = useState('')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [newsletterSubscribers, setNewsletterSubscribers] = useState<string[]>([])
-  const [allUsers, setAllUsers] = useState<Array<{ email: string; firstName: string; lastName: string }>>([])
+  const [dbUsers, setDbUsers] = useState<DbUser[]>([])
+  const [verifiedOnly, setVerifiedOnly] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (authLoading) {
@@ -40,31 +47,71 @@ export default function AdminEmailsPage() {
       return
     }
 
-    // Load newsletter subscribers
-    try {
-      const subscribers = JSON.parse(localStorage.getItem('newsletter-subscribers') || '[]')
-      setNewsletterSubscribers(subscribers)
-    } catch (error) {
-      console.error('Error loading newsletter subscribers:', error)
-    }
-
-    // Load all users
-    try {
-      const usersJson = localStorage.getItem('simexmafia-users')
-      if (usersJson) {
-        const users = JSON.parse(usersJson)
-        setAllUsers(users.map((u: any) => ({
-          email: u.email,
-          firstName: u.firstName,
-          lastName: u.lastName,
-        })))
-      }
-    } catch (error) {
-      console.error('Error loading users:', error)
-    }
-
     setIsLoading(false)
   }, [user, router, authLoading])
+
+  const loadRecipients = useCallback(async () => {
+    if (!user || !isAdmin(user.email)) return
+
+    setLoadError(null)
+    try {
+      const params = verifiedOnly ? '?verifiedOnly=true' : ''
+      const res = await fetch(`/api/admin/emails/recipients${params}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Fehler ${res.status}`)
+      }
+
+      const data = await res.json()
+      setDbUsers(data.users || [])
+    } catch (err) {
+      console.error('[Admin Emails] load recipients:', err)
+      setLoadError(err instanceof Error ? err.message : 'Empfänger konnten nicht geladen werden')
+      setDbUsers([])
+    }
+
+    try {
+      const subscribers = JSON.parse(
+        localStorage.getItem('newsletter-subscribers') || '[]'
+      ) as string[]
+      setNewsletterSubscribers(
+        Array.isArray(subscribers)
+          ? subscribers.filter((e) => typeof e === 'string' && e.includes('@'))
+          : []
+      )
+    } catch {
+      setNewsletterSubscribers([])
+    }
+  }, [user, verifiedOnly])
+
+  useEffect(() => {
+    if (!authLoading && user && isAdmin(user.email)) {
+      loadRecipients()
+    }
+  }, [authLoading, user, loadRecipients])
+
+  const resolveRecipientList = (): string[] => {
+    if (emailType === 'custom') {
+      return [
+        ...new Set(
+          recipients
+            .split(/[,\n]/)
+            .map((e) => e.trim().toLowerCase())
+            .filter((e) => e && /\S+@\S+\.\S+/.test(e))
+        ),
+      ]
+    }
+
+    if (emailType === 'newsletter') {
+      return [...new Set(newsletterSubscribers.map((e) => e.trim().toLowerCase()))]
+    }
+
+    return [...new Set(dbUsers.map((u) => u.email.toLowerCase()))]
+  }
 
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -74,98 +121,71 @@ export default function AdminEmailsPage() {
       return
     }
 
-    let emailRecipients: string[] = []
+    const emailRecipients = resolveRecipientList()
 
-    if (emailType === 'custom') {
-      const emails = recipients
-        .split(/[,\n]/)
-        .map((email) => email.trim())
-        .filter((email) => email && /\S+@\S+\.\S+/.test(email))
+    if (emailRecipients.length === 0) {
+      if (emailType === 'newsletter') {
+        showError(
+          'Keine Newsletter-Abonnenten in diesem Browser. Nutze „Ankündigung“ für alle DB-Nutzer oder „Individuell“.'
+        )
+      } else if (emailType === 'announcement') {
+        showError('Keine Benutzer in der Datenbank gefunden')
+      } else {
+        showError('Bitte mindestens eine gültige E-Mail-Adresse eingeben')
+      }
+      return
+    }
 
-      if (emails.length === 0) {
-        showError('Bitte geben Sie mindestens eine gültige E-Mail-Adresse ein')
-        return
-      }
+    if (emailRecipients.length > 50) {
+      showError(`Maximal 50 Empfänger pro Sendung (aktuell: ${emailRecipients.length})`)
+      return
+    }
 
-      emailRecipients = emails
-    } else if (emailType === 'newsletter') {
-      if (newsletterSubscribers.length === 0) {
-        showError('Keine Newsletter-Abonnenten gefunden')
-        return
-      }
-      emailRecipients = newsletterSubscribers
-    } else if (emailType === 'announcement') {
-      if (allUsers.length === 0) {
-        showError('Keine Benutzer gefunden')
-        return
-      }
-      emailRecipients = allUsers.map((u) => u.email)
+    if (
+      emailType === 'announcement' &&
+      !confirm(
+        `Wirklich an ${emailRecipients.length} Benutzer senden?`
+      )
+    ) {
+      return
     }
 
     setIsSending(true)
 
     try {
-      const siteUrl = getSiteUrl()
-      // Create HTML email
-      const html = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>${subject}</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-              <a href="${siteUrl}" style="color: white; text-decoration: none;">
-                <h1 style="color: white; margin: 0;">SimexMafia</h1>
-              </a>
-            </div>
-            <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-              <div style="white-space: pre-wrap; font-size: 16px;">${message.replace(/\n/g, '<br>')}</div>
-            </div>
-            <div style="text-align: center; margin-top: 20px; padding: 20px; color: #999; font-size: 12px;">
-              <p><a href="${siteUrl}" style="color: #667eea;">${siteUrl}</a></p>
-              <p>© ${new Date().getFullYear()} SimexMafia. Alle Rechte vorbehalten.</p>
-            </div>
-          </body>
-        </html>
-      `
+      const res = await fetch('/api/admin/emails/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          recipients: emailRecipients,
+          subject: subject.trim(),
+          message: message.trim(),
+        }),
+      })
 
-      // Send to all recipients
-      let successCount = 0
-      let errorCount = 0
+      const data = await res.json().catch(() => ({}))
 
-      for (const recipient of emailRecipients) {
-        try {
-          const result = await sendEmail({
-            to: recipient,
-            subject,
-            html,
-          })
-
-          if (result.success) {
-            successCount++
-          } else {
-            errorCount++
-            console.error(`Failed to send to ${recipient}:`, result.error)
-          }
-        } catch (error) {
-          errorCount++
-          console.error(`Error sending to ${recipient}:`, error)
-        }
+      if (!res.ok) {
+        showError(data.error || 'Fehler beim Senden')
+        return
       }
+
+      const { successCount = 0, errorCount = 0, failures = [] } = data
 
       if (successCount > 0) {
         showSuccess(
-          `${successCount} E-Mail(s) erfolgreich gesendet${errorCount > 0 ? `, ${errorCount} Fehler` : ''}`
+          `${successCount} E-Mail(s) gesendet${errorCount > 0 ? `, ${errorCount} Fehler` : ''}`
         )
-        // Reset form
+        if (errorCount > 0 && failures.length > 0) {
+          console.warn('[Admin Emails] failures:', failures)
+        }
         setSubject('')
         setMessage('')
         setRecipients('')
       } else {
-        showError('Fehler beim Senden der E-Mails')
+        const firstErr = failures[0]?.error || data.error || 'Keine E-Mail gesendet'
+        showError(firstErr)
       }
     } catch (error) {
       console.error('Error sending emails:', error)
@@ -175,7 +195,11 @@ export default function AdminEmailsPage() {
     }
   }
 
-  if (isLoading) {
+  const announcementCount = verifiedOnly
+    ? dbUsers.filter((u) => u.emailVerified).length
+    : dbUsers.length
+
+  if (isLoading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-fortnite-darker">
         <div className="text-white">Lädt...</div>
@@ -190,26 +214,34 @@ export default function AdminEmailsPage() {
   return (
     <div className="min-h-screen bg-fortnite-darker py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <button
+            type="button"
             onClick={() => router.push('/admin')}
             className="text-purple-400 hover:text-purple-300 mb-4 transition-colors"
           >
             ← Zurück zum Dashboard
           </button>
           <h1 className="text-4xl font-bold text-white mb-2">E-Mails versenden</h1>
-          <p className="text-gray-400">Sende E-Mails an Benutzer, Newsletter-Abonnenten oder individuelle Empfänger</p>
+          <p className="text-gray-400">
+            Versand über Resend von <span className="text-purple-300">noreply@simexmafia.de</span>
+          </p>
         </div>
 
-        {/* Stats */}
+        {loadError && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-sm flex gap-2">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            {loadError}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-4">
             <div className="flex items-center space-x-3">
               <Users className="w-8 h-8 text-blue-400" />
               <div>
-                <p className="text-gray-400 text-sm">Alle Benutzer</p>
-                <p className="text-2xl font-bold text-white">{allUsers.length}</p>
+                <p className="text-gray-400 text-sm">Benutzer (Datenbank)</p>
+                <p className="text-2xl font-bold text-white">{dbUsers.length}</p>
               </div>
             </div>
           </div>
@@ -217,7 +249,7 @@ export default function AdminEmailsPage() {
             <div className="flex items-center space-x-3">
               <Mail className="w-8 h-8 text-purple-400" />
               <div>
-                <p className="text-gray-400 text-sm">Newsletter-Abonnenten</p>
+                <p className="text-gray-400 text-sm">Newsletter (lokal)</p>
                 <p className="text-2xl font-bold text-white">{newsletterSubscribers.length}</p>
               </div>
             </div>
@@ -226,25 +258,19 @@ export default function AdminEmailsPage() {
             <div className="flex items-center space-x-3">
               <FileText className="w-8 h-8 text-green-400" />
               <div>
-                <p className="text-gray-400 text-sm">E-Mail-Typ</p>
-                <p className="text-lg font-bold text-white">
-                  {emailType === 'custom'
-                    ? 'Individuell'
-                    : emailType === 'newsletter'
-                    ? 'Newsletter'
-                    : 'Ankündigung'}
-                </p>
+                <p className="text-gray-400 text-sm">Max. pro Sendung</p>
+                <p className="text-2xl font-bold text-white">50</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Email Form */}
         <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6">
           <form onSubmit={handleSendEmail} className="space-y-6">
-            {/* Email Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Empfänger-Typ</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Empfänger-Typ
+              </label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button
                   type="button"
@@ -257,7 +283,7 @@ export default function AdminEmailsPage() {
                 >
                   <FileText className="w-6 h-6 mx-auto mb-2" />
                   <p className="font-semibold">Individuell</p>
-                  <p className="text-xs mt-1">Eigene E-Mail-Adressen</p>
+                  <p className="text-xs mt-1">Eigene Adressen</p>
                 </button>
                 <button
                   type="button"
@@ -270,7 +296,7 @@ export default function AdminEmailsPage() {
                 >
                   <Mail className="w-6 h-6 mx-auto mb-2" />
                   <p className="font-semibold">Newsletter</p>
-                  <p className="text-xs mt-1">{newsletterSubscribers.length} Abonnenten</p>
+                  <p className="text-xs mt-1">{newsletterSubscribers.length} (Browser)</p>
                 </button>
                 <button
                   type="button"
@@ -283,30 +309,40 @@ export default function AdminEmailsPage() {
                 >
                   <Users className="w-6 h-6 mx-auto mb-2" />
                   <p className="font-semibold">Ankündigung</p>
-                  <p className="text-xs mt-1">{allUsers.length} Benutzer</p>
+                  <p className="text-xs mt-1">{announcementCount} Nutzer (DB)</p>
                 </button>
               </div>
             </div>
 
-            {/* Recipients (only for custom) */}
+            {emailType === 'announcement' && (
+              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={verifiedOnly}
+                  onChange={(e) => setVerifiedOnly(e.target.checked)}
+                  className="rounded border-purple-500/50"
+                />
+                Nur Benutzer mit bestätigter E-Mail ({dbUsers.filter((u) => u.emailVerified).length})
+              </label>
+            )}
+
             {emailType === 'custom' && (
               <div>
                 <label htmlFor="recipients" className="block text-sm font-medium text-gray-300 mb-2">
-                  Empfänger (E-Mail-Adressen, durch Komma oder Zeilenumbruch getrennt)
+                  Empfänger (kommagetrennt oder je Zeile)
                 </label>
                 <textarea
                   id="recipients"
                   value={recipients}
                   onChange={(e) => setRecipients(e.target.value)}
-                  placeholder="email1@example.com, email2@example.com&#10;email3@example.com"
-                  className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="email1@example.com, email2@example.com"
+                  className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   rows={4}
-                  required={emailType === 'custom'}
+                  required
                 />
               </div>
             )}
 
-            {/* Subject */}
             <div>
               <label htmlFor="subject" className="block text-sm font-medium text-gray-300 mb-2">
                 Betreff
@@ -316,13 +352,11 @@ export default function AdminEmailsPage() {
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="Betreff der E-Mail"
-                className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 required
               />
             </div>
 
-            {/* Message */}
             <div>
               <label htmlFor="message" className="block text-sm font-medium text-gray-300 mb-2">
                 Nachricht
@@ -331,78 +365,53 @@ export default function AdminEmailsPage() {
                 id="message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Ihre Nachricht..."
-                className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 rows={10}
                 required
               />
-              <p className="mt-2 text-sm text-gray-400">
-                Zeilenumbrüche werden automatisch in HTML umgewandelt.
-              </p>
             </div>
 
-            {/* Preview */}
             {emailType !== 'custom' && (
-              <div className="bg-fortnite-darker border border-purple-500/20 rounded-lg p-4">
-                <p className="text-sm text-gray-400 mb-2">
-                  Diese E-Mail wird an{' '}
-                  <span className="text-purple-400 font-semibold">
-                    {emailType === 'newsletter'
-                      ? `${newsletterSubscribers.length} Newsletter-Abonnenten`
-                      : `${allUsers.length} Benutzer`}
-                  </span>{' '}
-                  gesendet.
-                </p>
+              <div className="bg-fortnite-darker border border-purple-500/20 rounded-lg p-4 text-sm text-gray-400">
+                Es werden{' '}
+                <span className="text-purple-400 font-semibold">
+                  {emailType === 'newsletter'
+                    ? `${newsletterSubscribers.length} Newsletter-Adressen (nur in diesem Browser gespeichert)`
+                    : `${announcementCount} registrierte Benutzer aus der Datenbank`}
+                </span>{' '}
+                angeschrieben (max. 50 pro Klick).
               </div>
             )}
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isSending || !subject.trim() || !message.trim()}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-4 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 text-white font-semibold px-6 py-4 rounded-lg flex items-center justify-center gap-2"
             >
               {isSending ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Wird gesendet...</span>
+                  Wird gesendet...
                 </>
               ) : (
                 <>
                   <Send className="w-5 h-5" />
-                  <span>
-                    E-Mail senden
-                    {emailType === 'newsletter'
-                      ? ` (${newsletterSubscribers.length} Empfänger)`
-                      : emailType === 'announcement'
-                      ? ` (${allUsers.length} Empfänger)`
-                      : ''}
-                  </span>
+                  E-Mail senden
+                  {emailType === 'newsletter' && ` (${newsletterSubscribers.length})`}
+                  {emailType === 'announcement' && ` (${announcementCount})`}
                 </>
               )}
             </button>
           </form>
         </div>
 
-        {/* Info Box */}
-        <div className="mt-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-          <p className="text-sm text-blue-300">
-            <strong>Hinweis:</strong> Setzen Sie <code className="bg-blue-500/20 px-2 py-1 rounded">RESEND_API_KEY</code>{' '}
-            und optional <code className="bg-blue-500/20 px-2 py-1 rounded">RESEND_FROM_EMAIL</code>. Ohne verifizierte
-            Domain nutzen Sie <code className="bg-blue-500/20 px-2 py-1 rounded">onboarding@resend.dev</code> – Testmails
-            gehen nur an die E-Mail Ihres Resend-Accounts.
-          </p>
+        <div className="mt-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 text-sm text-blue-300">
+          <strong>Hinweis:</strong> Versand läuft serverseitig über Resend (
+          <code className="bg-blue-500/20 px-1 rounded">noreply@simexmafia.de</code>
+          ). „Ankündigung“ nutzt alle Konten aus Supabase. Newsletter-Liste ist noch
+          browser-lokal — für alle Abonnenten besser „Ankündigung“ verwenden.
         </div>
       </div>
     </div>
   )
 }
-
-
-
-
-
-
-
-
-

@@ -82,37 +82,40 @@ export default function ContactPage() {
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // Save contact request to localStorage (for demo purposes)
     try {
-      const requests = JSON.parse(localStorage.getItem('simexmafia-contact-requests') || '[]')
-      requests.push({
-        ...formData,
-        id: `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        submittedAt: new Date().toISOString(),
-        status: 'pending',
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...formData,
+          captchaToken: captchaToken || undefined,
+        }),
       })
-      localStorage.setItem('simexmafia-contact-requests', JSON.stringify(requests))
-    } catch (error) {
-      console.error('Error saving contact request:', error)
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        showError(data.error || `Senden fehlgeschlagen (${res.status})`)
+        return
+      }
+
+      showSuccess('Ihre Nachricht wurde erfolgreich gesendet! Wir werden uns schnellstmöglich bei Ihnen melden.')
+      setFormData({
+        name: '',
+        email: '',
+        category: 'general',
+        subject: '',
+        message: '',
+      })
+      setErrors({})
+      setCaptchaToken('')
+    } catch (err) {
+      console.error('[Contact] submit error:', err)
+      showError('Senden fehlgeschlagen. Bitte später erneut versuchen.')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    setIsSubmitting(false)
-
-    // Show success message
-    showSuccess('Ihre Nachricht wurde erfolgreich gesendet! Wir werden uns schnellstmöglich bei Ihnen melden.')
-
-    // Reset form
-    setFormData({
-      name: '',
-      email: '',
-      category: 'general',
-      subject: '',
-      message: '',
-    })
-    setErrors({})
   }
 
   const handleInputChange = (

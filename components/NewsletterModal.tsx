@@ -35,28 +35,31 @@ export default function NewsletterModal({ isOpen, onClose }: NewsletterModalProp
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    // Save to localStorage (in a real app, this would go to a backend)
     try {
-      const subscribers = JSON.parse(localStorage.getItem('newsletter-subscribers') || '[]')
-      if (!subscribers.includes(email.toLowerCase().trim())) {
-        subscribers.push(email.toLowerCase().trim())
-        localStorage.setItem('newsletter-subscribers', JSON.stringify(subscribers))
+      const res = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        setError(data.error || 'Anmeldung fehlgeschlagen')
+        return
       }
+
+      setIsSuccess(true)
+      setTimeout(() => {
+        onClose()
+        router.push('/newsletter/confirmation')
+      }, 2000)
     } catch (err) {
-      console.error('Error saving newsletter subscription:', err)
+      console.error('[NewsletterModal] subscribe error:', err)
+      setError('Anmeldung fehlgeschlagen. Bitte später erneut versuchen.')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    setIsSubmitting(false)
-    setIsSuccess(true)
-
-    // Close modal after 2 seconds and redirect to confirmation
-    setTimeout(() => {
-      onClose()
-      router.push('/newsletter/confirmation')
-    }, 2000)
   }
 
   return (

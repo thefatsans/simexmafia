@@ -19,7 +19,7 @@ import { isStripeConfigured, isPayPalEnabled } from '@/lib/payments-config'
 import StripeCheckoutSection from '@/components/StripeCheckoutSection'
 import { addToInventory } from '@/data/inventory'
 import { useToast } from '@/contexts/ToastContext'
-import { validateDiscountCode, calculateDiscount, applyDiscountCode, DiscountCode } from '@/data/discountCodes'
+import type { DiscountCode } from '@/data/discountCodes'
 import { Tag, X, Check } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { sendOrderConfirmationEmail } from '@/lib/email'
@@ -49,6 +49,8 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [discountCode, setDiscountCode] = useState('')
   const [appliedDiscountCode, setAppliedDiscountCode] = useState<DiscountCode | null>(null)
+  const [appliedDiscountAmount, setAppliedDiscountAmount] = useState(0)
+  const [isApplyingCode, setIsApplyingCode] = useState(false)
   const [discountError, setDiscountError] = useState('')
   const stripeEnabled = isStripeConfigured()
   const paypalEnabled = isPayPalEnabled()
@@ -100,10 +102,8 @@ export default function CheckoutPage() {
   const serviceFee = 0.99
   const userTier = TIER_INFO[user?.tier || mockUser.tier]
   
-  // Calculate discount from code
-  const codeDiscount = appliedDiscountCode 
-    ? calculateDiscount(appliedDiscountCode, subtotal + serviceFee)
-    : 0
+  // Calculate discount from code (server-validated amount)
+  const codeDiscount = appliedDiscountCode ? appliedDiscountAmount : 0
   
   // Calculate tier discount
   const tierDiscount = (subtotal + serviceFee) * (userTier.discount / 100)
@@ -129,13 +129,13 @@ export default function CheckoutPage() {
     }
   }
 
-  const handleApplyDiscountCode = () => {
+  const handleApplyDiscountCode = async () => {
     if (!discountCode.trim()) {
       setDiscountError('Bitte geben Sie einen Rabattcode ein')
       return
     }
 
-    const orderItems: OrderItem[] = cartItems.map(item => ({
+    const orderItems = cartItems.map(item => ({
       id: item.product.id,
       type: 'product',
       name: item.product.name,
@@ -143,20 +143,43 @@ export default function CheckoutPage() {
       quantity: item.quantity,
     }))
 
-    const validation = validateDiscountCode(discountCode, subtotal + serviceFee, orderItems)
-    
-    if (validation.valid && validation.discountCode) {
-      setAppliedDiscountCode(validation.discountCode)
-      setDiscountError('')
-      showSuccess(`Rabattcode "${validation.discountCode.code}" angewendet!`)
-    } else {
-      setDiscountError(validation.error || 'Ungültiger Rabattcode')
+    setIsApplyingCode(true)
+    try {
+      const res = await fetch('/api/discount-codes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          code: discountCode.trim(),
+          subtotal: subtotal + serviceFee,
+          items: orderItems,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (data.valid && data.discountCode) {
+        setAppliedDiscountCode(data.discountCode as DiscountCode)
+        setAppliedDiscountAmount(typeof data.discount === 'number' ? data.discount : 0)
+        setDiscountError('')
+        showSuccess(`Rabattcode "${data.discountCode.code}" angewendet!`)
+      } else {
+        setDiscountError(data.error || 'Ungültiger Rabattcode')
+        setAppliedDiscountCode(null)
+        setAppliedDiscountAmount(0)
+      }
+    } catch (err) {
+      console.error('[Checkout] discount validate error:', err)
+      setDiscountError('Validierung fehlgeschlagen')
       setAppliedDiscountCode(null)
+      setAppliedDiscountAmount(0)
+    } finally {
+      setIsApplyingCode(false)
     }
   }
 
   const handleRemoveDiscountCode = () => {
     setAppliedDiscountCode(null)
+    setAppliedDiscountAmount(0)
     setDiscountCode('')
     setDiscountError('')
   }
@@ -204,10 +227,7 @@ export default function CheckoutPage() {
       }
     })
 
-    // Apply discount code if used
-    if (appliedDiscountCode) {
-      applyDiscountCode(appliedDiscountCode.code)
-    }
+    // Discount usage is incremented server-side when the order is finalized.
 
     // GoofyCoins-Zahlung
     if (paymentMethod === 'goofycoins') {
@@ -936,10 +956,11 @@ export default function CheckoutPage() {
                       <button
                         type="button"
                         onClick={handleApplyDiscountCode}
-                        className="px-4 py-3 sm:py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors flex items-center space-x-2 touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm"
+                        disabled={isApplyingCode}
+                        className="px-4 py-3 sm:py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-60 text-white rounded-lg transition-colors flex items-center space-x-2 touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm"
                       >
                         <Tag className="w-4 h-4" />
-                        <span>Anwenden</span>
+                        <span>{isApplyingCode ? 'Prüft...' : 'Anwenden'}</span>
                       </button>
                     </div>
                     {discountError && (

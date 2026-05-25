@@ -33,27 +33,30 @@ export default function NewsletterForm({ variant = 'inline', showTitle = true }:
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    // Save to localStorage
     try {
-      const subscribers = JSON.parse(localStorage.getItem('newsletter-subscribers') || '[]')
-      if (!subscribers.includes(email.toLowerCase().trim())) {
-        subscribers.push(email.toLowerCase().trim())
-        localStorage.setItem('newsletter-subscribers', JSON.stringify(subscribers))
+      const res = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        setError(data.error || 'Anmeldung fehlgeschlagen')
+        return
       }
+
+      setIsSuccess(true)
+      setTimeout(() => {
+        router.push('/newsletter/confirmation')
+      }, 1500)
     } catch (err) {
-      console.error('Error saving newsletter subscription:', err)
+      console.error('[NewsletterForm] subscribe error:', err)
+      setError('Anmeldung fehlgeschlagen. Bitte später erneut versuchen.')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    setIsSubmitting(false)
-    setIsSuccess(true)
-
-    // Redirect to confirmation after 1.5 seconds
-    setTimeout(() => {
-      router.push('/newsletter/confirmation')
-    }, 1500)
   }
 
   if (isSuccess) {
