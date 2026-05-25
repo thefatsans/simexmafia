@@ -359,6 +359,17 @@ export default function AccountPage() {
                   <Trophy className="w-4 h-4" />
                   <span>🏆 Leaderboard</span>
                 </a>
+                <a
+                  href="/account/referral"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    router.push('/account/referral')
+                  }}
+                  className="block w-full bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/30 text-pink-400 px-4 py-3 rounded-lg transition-colors text-center flex items-center justify-center space-x-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>🎁 Freunde einladen</span>
+                </a>
               </div>
             </div>
 
