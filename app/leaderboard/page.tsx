@@ -171,10 +171,10 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Category Tabs */}
-        <div className="flex flex-wrap justify-center gap-4 mb-8">
+        <div className="flex sm:flex-wrap sm:justify-center gap-2 sm:gap-4 mb-8 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-thin">
           <button
             onClick={() => setSelectedCategory('sacks')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center space-x-2 ${
+            className={`flex-shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all flex items-center space-x-2 whitespace-nowrap ${
               selectedCategory === 'sacks'
                 ? 'bg-purple-500 text-white'
                 : 'bg-fortnite-dark border border-purple-500/20 text-gray-300 hover:border-purple-500/50'
@@ -185,7 +185,7 @@ export default function LeaderboardPage() {
           </button>
           <button
             onClick={() => setSelectedCategory('spent')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center space-x-2 ${
+            className={`flex-shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all flex items-center space-x-2 whitespace-nowrap ${
               selectedCategory === 'spent'
                 ? 'bg-purple-500 text-white'
                 : 'bg-fortnite-dark border border-purple-500/20 text-gray-300 hover:border-purple-500/50'
@@ -196,7 +196,7 @@ export default function LeaderboardPage() {
           </button>
           <button
             onClick={() => setSelectedCategory('products')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center space-x-2 ${
+            className={`flex-shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all flex items-center space-x-2 whitespace-nowrap ${
               selectedCategory === 'products'
                 ? 'bg-purple-500 text-white'
                 : 'bg-fortnite-dark border border-purple-500/20 text-gray-300 hover:border-purple-500/50'
@@ -207,7 +207,7 @@ export default function LeaderboardPage() {
           </button>
           <button
             onClick={() => setSelectedCategory('coins')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center space-x-2 ${
+            className={`flex-shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all flex items-center space-x-2 whitespace-nowrap ${
               selectedCategory === 'coins'
                 ? 'bg-purple-500 text-white'
                 : 'bg-fortnite-dark border border-purple-500/20 text-gray-300 hover:border-purple-500/50'
@@ -218,7 +218,7 @@ export default function LeaderboardPage() {
           </button>
           <button
             onClick={() => setSelectedCategory('success')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center space-x-2 ${
+            className={`flex-shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all flex items-center space-x-2 whitespace-nowrap ${
               selectedCategory === 'success'
                 ? 'bg-purple-500 text-white'
                 : 'bg-fortnite-dark border border-purple-500/20 text-gray-300 hover:border-purple-500/50'
@@ -246,41 +246,41 @@ export default function LeaderboardPage() {
           <div className="space-y-4">
             {/* Top 3 Podium - nur wenn mindestens 3 Einträge vorhanden */}
             {leaderboard.length >= 3 && (
-              <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
                 {/* 2nd Place */}
-                <div className="bg-fortnite-dark border border-gray-300/30 rounded-lg p-6 text-center transform scale-95">
-                  <div className="flex justify-center mb-3">
-                    <Medal className="w-8 h-8 text-gray-300" />
+                <div className="bg-fortnite-dark border border-gray-300/30 rounded-lg p-4 sm:p-6 text-center sm:transform sm:scale-95 sm:order-1">
+                  <div className="flex justify-center mb-2 sm:mb-3">
+                    <Medal className="w-7 h-7 sm:w-8 sm:h-8 text-gray-300" />
                   </div>
-                  <div className="text-4xl mb-2">{leaderboard[1].avatar || '👤'}</div>
-                  <h3 className="text-white font-bold text-lg mb-1">{leaderboard[1].userName}</h3>
-                  <div className="text-gray-300 font-semibold text-xl mb-2">
+                  <div className="text-3xl sm:text-4xl mb-2">{leaderboard[1].avatar || '👤'}</div>
+                  <h3 className="text-white font-bold text-base sm:text-lg mb-1 truncate">{leaderboard[1].userName}</h3>
+                  <div className="text-gray-300 font-semibold text-lg sm:text-xl mb-2 truncate">
                     {getCategoryValue(leaderboard[1])}
                   </div>
                   <div className="text-gray-400 text-sm">#{2}</div>
                 </div>
 
                 {/* 1st Place */}
-                <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border-2 border-yellow-500/50 rounded-lg p-6 text-center transform scale-105 relative">
+                <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border-2 border-yellow-500/50 rounded-lg p-4 sm:p-6 text-center sm:transform sm:scale-105 relative sm:order-2">
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <Crown className="w-10 h-10 text-yellow-400" />
+                    <Crown className="w-9 h-9 sm:w-10 sm:h-10 text-yellow-400" />
                   </div>
-                  <div className="text-5xl mb-2 mt-4">{leaderboard[0].avatar || '👑'}</div>
-                  <h3 className="text-white font-bold text-xl mb-1">{leaderboard[0].userName}</h3>
-                  <div className="text-yellow-400 font-bold text-2xl mb-2">
+                  <div className="text-4xl sm:text-5xl mb-2 mt-4">{leaderboard[0].avatar || '👑'}</div>
+                  <h3 className="text-white font-bold text-lg sm:text-xl mb-1 truncate">{leaderboard[0].userName}</h3>
+                  <div className="text-yellow-400 font-bold text-xl sm:text-2xl mb-2 truncate">
                     {getCategoryValue(leaderboard[0])}
                   </div>
                   <div className="text-yellow-400 font-semibold">#{1}</div>
                 </div>
 
                 {/* 3rd Place */}
-                <div className="bg-fortnite-dark border border-orange-300/30 rounded-lg p-6 text-center transform scale-95">
-                  <div className="flex justify-center mb-3">
-                    <Award className="w-8 h-8 text-orange-400" />
+                <div className="bg-fortnite-dark border border-orange-300/30 rounded-lg p-4 sm:p-6 text-center sm:transform sm:scale-95 sm:order-3">
+                  <div className="flex justify-center mb-2 sm:mb-3">
+                    <Award className="w-7 h-7 sm:w-8 sm:h-8 text-orange-400" />
                   </div>
-                  <div className="text-4xl mb-2">{leaderboard[2].avatar || '👤'}</div>
-                  <h3 className="text-white font-bold text-lg mb-1">{leaderboard[2].userName}</h3>
-                  <div className="text-orange-400 font-semibold text-xl mb-2">
+                  <div className="text-3xl sm:text-4xl mb-2">{leaderboard[2].avatar || '👤'}</div>
+                  <h3 className="text-white font-bold text-base sm:text-lg mb-1 truncate">{leaderboard[2].userName}</h3>
+                  <div className="text-orange-400 font-semibold text-lg sm:text-xl mb-2 truncate">
                     {getCategoryValue(leaderboard[2])}
                   </div>
                   <div className="text-gray-400 text-sm">#{3}</div>
@@ -298,7 +298,7 @@ export default function LeaderboardPage() {
                   return (
                     <div
                       key={entry.userId}
-                      className={`bg-gradient-to-br ${rank === 1 ? 'from-yellow-500/20 to-yellow-600/20 border-2 border-yellow-500/50' : 'from-fortnite-dark border border-purple-500/30'} rounded-lg p-6 hover:border-purple-500/50 transition-all ${
+                      className={`bg-gradient-to-br ${rank === 1 ? 'from-yellow-500/20 to-yellow-600/20 border-2 border-yellow-500/50' : 'from-fortnite-dark border border-purple-500/30'} rounded-lg p-4 sm:p-6 hover:border-purple-500/50 transition-all ${
                         isCurrentUser
                           ? 'ring-2 ring-purple-500/30'
                           : ''
@@ -325,21 +325,21 @@ export default function LeaderboardPage() {
                               {isCurrentUser && <span className="text-purple-400 text-sm ml-2">(Du)</span>}
                             </h3>
                           </div>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-400">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-xs sm:text-sm text-gray-400">
                             <span>{entry.stats.totalSacksOpened} Säcke</span>
-                            <span>•</span>
+                            <span className="hidden sm:inline">•</span>
                             <span>{entry.stats.totalProductsWon} Produkte</span>
-                            <span>•</span>
+                            <span className="hidden sm:inline">•</span>
                             <span className="flex items-center space-x-1">
-                              <Flame className="w-4 h-4" />
-                              <span>{entry.stats.successRate.toFixed(1)}% Erfolg</span>
+                              <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              <span>{entry.stats.successRate.toFixed(1)}%</span>
                             </span>
                           </div>
                         </div>
 
                         {/* Category Value */}
-                        <div className="text-right">
-                          <div className={`text-2xl font-bold ${rank === 1 ? 'text-yellow-400' : 'text-purple-400'}`}>
+                        <div className="text-right flex-shrink-0">
+                          <div className={`text-xl sm:text-2xl font-bold ${rank === 1 ? 'text-yellow-400' : 'text-purple-400'}`}>
                             {getCategoryValue(entry)}
                           </div>
                           {selectedCategory === 'sacks' && entry.stats.favoriteSackType && (
@@ -393,7 +393,7 @@ export default function LeaderboardPage() {
                 return (
                   <div
                     key={entry.userId}
-                    className={`bg-fortnite-dark border rounded-lg p-6 hover:border-purple-500/50 transition-all ${
+                    className={`bg-fortnite-dark border rounded-lg p-4 sm:p-6 hover:border-purple-500/50 transition-all ${
                       isCurrentUser
                         ? 'border-purple-500/50 ring-2 ring-purple-500/30'
                         : 'border-purple-500/20'
@@ -416,21 +416,21 @@ export default function LeaderboardPage() {
                             {isCurrentUser && <span className="text-purple-400 text-sm ml-2">(Du)</span>}
                           </h3>
                         </div>
-                        <div className="flex items-center space-x-4 mt-2 text-sm text-gray-400">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-xs sm:text-sm text-gray-400">
                           <span>{entry.stats.totalSacksOpened} Säcke</span>
-                          <span>•</span>
+                          <span className="hidden sm:inline">•</span>
                           <span>{entry.stats.totalProductsWon} Produkte</span>
-                          <span>•</span>
+                          <span className="hidden sm:inline">•</span>
                           <span className="flex items-center space-x-1">
-                            <Flame className="w-4 h-4" />
-                            <span>{entry.stats.successRate.toFixed(1)}% Erfolg</span>
+                            <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            <span>{entry.stats.successRate.toFixed(1)}%</span>
                           </span>
                         </div>
                       </div>
 
                       {/* Category Value */}
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-purple-400">
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-xl sm:text-2xl font-bold text-purple-400">
                           {getCategoryValue(entry)}
                         </div>
                         {selectedCategory === 'sacks' && entry.stats.favoriteSackType && (

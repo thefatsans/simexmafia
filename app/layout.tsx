@@ -13,6 +13,7 @@ import { ChatProvider } from '@/contexts/ChatContext'
 import StructuredData from '@/components/StructuredData'
 import ChatWidget from '@/components/ChatWidget'
 import CookieConsent from '@/components/CookieConsent'
+import MobileBottomNav from '@/components/MobileBottomNav'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -106,12 +107,13 @@ export default function RootLayout({
                   <ToastProvider>
                     <ChatProvider>
                       <Navbar />
-                      <main className="min-h-screen relative z-0">
+                      <main className="min-h-screen relative z-0 pb-16 lg:pb-0">
                         {children}
                       </main>
                       <Footer />
                       <ChatWidget />
                       <CookieConsent />
+                      <MobileBottomNav />
                     </ChatProvider>
                   </ToastProvider>
                 </CompareProvider>

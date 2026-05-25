@@ -31,6 +31,7 @@ export default function SacksPage() {
   const [possibleRewards, setPossibleRewards] = useState<Array<{ reward: SackReward; rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' }>>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isSpinning, setIsSpinning] = useState(false)
+  const [cardWidth, setCardWidth] = useState(304)
   const animationFrameRef = useRef<number | null>(null)
   const startTimeRef = useRef<number | null>(null)
   const currentIndexRef = useRef(0)
@@ -65,6 +66,17 @@ export default function SacksPage() {
         cancelAnimationFrame(animationFrameRef.current)
       }
     }
+  }, [])
+
+  // Responsive card width for the opening animation (mobile vs desktop)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const updateCardWidth = () => {
+      setCardWidth(window.innerWidth < 640 ? 220 : 304)
+    }
+    updateCardWidth()
+    window.addEventListener('resize', updateCardWidth)
+    return () => window.removeEventListener('resize', updateCardWidth)
   }, [])
 
   // Show loading state while checking auth
@@ -454,24 +466,26 @@ export default function SacksPage() {
     <div className="min-h-screen py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <div></div>
-            <h1 className="text-5xl font-bold text-white">Sack-Öffnungs-System</h1>
-            <a
-              href="/sacks/history"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                window.location.href = '/sacks/history'
-              }}
-              className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
-            >
-              <History className="w-5 h-5" />
-              <span>Historie</span>
-            </a>
+        <div className="text-center mb-8 sm:mb-12">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="hidden sm:block sm:flex-1"></div>
+            <h1 className="text-3xl sm:text-5xl font-bold text-white sm:flex-1 sm:text-center">Sack-Öffnungs-System</h1>
+            <div className="sm:flex-1 sm:flex sm:justify-end">
+              <a
+                href="/sacks/history"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  window.location.href = '/sacks/history'
+                }}
+                className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 px-4 py-2 rounded-lg transition-colors flex items-center justify-center space-x-2 w-full sm:w-auto"
+              >
+                <History className="w-5 h-5" />
+                <span>Historie</span>
+              </a>
+            </div>
           </div>
-          <p className="text-xl text-gray-400 mb-6">
+          <p className="text-base sm:text-xl text-gray-400 mb-6">
             Öffnen Sie Säcke und gewinnen Sie tolle Belohnungen!
           </p>
           <div className="flex items-center justify-center space-x-4">
@@ -558,7 +572,7 @@ export default function SacksPage() {
               </div>
 
               {/* Card Carousel */}
-              <div className="relative h-[500px] overflow-hidden">
+              <div className="relative h-[380px] sm:h-[500px] overflow-hidden">
                 {/* Center Indicator Lines */}
                 <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-1 h-full bg-gradient-to-b from-transparent via-white to-transparent opacity-30 z-20 pointer-events-none" />
                 
@@ -566,7 +580,7 @@ export default function SacksPage() {
                 <div 
                   className="flex h-full items-center"
                   style={{
-                    transform: `translateX(calc(50% - ${(currentIndex % (possibleRewards.length * 15)) * 304}px - 150px))`,
+                    transform: `translateX(calc(50% - ${(currentIndex % (possibleRewards.length * 15)) * cardWidth}px - ${cardWidth / 2}px))`,
                     willChange: 'transform',
                   }}
                 >
@@ -614,7 +628,7 @@ export default function SacksPage() {
                         key={absoluteIndex}
                         className="flex-shrink-0 flex items-center justify-center h-full"
                         style={{
-                          width: '304px',
+                          width: `${cardWidth}px`,
                           paddingLeft: '2px',
                           paddingRight: '2px',
                         }}

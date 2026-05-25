@@ -664,25 +664,25 @@ export default function InventoryPage() {
     <div className="min-h-screen py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-12">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8 sm:mb-12">
           <div>
-            <h1 className="text-5xl font-bold text-white mb-4">Mein Inventar</h1>
-            <p className="text-xl text-gray-400">
+            <h1 className="text-3xl sm:text-5xl font-bold text-white mb-2 sm:mb-4">Mein Inventar</h1>
+            <p className="text-base sm:text-xl text-gray-400">
               Alle Ihre gewonnenen und gekauften Produkte
             </p>
           </div>
           {inventory.length > 0 && (
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:flex-shrink-0">
               <button
                 onClick={removeDuplicates}
-                className="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 px-4 py-3 sm:py-2 rounded-lg transition-colors flex items-center space-x-2 touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm"
+                className="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 px-4 py-3 sm:py-2 rounded-lg transition-colors flex items-center justify-center space-x-2 touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm w-full sm:w-auto"
               >
                 <Package className="w-5 h-5 sm:w-4 sm:h-4" />
                 <span>Duplikate entfernen</span>
               </button>
               <button
                 onClick={() => setShowClearConfirm(true)}
-                className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-3 sm:py-2 rounded-lg transition-colors flex items-center space-x-2 touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm"
+                className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-3 sm:py-2 rounded-lg transition-colors flex items-center justify-center space-x-2 touch-manipulation min-h-[44px] sm:min-h-[36px] text-base sm:text-sm w-full sm:w-auto"
               >
                 <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
                 <span>Inventar löschen</span>

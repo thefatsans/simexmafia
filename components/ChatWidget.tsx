@@ -52,7 +52,7 @@ export default function ChatWidget() {
       {!isOpen && (
         <button
           onClick={toggleChat}
-          className="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all transform hover:scale-110 z-[9998] flex items-center justify-center group"
+          className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 w-14 h-14 lg:w-16 lg:h-16 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all transform hover:scale-110 z-[9998] flex items-center justify-center group"
           aria-label="Chat öffnen"
           suppressHydrationWarning
         >
@@ -67,7 +67,7 @@ export default function ChatWidget() {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 h-[600px] bg-fortnite-dark dark:bg-fortnite-dark light:bg-white border border-purple-500/30 dark:border-purple-500/30 light:border-gray-200 rounded-lg shadow-2xl flex flex-col z-[9999] overflow-hidden">
+        <div className="fixed bottom-20 right-3 left-3 lg:bottom-6 lg:right-6 lg:left-auto lg:w-96 h-[min(600px,75vh)] lg:h-[600px] bg-fortnite-dark dark:bg-fortnite-dark light:bg-white border border-purple-500/30 dark:border-purple-500/30 light:border-gray-200 rounded-lg shadow-2xl flex flex-col z-[9999] overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4 flex items-center justify-between">
             <div className="flex items-center space-x-3">

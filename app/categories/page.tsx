@@ -108,14 +108,14 @@ export default function CategoriesPage() {
               >
                 <Link
                   href={`/categories/${category}`}
-                  className="group bg-fortnite-dark border border-purple-500/20 rounded-lg p-8 hover:border-purple-500/50 smooth-hover scale-on-hover block h-full"
+                  className="group bg-fortnite-dark border border-purple-500/20 rounded-lg p-6 sm:p-8 hover:border-purple-500/50 smooth-hover scale-on-hover block h-full"
                 >
-                  <div className="text-6xl mb-4">{info.icon}</div>
-                  <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-purple-400 smooth-hover">
+                  <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">{info.icon}</div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 group-hover:text-purple-400 smooth-hover">
                     {info.name}
                   </h2>
-                  <p className="text-gray-400 mb-4">{info.description}</p>
-                  <p className="text-purple-400 font-semibold">
+                  <p className="text-gray-400 text-sm sm:text-base mb-3 sm:mb-4">{info.description}</p>
+                  <p className="text-purple-400 font-semibold text-sm sm:text-base">
                     {isLoading ? '...' : `${count} Produkte`} →
                   </p>
                 </Link>

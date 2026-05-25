@@ -13,8 +13,11 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pointer-events-auto">
           {/* Brand */}
           <div className="col-span-1 pointer-events-auto relative z-[10001]">
-            <div className="mb-4">
+            <div className="mb-4 hidden md:block">
               <Logo width={200} height={200} showText={true} />
+            </div>
+            <div className="mb-4 md:hidden">
+              <Logo width={120} height={120} showText={true} />
             </div>
             <p className="text-gray-400 text-sm">
               Ihr vertrauenswürdiger Marktplatz für digitale Gaming-Produkte. Powered by Simex.

@@ -53,27 +53,144 @@ export default function ComparePage() {
     { key: 'inStock', label: 'Verfügbarkeit', icon: Package },
   ]
 
+  const renderFeatureValue = (feature: typeof features[number], product: Product) => {
+    switch (feature.key) {
+      case 'price':
+        return <span className="text-white font-semibold text-lg">€{product.price.toFixed(2)}</span>
+      case 'originalPrice':
+        return (
+          <span className={product.originalPrice ? 'text-gray-400 line-through' : 'text-gray-600'}>
+            {product.originalPrice ? `€${product.originalPrice.toFixed(2)}` : '-'}
+          </span>
+        )
+      case 'discount':
+        return (
+          <span className={product.discount ? 'text-green-400 font-semibold' : 'text-gray-600'}>
+            {product.discount ? `-${product.discount}%` : '-'}
+          </span>
+        )
+      case 'platform':
+        return (
+          <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-sm">{product.platform}</span>
+        )
+      case 'category':
+        return <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-sm">{product.category}</span>
+      case 'rating':
+        return (
+          <div className="flex items-center space-x-1">
+            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+            <span>{product.rating.toFixed(1)}</span>
+          </div>
+        )
+      case 'reviewCount':
+        return <span>{product.reviewCount}</span>
+      case 'seller':
+        return (
+          <div className="flex items-center gap-1">
+            <span className="text-white">{product.seller.name}</span>
+            {product.seller.verified && <Shield className="w-4 h-4 text-green-400" />}
+          </div>
+        )
+      case 'inStock':
+        return (
+          <span
+            className={`px-2 py-1 rounded text-sm ${
+              product.inStock ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+            }`}
+          >
+            {product.inStock ? 'Auf Lager' : 'Nicht verfügbar'}
+          </span>
+        )
+    }
+    return null
+  }
+
   return (
     <div className="min-h-screen py-12 bg-fortnite-darker">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Produktvergleich</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Produktvergleich</h1>
             <p className="text-gray-400">
               Vergleichen Sie bis zu {compareItems.length} Produkte
             </p>
           </div>
           <button
             onClick={clearCompare}
-            className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 rounded-lg transition-colors"
+            className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 rounded-lg transition-colors w-full sm:w-auto"
           >
             Alle entfernen
           </button>
         </div>
 
-        {/* Comparison Table */}
-        <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg overflow-hidden">
+        {/* Mobile Card Layout (below lg) */}
+        <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {compareItems.map((product) => (
+            <div
+              key={product.id}
+              className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-4 relative"
+            >
+              <button
+                onClick={() => removeFromCompare(product.id)}
+                className="absolute top-2 right-2 text-gray-400 hover:text-red-400 transition-colors p-1"
+                aria-label="Entfernen"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center mb-4 pt-4">
+                <div className="relative w-28 h-28 mx-auto mb-3 bg-gradient-to-br from-purple-900/50 to-yellow-900/50 rounded-lg overflow-hidden">
+                  {product.image ? (
+                    <Image src={product.image} alt={product.name} fill className="object-cover" sizes="112px" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package className="w-10 h-10 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                <h3 className="text-white font-semibold text-base mb-2 line-clamp-2">{product.name}</h3>
+                <button
+                  onClick={() => { window.location.href = `/products/${product.id}` }}
+                  className="text-purple-400 hover:text-purple-300 text-xs"
+                >
+                  Details ansehen
+                </button>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                {features.map((feature) => {
+                  const Icon = feature.icon
+                  return (
+                    <div
+                      key={feature.key}
+                      className="flex items-center justify-between gap-3 py-2 border-b border-purple-500/10 last:border-0 text-sm"
+                    >
+                      <div className="flex items-center gap-2 text-gray-400 flex-shrink-0">
+                        <Icon className="w-4 h-4 text-purple-400" />
+                        <span>{feature.label}</span>
+                      </div>
+                      <div className="text-right text-gray-300 min-w-0">
+                        {renderFeatureValue(feature, product)}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <button
+                onClick={() => handleAddToCart(product)}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-4 py-2.5 rounded-lg transition-all flex items-center justify-center space-x-2 text-sm"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                <span>In den Warenkorb</span>
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Comparison Table (lg and up) */}
+        <div className="hidden lg:block bg-fortnite-dark border border-purple-500/20 rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-fortnite-darker border-b border-purple-500/20">

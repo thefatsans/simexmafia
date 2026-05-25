@@ -177,7 +177,7 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
                   {product.platform}
                 </span>
               </div>
-              <h1 className="text-4xl font-bold text-white mb-4">{product.name}</h1>
+              <h1 className="text-2xl sm:text-4xl font-bold text-white mb-4 break-words">{product.name}</h1>
               
               {/* Rating */}
               <div className="flex items-center space-x-4 mb-6">
@@ -199,18 +199,18 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
 
               {/* Price */}
               <div className="mb-6">
-                <div className="flex items-baseline space-x-4 mb-2">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
                   {product.discount && product.discount > 0 ? (
                     <>
-                      <span className="text-5xl font-bold text-white">€{product.price.toFixed(2)}</span>
+                      <span className="text-3xl sm:text-5xl font-bold text-white">€{product.price.toFixed(2)}</span>
                       {product.originalPrice && (
-                        <span className="text-2xl text-gray-500 line-through">
+                        <span className="text-xl sm:text-2xl text-gray-500 line-through">
                           €{product.originalPrice.toFixed(2)}
                         </span>
                       )}
                     </>
                   ) : (
-                    <span className="text-5xl font-bold text-white">
+                    <span className="text-3xl sm:text-5xl font-bold text-white">
                       €{(product.originalPrice || product.price).toFixed(2)}
                     </span>
                   )}
@@ -222,33 +222,31 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
 
               {/* Seller Info */}
               <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-4 mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-white font-medium">Verkauft von:</span>
-                    <a
-                      href={`/sellers/${product.seller.id}`}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        window.location.href = `/sellers/${product.seller.id}`
-                      }}
-                      className="text-purple-400 hover:text-purple-300 transition-colors cursor-pointer"
-                    >
-                      {product.seller.name}
-                    </a>
-                    {product.seller.verified && (
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                    )}
-                  </div>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="text-white font-medium">Verkauft von:</span>
+                  <a
+                    href={`/sellers/${product.seller.id}`}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      window.location.href = `/sellers/${product.seller.id}`
+                    }}
+                    className="text-purple-400 hover:text-purple-300 transition-colors cursor-pointer"
+                  >
+                    {product.seller.name}
+                  </a>
+                  {product.seller.verified && (
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                  )}
                 </div>
-                <div className="flex items-center space-x-4 text-sm text-gray-400">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-400">
                   <div className="flex items-center">
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 mr-1" />
                     <span>{product.seller.rating}</span>
                   </div>
-                  <span>•</span>
+                  <span className="hidden sm:inline">•</span>
                   <span>{product.seller.reviewCount} Bewertungen</span>
-                  <span>•</span>
+                  <span className="hidden sm:inline">•</span>
                   <a
                     href={`/sellers/${product.seller.id}`}
                     onClick={(e) => {

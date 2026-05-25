@@ -201,20 +201,20 @@ export default function PaymentCheckout({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 overflow-y-auto">
-      <div className="bg-fortnite-dark border border-purple-500/30 rounded-lg p-8 max-w-2xl w-full relative my-8">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-fortnite-dark border border-purple-500/30 rounded-lg p-4 sm:p-8 max-w-2xl w-full relative my-4 sm:my-8">
         {onCancel && (
           <button
             onClick={onCancel}
-            className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-400 hover:text-white transition-colors p-1"
           >
             <X className="w-6 h-6" />
           </button>
         )}
 
-        <h2 className="text-3xl font-bold text-white mb-6">{title}</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4 sm:mb-6 pr-10">{title}</h2>
 
-        <div className="bg-fortnite-darker rounded-lg p-6 mb-6">
+        <div className="bg-fortnite-darker rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
           <h3 className="text-white font-semibold mb-4">Bestellübersicht</h3>
           <div className="space-y-2 mb-4">
             {items.map((item, index) => (

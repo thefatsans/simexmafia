@@ -75,7 +75,8 @@ export default function CookieConsent() {
     <div
       role="dialog"
       aria-live="polite"
-      className="fixed bottom-4 left-4 right-4 md:left-6 md:right-auto md:max-w-md z-[60] bg-fortnite-dark border border-purple-500/30 rounded-xl shadow-2xl backdrop-blur"
+      className="fixed bottom-20 left-3 right-3 lg:bottom-6 lg:left-6 lg:right-auto lg:max-w-md z-[9999] bg-fortnite-dark border border-purple-500/30 rounded-xl shadow-2xl backdrop-blur"
+      style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">

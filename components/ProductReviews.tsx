@@ -65,13 +65,13 @@ export default function ProductReviews({ reviews, productId }: ProductReviewsPro
   return (
     <div className="space-y-8">
       {/* Reviews Summary */}
-      <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
           <h3 className="text-2xl font-bold text-white">Kundenbewertungen</h3>
           {isAuthenticated && !userHasReviewed && (
             <button
               onClick={() => router.push(`/products/${productId}/review`)}
-              className="inline-flex items-center space-x-2 bg-purple-500 hover:bg-purple-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
+              className="inline-flex items-center justify-center space-x-2 bg-purple-500 hover:bg-purple-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
             >
               <Edit3 className="w-4 h-4" />
               <span>Bewertung schreiben</span>

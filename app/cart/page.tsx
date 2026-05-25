@@ -126,7 +126,7 @@ export default function CartPage() {
 
           {/* Order Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6 sticky top-24">
+            <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6 lg:sticky lg:top-24">
               <h2 className="text-xl font-bold text-white mb-6">Bestellübersicht</h2>
 
               <div className="space-y-4 mb-6">

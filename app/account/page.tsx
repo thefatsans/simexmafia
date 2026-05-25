@@ -108,8 +108,8 @@ export default function AccountPage() {
           {/* Left Column - Profile */}
           <div className="lg:col-span-2 space-y-6">
             {/* Profile Card */}
-            <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-6">
+            <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
                 <h2 className="text-2xl font-bold text-white flex items-center">
                   <User className="w-6 h-6 mr-2 text-purple-400" />
                   Profil
@@ -117,23 +117,23 @@ export default function AccountPage() {
                 {!isEditing ? (
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="flex items-center space-x-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 px-4 py-2 rounded-lg transition-colors"
+                    className="flex items-center justify-center space-x-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
                   >
                     <Edit2 className="w-4 h-4" />
                     <span>Bearbeiten</span>
                   </button>
                 ) : (
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:space-x-2">
                     <button
                       onClick={handleSave}
-                      className="flex items-center space-x-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-colors"
+                      className="flex items-center justify-center space-x-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
                     >
                       <Save className="w-4 h-4" />
                       <span>Speichern</span>
                     </button>
                     <button
                       onClick={handleCancel}
-                      className="flex items-center space-x-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-2 rounded-lg transition-colors"
+                      className="flex items-center justify-center space-x-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
                     >
                       <X className="w-4 h-4" />
                       <span>Abbrechen</span>
@@ -143,7 +143,7 @@ export default function AccountPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Vorname

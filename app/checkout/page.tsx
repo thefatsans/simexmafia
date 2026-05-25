@@ -575,7 +575,7 @@ export default function CheckoutPage() {
           <p className="text-gray-400">Schließen Sie Ihren Kauf sicher ab</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-24 lg:pb-0">
           {/* Left Column - Forms */}
           <div className="lg:col-span-2 space-y-8">
             {/* Billing Information */}
@@ -1067,6 +1067,38 @@ export default function CheckoutPage() {
               </p>
             </div>
           </div>
+
+          {/* Mobile Sticky Bottom CTA */}
+          {!stripeOrderId && (
+            <div
+              className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-purple-500/30 bg-fortnite-darker/95 backdrop-blur-md p-3 flex items-center gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.4)]"
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}
+            >
+              <div className="flex-shrink-0">
+                <p className="text-gray-400 text-xs">Gesamt</p>
+                <p className="text-white font-bold text-lg leading-tight">€{finalTotal.toFixed(2)}</p>
+              </div>
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-4 py-3 rounded-lg transition-all flex items-center justify-center space-x-2 touch-manipulation min-h-[48px] text-sm"
+              >
+                {mounted && isProcessing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Verarbeite...</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    <span>
+                      {paymentMethod === 'credit-card' ? 'Zur Zahlung' : 'Kauf abschließen'}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

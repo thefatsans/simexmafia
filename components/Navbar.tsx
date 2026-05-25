@@ -205,7 +205,7 @@ export default function Navbar() {
                 e.stopPropagation()
                 window.location.href = '/compare'
               }}
-              className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="hidden sm:flex relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] items-center justify-center touch-manipulation"
               title="Produktvergleich"
             >
               <GitCompare className="w-5 h-5" />
@@ -217,7 +217,7 @@ export default function Navbar() {
             </a>
             <button
               onClick={toggleTheme}
-              className="p-2 text-gray-300 hover:text-summer-sky-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
+              className="hidden sm:flex p-2 text-gray-300 hover:text-summer-sky-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] items-center justify-center touch-manipulation"
               title={mounted ? (theme === 'dark' ? 'Light Mode aktivieren' : 'Dark Mode aktivieren') : 'Theme wechseln'}
               suppressHydrationWarning
             >
@@ -317,18 +317,42 @@ export default function Navbar() {
           <>
             {/* Backdrop */}
             <div 
-              className="md:hidden fixed inset-0 bg-black/80 z-[9998]"
+              className="lg:hidden fixed inset-0 bg-black/80 z-[9998]"
               style={{ top: '72px' }}
               onClick={() => setIsMenuOpen(false)}
             />
             {/* Menu Content */}
-            <div className="md:hidden border-t-2 border-purple-500/50 pointer-events-auto fixed left-0 right-0 z-[9999] overflow-y-auto shadow-2xl" style={{ 
+            <div className="lg:hidden border-t-2 border-purple-500/50 pointer-events-auto fixed left-0 right-0 z-[9999] overflow-y-auto shadow-2xl" style={{ 
               top: '72px', 
               maxHeight: 'calc(100vh - 72px)',
               background: 'linear-gradient(180deg, rgba(8, 20, 35, 0.98) 0%, rgba(4, 12, 24, 0.98) 100%)',
               backdropFilter: 'blur(20px)'
             }}>
               <div className="flex flex-col space-y-2 px-4 py-4 pb-20 pointer-events-auto min-h-full bg-gradient-to-b from-transparent to-purple-900/10">
+              {/* Mobile Search */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  if (searchQuery.trim()) {
+                    setIsMenuOpen(false)
+                    router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+                    setSearchQuery('')
+                  }
+                }}
+                className="md:hidden mb-2"
+              >
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Suchen..."
+                    className="w-full pl-10 pr-4 py-3 text-base bg-fortnite-dark border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
+                    autoComplete="off"
+                  />
+                </div>
+              </form>
               <a 
                 href="/" 
                 onClick={(e) => {
@@ -376,6 +400,38 @@ export default function Navbar() {
                 className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
               >
                 Verkäufer
+              </a>
+              <a
+                href="/sacks"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setIsMenuOpen(false)
+                  window.location.href = '/sacks'
+                }}
+                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
+              >
+                🎁 Säcke öffnen
+              </a>
+              <a
+                href="/cart"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setIsMenuOpen(false)
+                  window.location.href = '/cart'
+                }}
+                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30 flex items-center justify-between"
+              >
+                <span className="flex items-center gap-2">
+                  <ShoppingCart className="w-5 h-5" />
+                  Warenkorb
+                </span>
+                {cartCount > 0 && (
+                  <span className="bg-purple-500 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[24px] text-center">
+                    {cartCount > 9 ? '9+' : cartCount}
+                  </span>
+                )}
               </a>
               <a 
                 href="/inventory" 

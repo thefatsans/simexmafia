@@ -116,14 +116,17 @@ export default function Home() {
   }, [recentlyViewed])
 
   useEffect(() => {
-    // Show newsletter modal on first visit (after 3 seconds)
+    // Show newsletter modal on first visit. On mobile, suppress modal entirely
+    // to avoid blocking the small viewport; only show on >= md screens, with a longer delay.
     const hasSeenModal = localStorage.getItem('newsletter-modal-seen')
-    if (!hasSeenModal) {
-      const timer = setTimeout(() => {
-        setShowNewsletterModal(true)
-      }, 3000)
-      return () => clearTimeout(timer)
-    }
+    if (hasSeenModal) return
+    if (typeof window === 'undefined') return
+    const isDesktop = window.matchMedia('(min-width: 768px)').matches
+    if (!isDesktop) return
+    const timer = setTimeout(() => {
+      setShowNewsletterModal(true)
+    }, 30000)
+    return () => clearTimeout(timer)
   }, [])
 
   const categories = [
