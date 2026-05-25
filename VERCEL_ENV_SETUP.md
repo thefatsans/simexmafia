@@ -2,12 +2,13 @@
 
 ## 🔴 WICHTIG (für Produktion erforderlich)
 
-### 1. Database
+### 1. Database (Supabase Pooler — Projekt `byeftmpqmovxikdfajyj`)
 ```
-DATABASE_URL=postgresql://user:password@host:port/database
+DATABASE_URL=postgresql://postgres.byeftmpqmovxikdfajyj:[DEIN-PASSWORT]@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require
 ```
-- **Woher?** Deine PostgreSQL-Datenbank (z.B. Vercel Postgres, Supabase, Neon, etc.)
-- **Wichtig:** Ohne diese Variable funktioniert Prisma nicht!
+- **Woher?** Supabase → Project Settings → Database → Connection string (Session pooler, Port **5432**)
+- **Wichtig:** Nicht die localhost-URL aus `.env` verwenden! Nur `.env.local` / Vercel.
+- Nach Schema-Updates in Supabase SQL Editor ausführen: `prisma/add-sack-open.sql`, `prisma/add-seller-simexmafia.sql`
 
 ### 2. PayPal (für Zahlungen)
 ```

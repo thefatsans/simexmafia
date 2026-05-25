@@ -1,18 +1,15 @@
 import { NextResponse } from 'next/server'
-import { checkDatabaseConfig } from '@/lib/api-error-handler'
+import { checkDatabaseConnection } from '@/lib/db-health'
 
 // GET /api/health - Health check endpoint
 export async function GET() {
   try {
-    const dbConfig = checkDatabaseConfig()
-    
+    const database = await checkDatabaseConnection()
+
     return NextResponse.json({
-      status: 'ok',
+      status: database.connected ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
-      database: {
-        configured: dbConfig.configured,
-        error: dbConfig.error,
-      },
+      database,
       environment: process.env.NODE_ENV,
     })
   } catch (error: any) {

@@ -1,8 +1,10 @@
+import { getDatabaseUrl, loadLocalEnv } from '@/lib/load-env'
+
+loadLocalEnv()
+
 // Set TLS rejection to false for Supabase BEFORE any imports
-// This is necessary because Supabase uses self-signed certificates
-if (process.env.DATABASE_URL?.includes('supabase') && process.env.NODE_TLS_REJECT_UNAUTHORIZED === undefined) {
+if (getDatabaseUrl()?.includes('supabase') && process.env.NODE_TLS_REJECT_UNAUTHORIZED === undefined) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-  console.log('[Prisma] Set NODE_TLS_REJECT_UNAUTHORIZED=0 for Supabase SSL (before imports)')
 }
 
 import { PrismaClient } from '@prisma/client'
@@ -13,18 +15,23 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// For Prisma 7, we need to ensure DATABASE_URL is set
-if (!process.env.DATABASE_URL) {
-  console.warn('DATABASE_URL is not set. Prisma Client may not work correctly.')
+const databaseUrl = getDatabaseUrl()
+
+if (!databaseUrl) {
+  console.warn('[Prisma] DATABASE_URL is not set. Use .env.local (see .env.example).')
+} else if (databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')) {
+  console.warn(
+    '[Prisma] DATABASE_URL points to localhost — check that .env.local overrides the template .env'
+  )
 }
 
 // Create adapter with fixed connection string
 let adapter: PrismaPg | undefined
 
-if (process.env.DATABASE_URL) {
+if (databaseUrl) {
   try {
     console.log('[Prisma] Initializing connection pool...')
-    let dbUrl = process.env.DATABASE_URL
+    let dbUrl = databaseUrl
     
     // Fix DATABASE_URL for Supabase if needed
     if (dbUrl.includes('supabase')) {
@@ -59,8 +66,8 @@ if (process.env.DATABASE_URL) {
             // Convert direct connection to Session Pooler (use env override or default region)
             const poolerHost =
               process.env.SUPABASE_POOLER_HOST ||
-              'aws-0-eu-central-1.pooler.supabase.com'
-            const poolerPort = process.env.SUPABASE_POOLER_PORT || '6543'
+              'aws-0-eu-west-1.pooler.supabase.com'
+            const poolerPort = process.env.SUPABASE_POOLER_PORT || '5432'
             const poolerUsername = `postgres.${projectRef}`
             const newQuery = queryParams ? `${queryParams}&sslmode=require` : 'sslmode=require'
 
@@ -91,9 +98,9 @@ if (process.env.DATABASE_URL) {
             rejectUnauthorized: false,
           } as any
         : undefined,
-      connectionTimeoutMillis: 30000, // Increased timeout for direct connection
-      idleTimeoutMillis: 30000,
-      max: 10,
+      connectionTimeoutMillis: 15000,
+      idleTimeoutMillis: 10000,
+      max: process.env.VERCEL || process.env.NODE_ENV === 'production' ? 1 : 5,
       // Retry connection on failure
       keepAlive: true,
       keepAliveInitialDelayMillis: 10000,
@@ -118,7 +125,7 @@ if (process.env.DATABASE_URL) {
 // Create Prisma Client with adapter (required for Prisma 7 with PostgreSQL)
 export const prisma: PrismaClient | null =
   globalForPrisma.prisma ??
-  (process.env.DATABASE_URL
+  (databaseUrl
     ? (() => {
         console.log('[Prisma] Creating Prisma Client with adapter')
         try {
