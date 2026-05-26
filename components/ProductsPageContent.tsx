@@ -11,6 +11,7 @@ import {
   type ProductSortOption,
 } from '@/lib/products/sort-products'
 import { Filter, X, ArrowUpDown } from 'lucide-react'
+import ReferralBanner from '@/components/ReferralBanner'
 
 const CATEGORIES: Category[] = [
   'games',
@@ -148,6 +149,8 @@ export default function ProductsPageContent() {
             Finden Sie die besten Angebote für digitale Gaming-Produkte
           </p>
         </div>
+
+        <ReferralBanner storageKey="referral-banner-dismissed-products" className="mb-6" />
 
         <div className="flex flex-col lg:flex-row gap-8">
           <aside className={`lg:w-64 ${showFilters ? 'block' : 'hidden'} lg:block`}>

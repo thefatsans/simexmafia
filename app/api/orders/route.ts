@@ -17,9 +17,6 @@ function isPrismaAvailable(): boolean {
 // GET /api/orders - Bestellungen abrufen
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Orders API] DATABASE_URL exists:', !!process.env.DATABASE_URL)
-    console.log('[Orders API] Prisma client exists:', prisma !== null)
-    
     if (!isPrismaAvailable()) {
       console.warn('[Orders API] Prisma not available, returning empty array')
       console.warn('[Orders API] DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET')
@@ -57,14 +54,11 @@ export async function GET(request: NextRequest) {
     
     if (status) where.status = status
 
-    console.log('[Orders API] Fetching orders with params:', { requestedUserId, status, where })
-
     if (!prisma) {
       console.error('[Orders API] Prisma client is null!')
       return NextResponse.json([])
     }
 
-    console.log('[Orders API] Attempting to query database...')
     const orders = await prisma.order.findMany({
       where,
       include: {
@@ -91,8 +85,6 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    console.log(`[Orders API] Found ${orders.length} orders`)
-    
     // Füge statusReason zu jedem Order hinzu, falls es nicht automatisch zurückgegeben wurde
     const ordersWithStatusReason = await Promise.all(orders.map(async (order: any) => {
       // Prüfe ob statusReason bereits vorhanden ist
@@ -122,7 +114,6 @@ export async function GET(request: NextRequest) {
       return order
     }))
     
-    console.log(`[Orders API] Returning ${ordersWithStatusReason.length} orders with statusReason`)
     return NextResponse.json(ordersWithStatusReason)
   } catch (error: any) {
     console.error('[Orders API] Error fetching orders:', error)
@@ -154,9 +145,9 @@ export async function POST(request: NextRequest) {
   try {
     if (!isPrismaAvailable()) {
       console.warn('[Orders API] Prisma not available, cannot create order in database')
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Database not available',
-        message: 'Order will be saved to localStorage only'
+        message: 'Database not available. Please try again later.',
       }, { status: 503 })
     }
 
