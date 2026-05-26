@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { isAdmin } from '@/data/admin'
-import { getOrders, updateOrderStatus, Order } from '@/data/payments'
+import { Order } from '@/data/payments'
 import { getOrdersFromAPI, updateOrderStatusAPI } from '@/lib/api/orders'
 import { Search, Filter, CheckCircle, XCircle, Clock, Package, Key, Save } from 'lucide-react'
 import AdminLoading from '@/components/admin/AdminLoading'
@@ -19,112 +19,80 @@ export default function AdminOrdersPage() {
   const [editingKeys, setEditingKeys] = useState<Record<string, string>>({}) // orderItemId -> key
   const [updatingKeys, setUpdatingKeys] = useState<Set<string>>(new Set()) // orderItemId
   const [statusReasons, setStatusReasons] = useState<Record<string, string>>({}) // orderId -> reason
-
-  useEffect(() => {
-    console.log('[Admin Orders] useEffect triggered', { authLoading, user: user?.email })
-    
-    if (authLoading) {
-      console.log('[Admin Orders] Auth still loading...')
-      setIsLoading(true)
-      return // Wait for auth to load
-    }
-    
-    if (!user) {
-      console.log('[Admin Orders] No user, redirecting to login...')
-      router.push('/auth/login')
-      return
-    }
-    
-    console.log('[Admin Orders] User:', user.email, 'isAdmin:', isAdmin(user.email))
-    
-    if (!isAdmin(user.email)) {
-      console.log('[Admin Orders] User is not admin, redirecting...')
-      router.push('/account')
-      return
-    }
-    
-    console.log('[Admin Orders] User is admin, loading orders...')
-    loadOrders()
-    setIsLoading(false)
-  }, [user, router, authLoading])
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const loadOrders = async () => {
+    if (!user?.id) return
+
     try {
-      // Versuche zuerst die API zu verwenden (Datenbank)
-      try {
-        console.log('[Admin Orders] Loading orders from API...')
-        // Für Admin: Hole alle Bestellungen (userId wird ignoriert wenn Admin)
-        // Verwende eine spezielle Admin-API oder hole alle Bestellungen
-        if (!user?.id) {
-          throw new Error('User not authenticated')
+      setLoadError(null)
+      const apiOrders = await getOrdersFromAPI(user.id)
+
+      const convertedOrders: Order[] = apiOrders.map((apiOrder: any) => ({
+        id: apiOrder.id,
+        userId: apiOrder.userId,
+        items: apiOrder.items || [],
+        subtotal: apiOrder.subtotal,
+        serviceFee: apiOrder.serviceFee,
+        discount: apiOrder.discount,
+        total: apiOrder.total,
+        paymentMethod: apiOrder.paymentMethod as Order['paymentMethod'],
+        status: apiOrder.status as Order['status'],
+        createdAt: apiOrder.createdAt,
+        completedAt: apiOrder.completedAt,
+        coinsEarned: apiOrder.coinsEarned,
+        discountCode: apiOrder.discountCode,
+      }))
+
+      const reasons: Record<string, string> = {}
+      apiOrders.forEach((apiOrder: any) => {
+        if (
+          (apiOrder.status === 'failed' || apiOrder.status === 'cancelled') &&
+          apiOrder.statusReason
+        ) {
+          reasons[apiOrder.id] = apiOrder.statusReason
         }
-        const apiOrders = await getOrdersFromAPI(user.id) // API prüft Admin-Rechte serverseitig
-        console.log('[Admin Orders] Loaded orders from API:', apiOrders.length)
-        
-        // Konvertiere API-Format zu Order-Format
-        const convertedOrders: Order[] = apiOrders.map((apiOrder: any) => ({
-          id: apiOrder.id,
-          userId: apiOrder.userId,
-          items: apiOrder.items || [],
-          subtotal: apiOrder.subtotal,
-          serviceFee: apiOrder.serviceFee,
-          discount: apiOrder.discount,
-          total: apiOrder.total,
-          paymentMethod: apiOrder.paymentMethod as any,
-          status: apiOrder.status as Order['status'],
-          createdAt: apiOrder.createdAt,
-          completedAt: apiOrder.completedAt,
-          coinsEarned: apiOrder.coinsEarned,
-          discountCode: apiOrder.discountCode,
-        }))
-        
-        // Lade statusReason in State für failed/cancelled Bestellungen
-        const reasons: Record<string, string> = {}
-        apiOrders.forEach((apiOrder: any) => {
-          if ((apiOrder.status === 'failed' || apiOrder.status === 'cancelled') && apiOrder.statusReason) {
-            reasons[apiOrder.id] = apiOrder.statusReason
-          }
-        })
-        setStatusReasons(reasons)
-        
-        const sortedOrders = convertedOrders.sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
-        console.log('[Admin Orders] Setting orders state from API:', sortedOrders.length, 'orders')
-        setOrders(sortedOrders)
-        return
-      } catch (apiError) {
-        console.warn('[Admin Orders] API not available, using localStorage:', apiError)
-      }
-      
-      // Fallback: localStorage
-      const allOrders = getOrders()
-      console.log('[Admin Orders] Loaded orders from localStorage:', allOrders.length)
-      
-      const sortedOrders = allOrders.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+      setStatusReasons(reasons)
+
+      const sortedOrders = convertedOrders.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
-      console.log('[Admin Orders] Setting orders state from localStorage:', sortedOrders.length, 'orders')
       setOrders(sortedOrders)
     } catch (error) {
       console.error('[Admin Orders] Error loading orders:', error)
       setOrders([])
+      setLoadError('Bestellungen konnten nicht geladen werden.')
     }
   }
 
+  useEffect(() => {
+    if (authLoading) {
+      setIsLoading(true)
+      return
+    }
+
+    if (!user) {
+      router.push('/auth/login')
+      return
+    }
+
+    if (!isAdmin(user.email)) {
+      router.push('/account')
+      return
+    }
+
+    const init = async () => {
+      setIsLoading(true)
+      await loadOrders()
+      setIsLoading(false)
+    }
+    init()
+  }, [user, router, authLoading])
+
   const handleStatusUpdate = async (orderId: string, newStatus: Order['status'], reason?: string) => {
     try {
-      console.log('[Admin Orders] Updating status:', { orderId, newStatus, reason })
-      // Versuche zuerst die API zu verwenden
-      try {
-        await updateOrderStatusAPI(orderId, newStatus, reason, user?.id)
-        console.log('[Admin Orders] Order status updated via API')
-      } catch (apiError: any) {
-        console.error('[Admin Orders] API error:', apiError)
-        console.warn('[Admin Orders] API not available, using localStorage:', apiError)
-        // Fallback: localStorage
-        updateOrderStatus(orderId, newStatus)
-      }
+      await updateOrderStatusAPI(orderId, newStatus, reason, user?.id)
       // Lade Bestellungen neu
       await loadOrders()
       // Entferne Grund aus State wenn Status nicht mehr failed/cancelled
@@ -149,6 +117,7 @@ export default function AdminOrdersPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ key: key.trim() || null }),
       })
 
@@ -183,13 +152,6 @@ export default function AdminOrdersPage() {
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter
     return matchesSearch && matchesStatus
   })
-  
-  console.log('[Admin Orders] Filtered orders:', {
-    totalOrders: orders.length,
-    filteredOrders: filteredOrders.length,
-    searchQuery,
-    statusFilter
-  })
 
   if (isLoading) {
     return <AdminLoading label="Bestellungen werden geladen..." />
@@ -207,8 +169,6 @@ export default function AdminOrdersPage() {
     { value: 'failed', label: 'Fehlgeschlagen', icon: <XCircle className="w-4 h-4" /> },
   ]
 
-  console.log('[Admin Orders] Rendering component', { ordersCount: orders.length, user: user?.email })
-  
   return (
     <div className="min-h-screen bg-fortnite-darker py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -227,16 +187,19 @@ export default function AdminOrdersPage() {
             </a>
           </div>
           <button
-            onClick={() => {
-              console.log('[Admin Orders] Refresh button clicked')
-              loadOrders()
-            }}
+            onClick={() => loadOrders()}
             className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 rounded-lg transition-colors flex items-center space-x-2"
           >
             <Package className="w-4 h-4" />
             <span>Aktualisieren</span>
           </button>
         </div>
+
+        {loadError && (
+          <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-200 text-sm">
+            {loadError}
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -412,7 +375,6 @@ export default function AdminOrdersPage() {
                         <button
                           onClick={async () => {
                             const reason = statusReasons[order.id] || (order as any).statusReason || ''
-                            console.log('[Admin Orders] Saving reason:', { orderId: order.id, reason, currentStatus: order.status })
                             if (reason.trim()) {
                               await handleStatusUpdate(order.id, order.status, reason.trim())
                               // Lade Bestellungen neu, um den gespeicherten Grund zu sehen
@@ -440,7 +402,7 @@ export default function AdminOrdersPage() {
             <p className="text-gray-400 mb-2">Keine Bestellungen gefunden</p>
             {orders.length === 0 ? (
               <p className="text-gray-500 text-sm">
-                Es wurden noch keine Bestellungen erstellt. Erstelle eine Testbestellung im Checkout, um sie hier zu sehen.
+                Es wurden noch keine Shop-Bestellungen in der Datenbank gefunden.
               </p>
             ) : (
               <p className="text-gray-500 text-sm">

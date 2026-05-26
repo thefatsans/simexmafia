@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthenticatedUser, requireAdmin, requireSecureSession } from '@/lib/api-auth'
+import { ensureUserInDatabase } from '@/lib/user-sync'
 import { completeOrder } from '@/lib/orders/complete-order'
 import { sendOrderConfirmationEmailServer } from '@/lib/email-server'
 
@@ -189,123 +190,72 @@ export async function POST(request: NextRequest) {
     const userId = authenticatedUser.id
 
     if (!prisma) {
-      return NextResponse.json({ 
-        error: 'Database not available',
-        message: 'Order will be saved to localStorage only'
-      }, { status: 503 })
-    }
-
-    if (!prisma) {
       return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
 
     const db = prisma
 
-    // Prüfe ob User existiert, falls nicht erstelle einen
-    let dbUser
-    try {
-      console.log('[Orders API] Checking if user exists:', userId)
-      dbUser = await db.user.findUnique({ where: { id: userId } })
-      console.log('[Orders API] User found:', !!dbUser)
-    } catch (error: any) {
-      console.error('[Orders API] Error checking user:', error)
-      console.error('[Orders API] Error code:', error.code)
-      console.error('[Orders API] Error message:', error.message)
-      
-      // Wenn der Fehler ein Verbindungsfehler ist, geben wir einen 503 zurück
-      if (error.code === 'P1001' || error.message?.includes('Can\'t reach database') || error.message?.includes('invocation') || error.message?.includes('PrismaClient')) {
-        return NextResponse.json({ 
-          error: 'Database connection error',
-          message: 'Please check DATABASE_URL and database server status',
-          details: process.env.NODE_ENV === 'development' ? error.message : undefined
-        }, { status: 503 })
-      }
-      throw error
-    }
+    let dbUser = await db.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        goofyCoins: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+    })
+
     if (!dbUser) {
-      console.log(`[Orders API] User ${userId} not found, creating...`)
-      // Erstelle einen minimalen User (wird später durch Auth aktualisiert)
-      dbUser = await db.user.create({
-        data: {
-          id: userId,
-          email: `user-${userId}@example.com`,
-          firstName: 'User',
-          lastName: userId,
-          goofyCoins: 0,
-          totalSpent: 0,
-        },
+      const synced = await ensureUserInDatabase({
+        userId: authenticatedUser.id,
+        email: authenticatedUser.email,
+        firstName: authenticatedUser.firstName,
+        lastName: authenticatedUser.lastName,
+        goofyCoins: authenticatedUser.goofyCoins,
       })
+      if (!synced) {
+        return NextResponse.json(
+          { error: 'User account not found. Please log in again.' },
+          { status: 404 }
+        )
+      }
+      dbUser = synced
     }
 
-    // Erstelle OrderItems - prüfe ob Produkte existieren und validiere Preise
-    const orderItemsData = await Promise.all(
-      items.map(async (item: any) => {
-        const productId = item.productId || item.id
-        
-        // Prüfe ob Produkt existiert
-        let product = await db.product.findUnique({ where: { id: productId } })
-        
-        if (!product) {
-          console.log(`[Orders API] Product ${productId} not found, creating placeholder...`)
-          // Erstelle einen Platzhalter-Produkt (wird später durch Admin aktualisiert)
-          // Wir brauchen einen Seller
-          let seller = await db.seller.findFirst()
-          if (!seller) {
-            seller = await db.seller.create({
-              data: {
-                id: 'default-seller',
-                name: 'Default Seller',
-                rating: 0,
-                reviewCount: 0,
-                verified: false,
-              },
-            })
-          }
-          
-          product = await db.product.create({
-            data: {
-              id: productId,
-              name: item.name || 'Unknown Product',
-              description: item.metadata?.productName || item.name || 'Product description',
-              price: parseFloat(item.price || 0),
-              originalPrice: item.metadata?.originalPrice ? parseFloat(item.metadata.originalPrice) : null,
-              discount: item.metadata?.discount ? parseInt(item.metadata.discount) : null,
-              image: item.metadata?.image || '/no-img.png',
-              category: item.metadata?.category || 'games',
-              platform: item.metadata?.platform || 'Other',
-              rating: 0,
-              reviewCount: 0,
-              inStock: true,
-              tags: item.metadata?.tags || [],
-              sellerId: seller.id,
-            },
-          })
-        }
+    const orderItemsData = []
 
-        // WICHTIG: Serverseitige Preisvalidierung
-        // Verwende immer den Datenbank-Preis, nicht den Client-Preis
-        const clientPrice = parseFloat(item.price || 0)
-        const dbPrice = parseFloat(product.price.toString())
-        
-        // Erlaube kleine Abweichungen (z.B. durch Rundung), aber nicht mehr als 1%
-        const priceDifference = Math.abs(clientPrice - dbPrice)
-        const maxDifference = dbPrice * 0.01 // 1% Toleranz
-        
-        if (priceDifference > maxDifference && priceDifference > 0.01) {
-          console.warn(`[Orders API] Price mismatch for product ${productId}: client=${clientPrice}, db=${dbPrice}`)
-          // Verwende Datenbank-Preis für Sicherheit
-        }
+    for (const item of items) {
+      const productId = item.productId || item.id
+      const product = await db.product.findUnique({ where: { id: productId } })
 
-        return {
-          productId: product.id,
-          type: item.type || 'product',
-          name: product.name, // Verwende Datenbank-Name
-          price: dbPrice, // WICHTIG: Verwende Datenbank-Preis, nicht Client-Preis
-          quantity: parseInt(item.quantity || 1),
-          metadata: item.metadata || null,
-        }
+      if (!product) {
+        return NextResponse.json(
+          { error: `Product not found: ${productId}` },
+          { status: 404 }
+        )
+      }
+
+      const clientPrice = parseFloat(item.price || 0)
+      const dbPrice = parseFloat(product.price.toString())
+      const priceDifference = Math.abs(clientPrice - dbPrice)
+      const maxDifference = dbPrice * 0.01
+
+      if (priceDifference > maxDifference && priceDifference > 0.01) {
+        console.warn(
+          `[Orders API] Price mismatch for product ${productId}: client=${clientPrice}, db=${dbPrice}`
+        )
+      }
+
+      orderItemsData.push({
+        productId: product.id,
+        type: item.type || 'product',
+        name: product.name,
+        price: dbPrice,
+        quantity: parseInt(item.quantity || 1, 10),
+        metadata: item.metadata || null,
       })
-    )
+    }
 
     // WICHTIG: Berechne Total serverseitig neu mit validierten Preisen
     const validatedSubtotal = orderItemsData.reduce((sum, item) => sum + (item.price * item.quantity), 0)
@@ -461,8 +411,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Bestellbestätigung per E-Mail senden (fire-and-forget)
-    const userEmail = order.user?.email
-    const userFirstName = (order.user as any)?.firstName || 'Spieler'
+    const userEmail = authenticatedUser.email
+    const userFirstName = authenticatedUser.firstName || 'Spieler'
     if (userEmail) {
       sendOrderConfirmationEmailServer(
         userEmail,
