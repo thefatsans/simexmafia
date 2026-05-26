@@ -12,6 +12,7 @@ export interface Product {
   rating: number
   reviewCount: number
   inStock: boolean
+  stockCount?: number
   tags: string[]
 }
 
@@ -41,6 +42,7 @@ export type Platform =
   | 'Origin'
   | 'Battle.net'
   | 'Discord'
+  | 'Roblox'
   | 'Other'
 
 export interface CartItem {

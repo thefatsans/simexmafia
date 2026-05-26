@@ -238,12 +238,31 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      const quantity = parseInt(item.quantity || 1, 10)
+      const { productUsesKeyInventory, countAvailableKeys } = await import(
+        '@/lib/product-keys/stock'
+      )
+      if (await productUsesKeyInventory(product.id)) {
+        const available = await countAvailableKeys(product.id)
+        if (quantity > available) {
+          return NextResponse.json(
+            {
+              error:
+                available === 0
+                  ? `${product.name} ist derzeit ausverkauft.`
+                  : `Nur noch ${available} Stück von „${product.name}“ verfügbar.`,
+            },
+            { status: 400 }
+          )
+        }
+      }
+
       orderItemsData.push({
         productId: product.id,
         type: item.type || 'product',
         name: product.name,
         price: dbPrice,
-        quantity: parseInt(item.quantity || 1, 10),
+        quantity,
         metadata: item.metadata || null,
       })
     }

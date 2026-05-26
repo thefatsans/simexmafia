@@ -1,6 +1,10 @@
 import { Product } from '@/types'
 import { resolveSeller } from '@/lib/sellers'
 import { applySimexMafiaSellerToDiscordProducts } from '@/lib/products/simex-discord-server'
+import {
+  filterStorefrontCatalog,
+  isProductAllowedInStorefront,
+} from '@/lib/products/storefront-catalog'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -69,6 +73,7 @@ export async function getProductsFromAPI(filters?: {
       rating: p.rating || 0,
       reviewCount: p.reviewCount || 0,
       inStock: p.inStock ?? true,
+      stockCount: p.stockCount,
       tags: p.tags || [],
     }))
     
@@ -83,7 +88,7 @@ export async function getProductsFromAPI(filters?: {
       search: filters?.search ?? null,
     })
     return finalizeProductsForStorefront(
-      applySimexMafiaSellerToDiscordProducts(withDiscord)
+      filterStorefrontCatalog(applySimexMafiaSellerToDiscordProducts(withDiscord))
     )
   } catch (error) {
     console.warn('API not available, using fallback:', error)
@@ -117,7 +122,7 @@ export async function getProductsFromAPI(filters?: {
     const { ensureSimexDiscordServerInCatalog } = await import('@/lib/products/simex-discord-server')
     const withDiscord = await ensureSimexDiscordServerInCatalog(products, filterPayload)
     return finalizeProductsForStorefront(
-      applySimexMafiaSellerToDiscordProducts(withDiscord)
+      filterStorefrontCatalog(applySimexMafiaSellerToDiscordProducts(withDiscord))
     )
   }
 }
@@ -184,10 +189,15 @@ export async function getProductFromAPI(id: string): Promise<Product | null> {
       rating: p.rating || 0,
       reviewCount: p.reviewCount || 0,
       inStock: p.inStock,
+      stockCount: p.stockCount,
       tags: p.tags || [],
     }
 
-    return applySimexMafiaSellerToDiscordProducts([product])[0]
+    const [withSeller] = applySimexMafiaSellerToDiscordProducts([product])
+    if (!isProductAllowedInStorefront(withSeller)) {
+      return null
+    }
+    return withSeller
   } catch (error) {
     console.warn('API not available, using fallback:', error)
     // Fallback: Versuche zuerst generierte Produkte
@@ -281,11 +291,10 @@ export async function getProductFromAPI(id: string): Promise<Product | null> {
       }
       
       if (foundProduct) {
-        // Verwende getCompleteProductImage für korrektes Bild
         const { getCompleteProductImage } = await import('@/prisma/complete-product-images')
         const correctImage = getCompleteProductImage(foundProduct.name) || foundProduct.image
-        
-        return {
+
+        const product: Product = {
           id: foundProduct.id,
           name: foundProduct.name,
           description: foundProduct.description,
@@ -301,6 +310,11 @@ export async function getProductFromAPI(id: string): Promise<Product | null> {
           inStock: foundProduct.inStock,
           tags: foundProduct.tags || [],
         }
+
+        if (!isProductAllowedInStorefront(product)) {
+          return null
+        }
+        return product
       }
     } catch (genError) {
       console.warn('Generated products fallback failed:', genError)
@@ -331,6 +345,9 @@ export async function getProductFromAPI(id: string): Promise<Product | null> {
         console.log(`[Client] Product with ID "${id}" found in mock data: ${foundProduct.name}`)
       }
       
+      if (foundProduct && !isProductAllowedInStorefront(foundProduct)) {
+        return null
+      }
       return foundProduct || null
     } catch (mockError) {
       console.warn('Mock products fallback failed:', mockError)

@@ -13,6 +13,8 @@
     "db:studio": "prisma studio",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:catalog-psn-only": "tsx prisma/catalog-psn-only.ts",
+    "db:catalog-storefront": "tsx prisma/catalog-storefront.ts",
     "db:update-vbucks": "tsx prisma/update-vbucks-images.ts",
     "db:update-vbucks-official": "tsx prisma/update-vbucks-official.ts",
     "db:update-all-images": "tsx prisma/update-all-product-images.ts",

@@ -2,6 +2,11 @@ import { prisma } from '@/lib/prisma'
 import { isSimexDiscordServerProduct } from '@/lib/products/simex-discord-server'
 import { sendOrderDeliveryEmailServer } from '@/lib/email-server'
 import { rewardReferral } from '@/lib/referral'
+import {
+  productUsesKeyInventory,
+  reserveKeysForOrderItem,
+  syncProductInStock,
+} from '@/lib/product-keys/stock'
 
 export interface CompleteOrderExtras {
   paymentIntentId?: string
@@ -23,13 +28,6 @@ interface DeliveryAssignment {
 const REFERRAL_INVITER_REWARD = 100
 const REFERRAL_INVITEE_REWARD = 50
 
-function generateSimpleKey(prefix: string): string {
-  const random = Math.random().toString(36).slice(2, 6).toUpperCase()
-  const random2 = Math.random().toString(36).slice(2, 6).toUpperCase()
-  const stamp = Date.now().toString(36).toUpperCase().slice(-5)
-  return `${prefix}-${stamp}-${random}-${random2}`
-}
-
 function isLikelyDigitalGameKey(name: string): boolean {
   const lower = name.toLowerCase()
   return (
@@ -37,6 +35,8 @@ function isLikelyDigitalGameKey(name: string): boolean {
     lower.includes('xbox') ||
     lower.includes('playstation') ||
     lower.includes('nintendo') ||
+    lower.includes('roblox') ||
+    lower.includes('robux') ||
     lower.includes('gift') ||
     lower.includes('voucher') ||
     lower.includes('key')
@@ -48,9 +48,6 @@ function deriveDeliverable(name: string, productNameLower: string): string | nul
     const url = process.env.DISCORD_INVITE_URL?.trim()
     if (url) return url
     return 'Bitte kontaktiere den Support für den Discord-Invite-Link.'
-  }
-  if (isLikelyDigitalGameKey(productNameLower)) {
-    return generateSimpleKey('SMX')
   }
   return null
 }
@@ -64,7 +61,7 @@ export async function completeOrder(
     throw new Error('Database not available')
   }
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
       include: {
@@ -82,13 +79,38 @@ export async function completeOrder(
     }
 
     const deliveries: DeliveryAssignment[] = []
+    const productsNeedingStockSync = new Set<string>()
+
     for (const item of order.items) {
       if (item.key) continue
+      const productId = item.productId
+      if (!productId) continue
+
+      const usesKeyPool = await productUsesKeyInventory(productId, tx)
+      if (usesKeyPool) {
+        const reserved = await reserveKeysForOrderItem(
+          tx,
+          productId,
+          item.id,
+          item.quantity
+        )
+        productsNeedingStockSync.add(productId)
+        if (reserved) {
+          deliveries.push({ itemId: item.id, key: reserved })
+        }
+        continue
+      }
+
       const baseName = item.product?.name || item.name || ''
-      const deliverable = deriveDeliverable(baseName, baseName.toLowerCase()) ||
+      const productNameLower = baseName.toLowerCase()
+      const deliverable =
+        deriveDeliverable(baseName, productNameLower) ||
         (isSimexDiscordServerProduct({ name: baseName })
           ? process.env.DISCORD_INVITE_URL?.trim() || 'Discord-Invite folgt per Support'
-          : null)
+          : isLikelyDigitalGameKey(productNameLower)
+            ? null
+            : null)
+
       if (deliverable) {
         deliveries.push({ itemId: item.id, key: deliverable })
       }
@@ -121,7 +143,6 @@ export async function completeOrder(
       },
     })
 
-    // Inventar-Items in DB anlegen (einmalig, falls noch nicht vorhanden)
     for (const item of order.items) {
       const productId = item.productId
       if (!productId) continue
@@ -130,16 +151,18 @@ export async function completeOrder(
         select: { id: true },
       })
       if (!exists) {
-        await tx.inventoryItem.create({
-          data: {
-            userId: order.userId,
-            productId,
-            source: 'purchase',
-            orderId: order.id,
-            sourceId: order.id,
-            notes: item.product?.name || item.name || null,
-          },
-        }).catch((err) => console.error('[completeOrder] inventoryItem create failed:', err))
+        await tx.inventoryItem
+          .create({
+            data: {
+              userId: order.userId,
+              productId,
+              source: 'purchase',
+              orderId: order.id,
+              sourceId: order.id,
+              notes: item.product?.name || item.name || null,
+            },
+          })
+          .catch((err) => console.error('[completeOrder] inventoryItem create failed:', err))
       }
     }
 
@@ -174,6 +197,7 @@ export async function completeOrder(
       id: updated.id,
       status: updated.status,
       alreadyComplete: false,
+      _productsNeedingStockSync: productsNeedingStockSync,
       _userEmail: order.user?.email,
       _userFirstName: order.user?.firstName,
       _userId: order.userId,
@@ -185,30 +209,38 @@ export async function completeOrder(
           deliveries.find((d) => d.itemId === it.id)?.key ?? it.key ?? null,
       })),
     } as any
-  }).then(async (result: any) => {
-    if (!result.alreadyComplete) {
-      try {
-        await rewardReferral(result._userId, REFERRAL_INVITER_REWARD, REFERRAL_INVITEE_REWARD)
-      } catch (err) {
-        console.warn('[completeOrder] referral reward failed:', err)
-      }
-
-      if (result._userEmail) {
-        sendOrderDeliveryEmailServer(
-          result._userEmail,
-          result._userFirstName || 'Spieler',
-          result.id,
-          result._items
-        ).catch((err) => {
-          console.warn('[completeOrder] delivery email failed:', err)
-        })
-      }
-    }
-
-    return {
-      id: result.id,
-      status: result.status,
-      alreadyComplete: result.alreadyComplete,
-    }
   })
+
+  if (!result.alreadyComplete && result._productsNeedingStockSync) {
+    for (const productId of result._productsNeedingStockSync as Set<string>) {
+      await syncProductInStock(productId).catch((err) => {
+        console.warn('[completeOrder] syncProductInStock failed:', err)
+      })
+    }
+  }
+
+  if (!result.alreadyComplete) {
+    try {
+      await rewardReferral(result._userId, REFERRAL_INVITER_REWARD, REFERRAL_INVITEE_REWARD)
+    } catch (err) {
+      console.warn('[completeOrder] referral reward failed:', err)
+    }
+
+    if (result._userEmail) {
+      sendOrderDeliveryEmailServer(
+        result._userEmail,
+        result._userFirstName || 'Spieler',
+        result.id,
+        result._items
+      ).catch((err) => {
+        console.warn('[completeOrder] delivery email failed:', err)
+      })
+    }
+  }
+
+  return {
+    id: result.id,
+    status: result.status,
+    alreadyComplete: result.alreadyComplete,
+  }
 }

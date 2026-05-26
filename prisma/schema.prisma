@@ -113,9 +113,25 @@ model Product {
   wishlistItems WishlistItem[]
   cartItems    CartItem[]
   inventoryItems InventoryItem[]
+  stockKeys      ProductStockKey[]
   
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model ProductStockKey {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  code        String
+  usedAt      DateTime?
+  orderItemId String?
+
+  @@index([orderItemId])
+  createdAt   DateTime  @default(now())
+
+  @@index([productId, usedAt])
+  @@unique([productId, code])
 }
 
 model Order {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { finalizeProductsForStorefront } from '@/lib/promotions/finalize-products'
-import { loadGeneratedProductsCatalog } from '@/lib/products/format-generated'
 import {
   applyProductQueryFilters,
   parseProductQueryFromSearchParams,
@@ -13,6 +12,8 @@ import {
 } from '@/lib/sellers/ensure-simexmafia-seller'
 import { applySimexMafiaSellerToDiscordProducts } from '@/lib/products/simex-discord-server'
 import { searchProducts } from '@/lib/search-utils'
+import { filterStorefrontCatalog } from '@/lib/products/storefront-catalog'
+import { enrichProductsWithStock } from '@/lib/product-keys/stock'
 
 function buildPrismaWhere(filters: ReturnType<typeof parseProductQueryFromSearchParams>) {
   const where: Record<string, unknown> = {}
@@ -49,18 +50,18 @@ function normalizeDbProducts(products: Array<Record<string, any>>) {
   })
 }
 
-async function loadCatalogWithFilters(
+async function loadMockCatalogWithFilters(
   filters: ReturnType<typeof parseProductQueryFromSearchParams>
 ) {
-  const generated = await loadGeneratedProductsCatalog()
-  return applyProductQueryFilters(generated as any, filters)
+  const { getProducts } = await import('@/data/products')
+  return applyProductQueryFilters(getProducts(), filters)
 }
 
 async function fetchProducts(
   filters: ReturnType<typeof parseProductQueryFromSearchParams>
 ) {
   if (!process.env.DATABASE_URL || !prisma) {
-    return loadCatalogWithFilters(filters)
+    return loadMockCatalogWithFilters(filters)
   }
 
   try {
@@ -78,14 +79,10 @@ async function fetchProducts(
       orderBy: { createdAt: 'desc' },
     })
 
-    if (products.length === 0) {
-      return loadCatalogWithFilters(filters)
-    }
-
     return normalizeDbProducts(products as any)
   } catch (error) {
-    console.warn('Database error, using generated catalog:', error)
-    return loadCatalogWithFilters(filters)
+    console.warn('Database error, using mock catalog:', error)
+    return loadMockCatalogWithFilters(filters)
   }
 }
 
@@ -105,13 +102,16 @@ export async function GET(request: NextRequest) {
       }) as typeof products
     }
 
-    return NextResponse.json(finalizeProductsForStorefront(products as any))
+    const storefrontProducts = filterStorefrontCatalog(products as any[])
+    const withStock = await enrichProductsWithStock(storefrontProducts as any[])
+
+    return NextResponse.json(finalizeProductsForStorefront(withStock as any))
   } catch (error: unknown) {
     console.error('Error fetching products:', error)
     try {
       const filters = parseProductQueryFromSearchParams(request.nextUrl.searchParams)
       const { search, ...catalogFilters } = filters
-      let fallback = await loadCatalogWithFilters(catalogFilters)
+      let fallback = await loadMockCatalogWithFilters(catalogFilters)
       fallback = await ensureSimexDiscordServerInCatalog(fallback as any, catalogFilters)
       if (search?.trim()) {
         fallback = searchProducts(fallback as any, search.trim(), {
@@ -119,7 +119,9 @@ export async function GET(request: NextRequest) {
           maxResults: 200,
         }) as typeof fallback
       }
-      return NextResponse.json(finalizeProductsForStorefront(fallback as any))
+      fallback = filterStorefrontCatalog(fallback as any)
+      const fallbackStock = await enrichProductsWithStock(fallback as any[])
+      return NextResponse.json(finalizeProductsForStorefront(fallbackStock as any))
     } catch {
       const { getProducts } = await import('@/data/products')
       const filters = parseProductQueryFromSearchParams(request.nextUrl.searchParams)
@@ -132,7 +134,9 @@ export async function GET(request: NextRequest) {
           maxResults: 200,
         }) as typeof mock
       }
-      return NextResponse.json(finalizeProductsForStorefront(mock as any))
+      mock = filterStorefrontCatalog(mock as any)
+      const mockStock = await enrichProductsWithStock(mock as any[])
+      return NextResponse.json(finalizeProductsForStorefront(mockStock as any))
     }
   }
 }

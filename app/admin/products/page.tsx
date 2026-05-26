@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { isAdmin } from '@/data/admin'
-import { getProductsFromAPI, createProductAPI, updateProductAPI, deleteProductAPI } from '@/lib/api/products'
+import { createProductAPI, updateProductAPI, deleteProductAPI } from '@/lib/api/products'
 import { Product } from '@/types'
-import { Plus, Edit, Trash2, Search, Package } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, Package, Key } from 'lucide-react'
+import ProductKeysModal from '@/components/admin/ProductKeysModal'
 import AdminLoading from '@/components/admin/AdminLoading'
 import { useToast } from '@/contexts/ToastContext'
 import Image from 'next/image'
@@ -21,6 +22,7 @@ export default function AdminProductsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [keysProduct, setKeysProduct] = useState<Product | null>(null)
 
   useEffect(() => {
     if (authLoading) {
@@ -50,8 +52,47 @@ export default function AdminProductsPage() {
   const loadProducts = async () => {
     setIsLoading(true)
     try {
-      const data = await getProductsFromAPI()
-      setProducts(data)
+      const res = await fetch('/api/admin/products', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      if (!res.ok) {
+        throw new Error('Failed to load products')
+      }
+      const data = await res.json()
+      const mapped: Product[] = (data || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        originalPrice: p.originalPrice,
+        discount: p.discount,
+        image: p.image,
+        category: p.category,
+        platform: p.platform,
+        seller: p.seller
+          ? {
+              id: p.seller.id,
+              name: p.seller.name,
+              rating: p.seller.rating,
+              reviewCount: p.seller.reviewCount,
+              verified: p.seller.verified,
+              avatar: p.seller.avatar,
+            }
+          : {
+              id: 'seller-simexmafia',
+              name: 'SimexMafia',
+              rating: 5,
+              reviewCount: 0,
+              verified: true,
+            },
+        rating: p.rating || 0,
+        reviewCount: p.reviewCount || 0,
+        inStock: p.inStock ?? true,
+        stockCount: p.stockCount,
+        tags: p.tags || [],
+      }))
+      setProducts(mapped)
     } catch (error) {
       console.error('Error loading products:', error)
       showError('Fehler beim Laden der Produkte')
@@ -151,6 +192,7 @@ export default function AdminProductsPage() {
                   <th className="px-6 py-4 text-left text-sm font-semibold text-white">Kategorie</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-white">Plattform</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-white">Preis</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-white">Bestand</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-white">Status</th>
                   <th className="px-6 py-4 text-right text-sm font-semibold text-white">Aktionen</th>
                 </tr>
@@ -196,6 +238,13 @@ export default function AdminProductsPage() {
                         )}
                       </div>
                     </td>
+                    <td className="px-6 py-4 text-gray-300">
+                      {product.stockCount !== undefined ? (
+                        <span className="font-medium">{product.stockCount}</span>
+                      ) : (
+                        <span className="text-gray-500">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <span
                         className={`px-2 py-1 rounded text-xs ${
@@ -209,6 +258,13 @@ export default function AdminProductsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end space-x-2">
+                        <button
+                          onClick={() => setKeysProduct(product)}
+                          className="p-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 rounded-lg transition-colors"
+                          title="Keys verwalten"
+                        >
+                          <Key className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => handleEdit(product)}
                           className="p-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 rounded-lg transition-colors"
@@ -239,6 +295,22 @@ export default function AdminProductsPage() {
           </div>
         )}
       </div>
+
+      {keysProduct && (
+        <ProductKeysModal
+          product={keysProduct}
+          onClose={() => setKeysProduct(null)}
+          onSaved={(stockCount) => {
+            setProducts((prev) =>
+              prev.map((p) =>
+                p.id === keysProduct.id
+                  ? { ...p, stockCount, inStock: stockCount > 0 }
+                  : p
+              )
+            )
+          }}
+        />
+      )}
 
       {/* Product Modal */}
       {showModal && (

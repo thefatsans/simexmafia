@@ -25,7 +25,7 @@ export interface ProductSeedData {
 
 // Helper function to generate deterministic product ID based on name
 // This ensures IDs remain consistent across restarts
-function generateId(productName: string, category?: string, platform?: string): string {
+export function generateId(productName: string, category?: string, platform?: string): string {
   // Create a deterministic ID based on product name, category, and platform
   // This ensures the same product always gets the same ID
   const baseString = `${productName}-${category || ''}-${platform || ''}`

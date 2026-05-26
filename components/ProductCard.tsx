@@ -11,6 +11,7 @@ import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { getStockLabel, isProductOutOfStock } from '@/lib/products/stock-display'
 
 interface ProductCardProps {
   product: Product
@@ -27,6 +28,8 @@ export default function ProductCard({ product }: ProductCardProps) {
   const inWishlist = isInWishlist(product.id)
   const inCompare = isInCompare(product.id)
   const [isAdding, setIsAdding] = useState(false)
+  const outOfStock = isProductOutOfStock(product)
+  const stockLabel = getStockLabel(product)
 
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
@@ -131,10 +134,21 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {/* Platform Badge */}
-        <div className="mb-2">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
           <span className="inline-block bg-summer-ocean/20 text-summer-sky-light text-xs px-2 py-1 rounded">
             {product.platform}
           </span>
+          {stockLabel && (
+            <span
+              className={`inline-block text-xs px-2 py-1 rounded ${
+                outOfStock
+                  ? 'bg-red-500/20 text-red-400'
+                  : 'bg-green-500/20 text-green-400'
+              }`}
+            >
+              {stockLabel}
+            </span>
+          )}
         </div>
 
         {/* Seller Info */}
@@ -170,9 +184,9 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
           <button
             onClick={handleAddToCart}
-            disabled={isAdding}
+            disabled={isAdding || outOfStock}
             className="bg-summer-ocean hover:bg-summer-ocean-dark disabled:opacity-50 disabled:cursor-not-allowed text-white p-2.5 sm:p-2 rounded-lg transition-all transform hover:scale-110 active:scale-95 relative z-10 touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
-            title="In den Warenkorb"
+            title={outOfStock ? 'Ausverkauft' : 'In den Warenkorb'}
           >
             <ShoppingCart className={`w-5 h-5 sm:w-4 sm:h-4 ${isAdding ? 'animate-pulse' : ''}`} />
           </button>

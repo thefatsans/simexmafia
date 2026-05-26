@@ -10,6 +10,8 @@ import {
   ensureSimexMafiaSellerInDatabase,
   linkDiscordServerProductToSimexMafia,
 } from '@/lib/sellers/ensure-simexmafia-seller'
+import { isProductAllowedInStorefront } from '@/lib/products/storefront-catalog'
+import { enrichProductsWithStock } from '@/lib/product-keys/stock'
 
 // GET /api/products/[id] - Einzelnes Produkt abrufen
 export async function GET(
@@ -60,7 +62,11 @@ export async function GET(
           } as any)
 
           const [withSeller] = applySimexMafiaSellerToDiscordProducts([payload])
-          return NextResponse.json(withSeller)
+          if (!isProductAllowedInStorefront(withSeller)) {
+            return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+          }
+          const [withStock] = await enrichProductsWithStock([withSeller])
+          return NextResponse.json(withStock)
         }
       } catch (dbError) {
         console.warn('Database error, trying fallback:', dbError)
@@ -101,7 +107,11 @@ export async function GET(
           } as any)
 
         const [withSeller] = applySimexMafiaSellerToDiscordProducts([payload])
-        return NextResponse.json(withSeller)
+        if (!isProductAllowedInStorefront(withSeller)) {
+          return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+        }
+        const [withStock] = await enrichProductsWithStock([withSeller])
+        return NextResponse.json(withStock)
       }
     } catch (fallbackError) {
       console.warn('Fallback error:', fallbackError)

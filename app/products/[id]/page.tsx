@@ -23,6 +23,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { LoadingPage } from '@/components/LoadingSpinner'
 import { Loader2 } from 'lucide-react'
+import { getStockLabel, isProductOutOfStock } from '@/lib/products/stock-display'
 
 function ProductDetailContent({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -40,6 +41,8 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
   const [similarProducts, setSimilarProducts] = useState<Product[]>([])
   const [customersAlsoBought, setCustomersAlsoBought] = useState<Product[]>([])
   const inCompare = isInCompare(product?.id || '')
+  const outOfStock = product ? isProductOutOfStock(product) : false
+  const stockLabel = product ? getStockLabel(product) : null
 
   // Load product when ID changes
   useEffect(() => {
@@ -212,6 +215,15 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
                 {product.discount && product.discount > 0 && (
                   <p className="text-green-400">Save €{(product.originalPrice! - product.price).toFixed(2)}</p>
                 )}
+                {stockLabel && (
+                  <p
+                    className={`mt-2 text-sm font-medium ${
+                      outOfStock ? 'text-red-400' : 'text-green-400'
+                    }`}
+                  >
+                    {stockLabel}
+                  </p>
+                )}
               </div>
 
               {/* Seller Info */}
@@ -268,7 +280,7 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
                     addToCart(product)
                     setTimeout(() => setIsAddingToCart(false), 500)
                   }}
-                  disabled={isAddingToCart}
+                  disabled={isAddingToCart || outOfStock}
                   className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-8 py-4 rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-purple-500/50 flex items-center justify-center space-x-2"
                 >
                   {isAddingToCart ? (
@@ -276,13 +288,23 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
                   ) : (
                     <ShoppingCart className="w-5 h-5" />
                   )}
-                  <span>{isAddingToCart ? 'Wird hinzugefügt...' : 'In den Warenkorb'}</span>
+                  <span>
+                    {outOfStock
+                      ? 'Ausverkauft'
+                      : isAddingToCart
+                        ? 'Wird hinzugefügt...'
+                        : 'In den Warenkorb'}
+                  </span>
                 </button>
                 <a
                   href="/checkout"
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
+                    if (outOfStock) {
+                      showError('Dieses Produkt ist derzeit ausverkauft')
+                      return
+                    }
                     if (!isAuthenticated) {
                       showError('Bitte melden Sie sich an, um Produkte zu kaufen')
                       router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${product.id}`)}`)
@@ -291,9 +313,13 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
                     addToCart(product)
                     router.push('/checkout')
                   }}
-                  className="block w-full bg-fortnite-dark border-2 border-purple-500/50 hover:border-purple-500 text-white font-semibold px-8 py-4 rounded-lg transition-all text-center cursor-pointer"
+                  className={`block w-full bg-fortnite-dark border-2 text-white font-semibold px-8 py-4 rounded-lg transition-all text-center ${
+                    outOfStock
+                      ? 'border-gray-600 text-gray-500 cursor-not-allowed pointer-events-none'
+                      : 'border-purple-500/50 hover:border-purple-500 cursor-pointer'
+                  }`}
                 >
-                  Jetzt kaufen
+                  {outOfStock ? 'Ausverkauft' : 'Jetzt kaufen'}
                 </a>
                 <button
                   onClick={() => {
