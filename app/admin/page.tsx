@@ -27,6 +27,7 @@ interface DashboardData {
   coinTransactions: { last24h: number; last7d: number }
   catalog: { products: number; sellers: number }
   redemptions: { pending: number }
+  contactRequests: { pending: number }
   integrations: {
     resendConfigured: boolean
     paypalConfigured: boolean
@@ -109,6 +110,7 @@ export default function AdminDashboard() {
   const newUsers7d = data?.users?.new7d ?? 0
   const sackOpens7d = data?.sackOpens?.last7d ?? 0
   const pendingRedemptions = data?.redemptions?.pending ?? 0
+  const pendingContactRequests = data?.contactRequests?.pending ?? 0
 
   const dashboardStats = [
     {
@@ -144,6 +146,16 @@ export default function AdminDashboard() {
       bgColor: pendingRedemptions > 0 ? 'bg-orange-500/20' : 'bg-gray-500/20',
       href: '/admin/redemptions',
       highlight: pendingRedemptions > 0,
+    },
+    {
+      label: 'Offene Kontaktanfragen',
+      value: pendingContactRequests.toString(),
+      subtitle: 'Unbeantwortete Anfragen',
+      icon: Mail,
+      color: pendingContactRequests > 0 ? 'text-yellow-400' : 'text-gray-400',
+      bgColor: pendingContactRequests > 0 ? 'bg-yellow-500/20' : 'bg-gray-500/20',
+      href: '/admin/contact-requests',
+      highlight: pendingContactRequests > 0,
     },
     {
       label: 'Säcke (7 Tage)',
@@ -217,6 +229,8 @@ export default function AdminDashboard() {
       icon: Mail,
       href: '/admin/contact-requests',
       color: 'from-yellow-500 to-orange-500',
+      badgeCount: pendingContactRequests,
+      highlight: pendingContactRequests > 0,
     },
     {
       title: 'Newsletter',
@@ -262,6 +276,23 @@ export default function AdminDashboard() {
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-200 text-sm">
             {error}
+          </div>
+        )}
+        {pendingContactRequests > 0 && (
+          <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/40 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-yellow-200 text-sm sm:text-base">
+              <strong>{pendingContactRequests}</strong>{' '}
+              {pendingContactRequests === 1
+                ? 'Kontaktanfrage wartet'
+                : 'Kontaktanfragen warten'}{' '}
+              auf Bearbeitung.
+            </p>
+            <a
+              href="/admin/contact-requests"
+              className="inline-flex items-center justify-center px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg text-sm transition-colors shrink-0"
+            >
+              Zu Kontaktanfragen
+            </a>
           </div>
         )}
         {pendingRedemptions > 0 && (

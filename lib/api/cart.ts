@@ -1,4 +1,6 @@
 import { Product } from '@/types'
+import { getAuthQueryParams } from '@/lib/api/auth-payload'
+import type { User } from '@/types/user'
 
 interface CartItem {
   id: string
@@ -8,57 +10,71 @@ interface CartItem {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
+type CartProfile = Pick<User, 'email' | 'firstName' | 'lastName'>
+
+function mapCartItem(item: any): CartItem {
+  return {
+    id: item.id,
+    product: {
+      id: item.product.id,
+      name: item.product.name,
+      description: item.product.description,
+      price: item.product.price,
+      originalPrice: item.product.originalPrice,
+      discount: item.product.discount,
+      image: item.product.image,
+      category: item.product.category,
+      platform: item.product.platform,
+      seller: {
+        id: item.product.seller.id,
+        name: item.product.seller.name,
+        rating: item.product.seller.rating,
+        reviewCount: item.product.seller.reviewCount,
+        verified: item.product.seller.verified,
+        avatar: item.product.seller.avatar,
+      },
+      rating: item.product.rating || 0,
+      reviewCount: item.product.reviewCount || 0,
+      inStock: item.product.inStock,
+      tags: item.product.tags || [],
+    },
+    quantity: item.quantity,
+  }
+}
+
+function authQuery(userId: string, profile?: CartProfile) {
+  return profile
+    ? getAuthQueryParams({ id: userId, ...profile })
+    : `userId=${encodeURIComponent(userId)}`
+}
+
 /**
  * Ruft Warenkorb von der API ab
  * Fallback: Verwendet localStorage wenn API nicht verfügbar
  */
-export async function getCartFromAPI(userId: string): Promise<CartItem[]> {
+export async function getCartFromAPI(
+  userId: string,
+  profile?: CartProfile
+): Promise<CartItem[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/cart?userId=${userId}`)
-    
+    const response = await fetch(`${API_BASE_URL}/api/cart?${authQuery(userId, profile)}`, {
+      credentials: 'include',
+    })
+
     if (!response.ok) {
       throw new Error('Failed to fetch cart')
     }
 
     const data = await response.json()
-    
-    // Konvertiere Datenbank-Format zu CartItem-Format
-    return data.map((item: any) => ({
-      id: item.id,
-      product: {
-        id: item.product.id,
-        name: item.product.name,
-        description: item.product.description,
-        price: item.product.price,
-        originalPrice: item.product.originalPrice,
-        discount: item.product.discount,
-        image: item.product.image,
-        category: item.product.category,
-        platform: item.product.platform,
-        seller: {
-          id: item.product.seller.id,
-          name: item.product.seller.name,
-          rating: item.product.seller.rating,
-          reviewCount: item.product.seller.reviewCount,
-          verified: item.product.seller.verified,
-          avatar: item.product.seller.avatar,
-        },
-        rating: item.product.rating || 0,
-        reviewCount: item.product.reviewCount || 0,
-        inStock: item.product.inStock,
-        tags: item.product.tags || [],
-      },
-      quantity: item.quantity,
-    }))
+    return data.map(mapCartItem)
   } catch (error) {
     console.warn('API not available, using localStorage fallback:', error)
-    // Fallback zu localStorage
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('simexmafia-cart')
       if (stored) {
         try {
           return JSON.parse(stored)
-        } catch (e) {
+        } catch {
           return []
         }
       }
@@ -70,128 +86,110 @@ export async function getCartFromAPI(userId: string): Promise<CartItem[]> {
 /**
  * Fügt Artikel zum Warenkorb hinzu (API)
  */
-export async function addToCartAPI(userId: string, product: Product, quantity: number = 1): Promise<CartItem> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/cart`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId,
-        productId: product.id,
-        quantity,
-      }),
-    })
+export async function addToCartAPI(
+  userId: string,
+  product: Product,
+  quantity: number = 1,
+  profile?: CartProfile
+): Promise<CartItem> {
+  const response = await fetch(`${API_BASE_URL}/api/cart`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      userId,
+      productId: product.id,
+      quantity,
+      ...(profile
+        ? {
+            email: profile.email,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+          }
+        : {}),
+    }),
+  })
 
-    if (!response.ok) {
-      throw new Error('Failed to add to cart')
-    }
-
-    const data = await response.json()
-    
-    return {
-      id: data.id,
-      product: {
-        id: data.product.id,
-        name: data.product.name,
-        description: data.product.description,
-        price: data.product.price,
-        originalPrice: data.product.originalPrice,
-        discount: data.product.discount,
-        image: data.product.image,
-        category: data.product.category,
-        platform: data.product.platform,
-        seller: data.product.seller,
-        rating: data.product.rating || 0,
-        reviewCount: data.product.reviewCount || 0,
-        inStock: data.product.inStock,
-        tags: data.product.tags || [],
-      },
-      quantity: data.quantity,
-    }
-  } catch (error) {
-    console.warn('API not available, using localStorage fallback:', error)
-    // Fallback: Wird von CartContext gehandhabt
-    throw error
+  if (!response.ok) {
+    throw new Error('Failed to add to cart')
   }
+
+  const data = await response.json()
+  return mapCartItem(data)
 }
 
 /**
  * Aktualisiert Warenkorb-Artikel (API)
  */
-export async function updateCartItemAPI(cartItemId: string, quantity: number): Promise<CartItem> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/cart/${cartItemId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ quantity }),
-    })
+export async function updateCartItemAPI(
+  cartItemId: string,
+  quantity: number,
+  userId: string,
+  profile?: CartProfile
+): Promise<CartItem> {
+  const query = authQuery(userId, profile)
+  const response = await fetch(`${API_BASE_URL}/api/cart/${cartItemId}?${query}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      quantity,
+      ...(profile
+        ? {
+            email: profile.email,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+          }
+        : {}),
+    }),
+  })
 
-    if (!response.ok) {
-      throw new Error('Failed to update cart item')
-    }
-
-    const data = await response.json()
-    
-    return {
-      id: data.id,
-      product: data.product,
-      quantity: data.quantity,
-    }
-  } catch (error) {
-    console.warn('API not available:', error)
-    throw error
+  if (!response.ok) {
+    throw new Error('Failed to update cart item')
   }
+
+  const data = await response.json()
+  if (data.message) {
+    throw new Error('Item removed from cart')
+  }
+  return mapCartItem(data)
 }
 
 /**
  * Entfernt Artikel aus Warenkorb (API)
  */
-export async function removeFromCartAPI(cartItemId: string): Promise<void> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/cart/${cartItemId}`, {
+export async function removeFromCartAPI(
+  cartItemId: string,
+  userId: string,
+  profile?: CartProfile
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/cart/${cartItemId}?${authQuery(userId, profile)}`,
+    {
       method: 'DELETE',
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to remove from cart')
+      credentials: 'include',
     }
-  } catch (error) {
-    console.warn('API not available:', error)
-    throw error
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to remove from cart')
   }
 }
 
 /**
  * Leert den Warenkorb (API)
  */
-export async function clearCartAPI(userId: string): Promise<void> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/cart?userId=${userId}`, {
-      method: 'DELETE',
-    })
+export async function clearCartAPI(userId: string, profile?: CartProfile): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/cart?${authQuery(userId, profile)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
 
-    if (!response.ok) {
-      throw new Error('Failed to clear cart')
-    }
-  } catch (error) {
-    console.warn('API not available:', error)
-    throw error
+  if (!response.ok) {
+    throw new Error('Failed to clear cart')
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

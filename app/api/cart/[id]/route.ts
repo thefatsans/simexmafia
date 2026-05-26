@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireResourceOwnership } from '@/lib/api-auth'
 
 // PUT /api/cart/[id] - Warenkorb-Artikel aktualisieren
 export async function PUT(
@@ -18,8 +19,25 @@ export async function PUT(
       return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
 
+    const existing = await prisma.cartItem.findUnique({
+      where: { id: params.id },
+      select: { userId: true },
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Cart item not found' }, { status: 404 })
+    }
+
+    const authResult = await requireResourceOwnership(request, existing.userId, body)
+    if (authResult?.error) {
+      return authResult.error
+    }
+
+    if (!authResult?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
     if (quantity <= 0) {
-      // Lösche Artikel wenn Menge 0 oder weniger
       await prisma.cartItem.delete({
         where: { id: params.id },
       })
@@ -40,7 +58,7 @@ export async function PUT(
 
     return NextResponse.json(cartItem)
   } catch (error: any) {
-    console.error('Error updating cart item:', error)
+    console.error('[Cart API] Error updating cart item:', error)
     return NextResponse.json({ error: 'Failed to update cart item' }, { status: 500 })
   }
 }
@@ -55,24 +73,31 @@ export async function DELETE(
       return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
 
+    const existing = await prisma.cartItem.findUnique({
+      where: { id: params.id },
+      select: { userId: true },
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Cart item not found' }, { status: 404 })
+    }
+
+    const authResult = await requireResourceOwnership(request, existing.userId)
+    if (authResult?.error) {
+      return authResult.error
+    }
+
+    if (!authResult?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
     await prisma.cartItem.delete({
       where: { id: params.id },
     })
 
     return NextResponse.json({ message: 'Item removed from cart' })
   } catch (error: any) {
-    console.error('Error removing cart item:', error)
+    console.error('[Cart API] Error removing cart item:', error)
     return NextResponse.json({ error: 'Failed to remove cart item' }, { status: 500 })
   }
 }
-
-
-
-
-
-
-
-
-
-
-

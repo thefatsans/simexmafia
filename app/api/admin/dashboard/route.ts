@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
       productCount,
       sellerCount,
       pendingRedemptions,
+      pendingContactRequests,
     ] = await Promise.all([
       prisma.order.count(),
       prisma.order.count({ where: { status: 'pending' } }),
@@ -74,6 +75,7 @@ export async function GET(request: NextRequest) {
           redemptionStatus: 'pending',
         },
       }),
+      prisma.contactRequest.count({ where: { status: 'pending' } }),
     ])
 
     return NextResponse.json({
@@ -109,6 +111,9 @@ export async function GET(request: NextRequest) {
       },
       redemptions: {
         pending: pendingRedemptions,
+      },
+      contactRequests: {
+        pending: pendingContactRequests,
       },
       integrations: {
         resendConfigured: Boolean(process.env.RESEND_API_KEY),
