@@ -215,8 +215,20 @@ export default function AdminOrdersPage() {
   return (
     <div className="min-h-screen bg-fortnite-darker py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-4xl font-bold text-white">Bestellverwaltung</h1>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+          <div>
+            <h1 className="text-4xl font-bold text-white">Shop-Bestellungen</h1>
+            <p className="text-gray-400 mt-2 max-w-2xl">
+              Hier verwaltest du <strong className="text-gray-300">Shop-Käufe</strong> (Stripe).
+              Keys werden pro Bestellposition eingetragen, sobald die Bestellung abgeschlossen ist.
+            </p>
+            <a
+              href="/admin/redemptions"
+              className="inline-block mt-2 text-sm text-pink-400 hover:text-pink-300 transition-colors"
+            >
+              Sack-Gewinne einlösen →
+            </a>
+          </div>
           <button
             onClick={() => {
               console.log('[Admin Orders] Refresh button clicked')
@@ -228,7 +240,7 @@ export default function AdminOrdersPage() {
             <span>Aktualisieren</span>
           </button>
         </div>
-        
+
         {/* Debug Info */}
         <div className="mb-4 p-4 bg-fortnite-dark border border-purple-500/20 rounded-lg">
           <p className="text-gray-400 text-sm mb-2">

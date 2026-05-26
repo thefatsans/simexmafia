@@ -25,6 +25,7 @@ interface DashboardData {
   sackOpens: { last24h: number; last7d: number }
   coinTransactions: { last24h: number; last7d: number }
   catalog: { products: number; sellers: number }
+  redemptions: { pending: number }
   integrations: {
     resendConfigured: boolean
     paypalConfigured: boolean
@@ -110,6 +111,7 @@ export default function AdminDashboard() {
   const orders7d = data?.orders?.last7d ?? 0
   const newUsers7d = data?.users?.new7d ?? 0
   const sackOpens7d = data?.sackOpens?.last7d ?? 0
+  const pendingRedemptions = data?.redemptions?.pending ?? 0
 
   const dashboardStats = [
     {
@@ -135,6 +137,16 @@ export default function AdminDashboard() {
       icon: BarChart3,
       color: 'text-yellow-400',
       bgColor: 'bg-yellow-500/20',
+    },
+    {
+      label: 'Offene Sack-Einlösungen',
+      value: pendingRedemptions.toString(),
+      subtitle: 'Keys in Sack-Einlösungen vergeben',
+      icon: Gift,
+      color: pendingRedemptions > 0 ? 'text-orange-400' : 'text-gray-400',
+      bgColor: pendingRedemptions > 0 ? 'bg-orange-500/20' : 'bg-gray-500/20',
+      href: '/admin/redemptions',
+      highlight: pendingRedemptions > 0,
     },
     {
       label: 'Säcke (7 Tage)',
@@ -173,8 +185,8 @@ export default function AdminDashboard() {
       color: 'from-purple-500 to-pink-500',
     },
     {
-      title: 'Bestellungen',
-      description: 'Bestellungen anzeigen und verwalten',
+      title: 'Shop-Bestellungen',
+      description: 'Stripe-Käufe – Status setzen und Produkt-Keys eintragen',
       icon: ShoppingCart,
       href: '/admin/orders',
       color: 'from-blue-500 to-cyan-500',
@@ -185,6 +197,8 @@ export default function AdminDashboard() {
       icon: Gift,
       href: '/admin/redemptions',
       color: 'from-pink-500 to-rose-500',
+      badgeCount: pendingRedemptions,
+      highlight: pendingRedemptions > 0,
     },
     {
       title: 'Benutzer',
@@ -253,26 +267,56 @@ export default function AdminDashboard() {
             {error}
           </div>
         )}
+        {pendingRedemptions > 0 && (
+          <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/40 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-orange-200 text-sm sm:text-base">
+              <strong>{pendingRedemptions}</strong>{' '}
+              {pendingRedemptions === 1
+                ? 'Sack-Einlösung wartet'
+                : 'Sack-Einlösungen warten'}{' '}
+              auf einen Produkt-Key.
+            </p>
+            <a
+              href="/admin/redemptions"
+              className="inline-flex items-center justify-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg text-sm transition-colors shrink-0"
+            >
+              Jetzt bearbeiten
+            </a>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {dashboardStats.map((stat, index) => {
             const Icon = stat.icon
-            return (
-              <div
-                key={index}
-                className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6 hover:border-purple-500/50 transition-all"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-400 text-sm mb-1">{stat.label}</p>
-                    <p className="text-3xl font-bold text-white">{stat.value}</p>
-                    {stat.subtitle && (
-                      <p className="text-gray-500 text-xs mt-1">{stat.subtitle}</p>
-                    )}
-                  </div>
-                  <div className={`${stat.bgColor} p-4 rounded-lg`}>
-                    <Icon className={`w-8 h-8 ${stat.color}`} />
-                  </div>
+            const cardClass = `bg-fortnite-dark border rounded-lg p-6 hover:border-purple-500/50 transition-all text-left w-full ${
+              (stat as { highlight?: boolean }).highlight
+                ? 'border-orange-500/50 ring-1 ring-orange-500/30'
+                : 'border-purple-500/20'
+            }`
+            const content = (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm mb-1">{stat.label}</p>
+                  <p className="text-3xl font-bold text-white">{stat.value}</p>
+                  {stat.subtitle && (
+                    <p className="text-gray-500 text-xs mt-1">{stat.subtitle}</p>
+                  )}
                 </div>
+                <div className={`${stat.bgColor} p-4 rounded-lg`}>
+                  <Icon className={`w-8 h-8 ${stat.color}`} />
+                </div>
+              </div>
+            )
+            const href = (stat as { href?: string }).href
+            if (href) {
+              return (
+                <a key={index} href={href} className={cardClass}>
+                  {content}
+                </a>
+              )
+            }
+            return (
+              <div key={index} className={cardClass}>
+                {content}
               </div>
             )
           })}
@@ -316,19 +360,27 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {quickActions.map((action, index) => {
               const Icon = action.icon
+              const badgeCount = (action as { badgeCount?: number }).badgeCount ?? 0
+              const highlight = (action as { highlight?: boolean }).highlight
               return (
                 <div
                   key={index}
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    console.log('Navigating to:', action.href)
                     window.location.href = action.href
                   }}
-                  className={`bg-gradient-to-r ${action.color} hover:opacity-90 rounded-lg p-6 text-white transition-all transform hover:scale-105 cursor-pointer pointer-events-auto`}
+                  className={`bg-gradient-to-r ${action.color} hover:opacity-90 rounded-lg p-6 text-white transition-all transform hover:scale-105 cursor-pointer pointer-events-auto relative ${
+                    highlight ? 'ring-2 ring-white/40 ring-offset-2 ring-offset-fortnite-darker' : ''
+                  }`}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <Icon className="w-8 h-8" />
+                    {badgeCount > 0 && (
+                      <span className="bg-white text-pink-600 text-xs font-bold rounded-full min-w-[22px] h-[22px] px-1.5 flex items-center justify-center">
+                        {badgeCount > 9 ? '9+' : badgeCount}
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-xl font-bold mb-2">{action.title}</h3>
                   <p className="text-white/80 text-sm">{action.description}</p>
@@ -339,10 +391,11 @@ export default function AdminDashboard() {
         </div>
 
         <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6">
-          <h2 className="text-2xl font-bold text-white mb-6">Letzte Aktivitäten</h2>
+          <h2 className="text-2xl font-bold text-white mb-1">Letzte Aktivitäten</h2>
+          <p className="text-gray-500 text-sm mb-6">Letzte Shop-Bestellungen</p>
           <div className="space-y-4">
             {recentOrders.length === 0 && (
-              <p className="text-gray-400 text-sm">Keine aktuellen Bestellungen.</p>
+              <p className="text-gray-400 text-sm">Keine aktuellen Shop-Bestellungen.</p>
             )}
             {recentOrders.map((order: any) => (
               <div

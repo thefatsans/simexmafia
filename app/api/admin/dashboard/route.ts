@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
       coinTxs7d,
       productCount,
       sellerCount,
+      pendingRedemptions,
     ] = await Promise.all([
       prisma.order.count(),
       prisma.order.count({ where: { status: 'pending' } }),
@@ -66,6 +67,13 @@ export async function GET(request: NextRequest) {
       prisma.coinTransaction.count({ where: { createdAt: { gte: since7d } } }),
       prisma.product.count(),
       prisma.seller.count(),
+      prisma.inventoryItem.count({
+        where: {
+          source: 'sack',
+          isRedeemed: true,
+          redemptionStatus: 'pending',
+        },
+      }),
     ])
 
     return NextResponse.json({
@@ -98,6 +106,9 @@ export async function GET(request: NextRequest) {
       catalog: {
         products: productCount,
         sellers: sellerCount,
+      },
+      redemptions: {
+        pending: pendingRedemptions,
       },
       integrations: {
         resendConfigured: Boolean(process.env.RESEND_API_KEY),

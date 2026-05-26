@@ -140,9 +140,15 @@ export default function AdminRedemptionsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-4xl font-bold text-white">Sack-Einlösungen</h1>
-            <p className="text-gray-400 mt-1">
-              Offene Anfragen bearbeiten und Keys an Nutzer senden
+            <p className="text-gray-400 mt-1 max-w-2xl">
+              Gewinne aus Säcken – hier trägst du den Key ein und der Nutzer erhält eine E-Mail.
             </p>
+            <a
+              href="/admin/orders"
+              className="inline-block mt-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Shop-Bestellungen →
+            </a>
           </div>
           <div className="flex items-center gap-3">
             <a
