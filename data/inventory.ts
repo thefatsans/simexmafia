@@ -80,10 +80,13 @@ export const addToInventoryAsync = async (
           notes: sourceName || undefined,
           userId,
         })
-        // Aktualisiere die ID im localStorage Item
+        // Aktualisiere die ID im localStorage Item (alte inv-* ID merken)
+        const localId = newItem.id
         newItem.id = dbItem.id
         const inventory = getInventory()
-        const updated = inventory.map(item => item.id === newItem.id ? { ...item, id: dbItem.id } : item)
+        const updated = inventory.map((item) =>
+          item.id === localId ? { ...item, id: dbItem.id } : item
+        )
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
         console.log('[Inventory] Added item to database:', dbItem.id)
       } catch (dbError) {
@@ -136,6 +139,85 @@ export const getInventory = (): InventoryItem[] => {
     console.error('Error loading inventory:', error)
     return []
   }
+}
+
+function inventoryDedupeKey(item: Pick<InventoryItem, 'product' | 'sourceId' | 'sourceName' | 'obtainedFrom'>): string {
+  return `${item.product.id}|${item.sourceId || ''}|${item.sourceName || ''}|${item.obtainedFrom}`
+}
+
+/** Load inventory from API (source of truth), migrate legacy local sack items, cache in localStorage. */
+export const loadInventoryFromDB = async (
+  userId: string,
+  profile: { email: string; firstName: string; lastName: string }
+): Promise<InventoryItem[]> => {
+  const { getInventoryFromAPI, addInventoryItemToAPI } = await import('@/lib/api/inventory')
+  const { mapDbInventoryItem } = await import('@/lib/inventory-mapper')
+
+  let apiRows: Record<string, unknown>[] = []
+  try {
+    const raw = await getInventoryFromAPI(userId, profile)
+    apiRows = Array.isArray(raw) ? raw : []
+  } catch (error) {
+    console.error('[Inventory] Failed to load from API, using localStorage:', error)
+    return getInventory()
+  }
+
+  let items = apiRows
+    .map((row) => mapDbInventoryItem(row))
+    .filter((item): item is InventoryItem => item !== null)
+
+  const knownKeys = new Set(items.map(inventoryDedupeKey))
+  const knownIds = new Set(items.map((i) => i.id))
+  const localItems = getInventory()
+
+  for (const local of localItems) {
+    const key = inventoryDedupeKey(local)
+
+    if (local.obtainedFrom === 'sack' && local.id.startsWith('inv-')) {
+      if (knownKeys.has(key)) continue
+      try {
+        const dbItem = await addInventoryItemToAPI({
+          productId: local.product.id,
+          source: 'sack',
+          sourceId: local.sourceId,
+          notes: local.sourceName,
+          userId,
+        })
+        const mapped = mapDbInventoryItem(dbItem as Record<string, unknown>)
+        if (mapped) {
+          items.push({
+            ...mapped,
+            isRedeemed: local.isRedeemed || mapped.isRedeemed,
+            redeemedAt: local.redeemedAt ?? mapped.redeemedAt,
+            redemptionCode: local.redemptionCode ?? mapped.redemptionCode,
+            redemptionStatus: local.redemptionStatus ?? mapped.redemptionStatus,
+          })
+          knownKeys.add(inventoryDedupeKey(mapped))
+          knownIds.add(mapped.id)
+        }
+      } catch (err) {
+        console.error('[Inventory] Legacy sack upload failed:', err)
+        if (!knownIds.has(local.id)) {
+          items.push(local)
+          knownKeys.add(key)
+          knownIds.add(local.id)
+        }
+      }
+      continue
+    }
+
+    if (!knownIds.has(local.id) && !knownKeys.has(key)) {
+      items.push(local)
+      knownKeys.add(key)
+      knownIds.add(local.id)
+    }
+  }
+
+  items.sort(
+    (a, b) => new Date(b.obtainedAt).getTime() - new Date(a.obtainedAt).getTime()
+  )
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+  return items
 }
 
 export const getUnredeemedInventory = (): InventoryItem[] => {

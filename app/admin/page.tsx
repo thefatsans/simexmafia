@@ -180,6 +180,13 @@ export default function AdminDashboard() {
       color: 'from-blue-500 to-cyan-500',
     },
     {
+      title: 'Sack-Einlösungen',
+      description: 'Offene Sack-Gewinne einlösen und Keys versenden',
+      icon: Gift,
+      href: '/admin/redemptions',
+      color: 'from-pink-500 to-rose-500',
+    },
+    {
       title: 'Benutzer',
       description: 'Benutzerkonten verwalten',
       icon: Users,

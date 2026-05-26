@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
               <tr><td style="padding: 6px; color: #666;">Eingelöst am</td><td style="padding: 6px;">${updated.redeemedAt?.toISOString() ?? '-'}</td></tr>
             </table>
             <p style="margin-top: 24px;">
-              <a href="${siteUrl}/admin/inventory" style="background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Im Admin-Panel öffnen</a>
+              <a href="${siteUrl}/admin/redemptions" style="background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Im Admin-Panel öffnen</a>
             </p>
             <p style="font-size: 13px; color: #666; margin-top: 24px;">Bitte sende dem Nutzer den passenden Produkt-Key per E-Mail an <strong>${user.email}</strong>.</p>
           </div>

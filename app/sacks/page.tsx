@@ -6,7 +6,7 @@ import { sackTypes, openSack, Sack, SackReward, getSackByType, generatePossibleR
 import { mockUser } from '@/data/user'
 import { saveSackHistory } from '@/data/sackHistory'
 import { clearLeaderboardCache } from '@/data/leaderboard'
-import { addToInventory } from '@/data/inventory'
+import { addToInventoryAsync } from '@/data/inventory'
 import { OrderItem } from '@/data/payments'
 import PaymentCheckout from '@/components/PaymentCheckout'
 import { useToast } from '@/contexts/ToastContext'
@@ -223,7 +223,7 @@ export default function SacksPage() {
               setReward(finalResult)
               
               // Warte weitere 2 Sekunden, damit die Belohnung sichtbar bleibt
-              setTimeout(() => {
+              setTimeout(async () => {
                 setIsOpening(false)
                 setShowReward(true)
                 
@@ -255,11 +255,21 @@ export default function SacksPage() {
                 // Clear leaderboard cache for real-time updates
                 clearLeaderboardCache()
               
-                if (finalResult.type === 'product' && finalResult.product) {
-                  addToInventory(finalResult.product, 'sack', finalSack.id, finalSack.name)
-                  setTimeout(() => {
-                    showSuccess(`Produkt gewonnen: ${finalResult.product?.name}!`, 5000)
-                  }, 500)
+                if (finalResult.type === 'product' && finalResult.product && user?.id) {
+                  try {
+                    await addToInventoryAsync(
+                      finalResult.product,
+                      'sack',
+                      finalSack.id,
+                      finalSack.name,
+                      user.id
+                    )
+                    setTimeout(() => {
+                      showSuccess(`Produkt gewonnen: ${finalResult.product?.name}!`, 5000)
+                    }, 500)
+                  } catch (err) {
+                    console.error('[Sacks] Error adding product to inventory:', err)
+                  }
                 }
                 
                 // Coins wurden bereits vom Server hinzugefügt, nur UI-Update nötig
@@ -393,7 +403,7 @@ export default function SacksPage() {
           setReward(finalResult)
           
           // Warte weitere 2 Sekunden, damit die Belohnung sichtbar bleibt
-          setTimeout(() => {
+          setTimeout(async () => {
             setIsOpening(false)
             setShowReward(true)
             
@@ -411,11 +421,21 @@ export default function SacksPage() {
             // Clear leaderboard cache for real-time updates
             clearLeaderboardCache()
             
-            if (finalResult.type === 'product' && finalResult.product) {
-              addToInventory(finalResult.product, 'sack', finalSack.id, finalSack.name)
-              setTimeout(() => {
-                showSuccess(`Produkt gewonnen: ${finalResult.product?.name}!`, 5000)
-              }, 500)
+            if (finalResult.type === 'product' && finalResult.product && user?.id) {
+              try {
+                await addToInventoryAsync(
+                  finalResult.product,
+                  'sack',
+                  finalSack.id,
+                  finalSack.name,
+                  user.id
+                )
+                setTimeout(() => {
+                  showSuccess(`Produkt gewonnen: ${finalResult.product?.name}!`, 5000)
+                }, 500)
+              } catch (err) {
+                console.error('[Sacks] Error adding product to inventory:', err)
+              }
             }
             
             if (finalResult.type === 'coins' && finalResult.coins && !coinsAddedRef.current) {

@@ -13,6 +13,7 @@ import {
   InventoryItem,
   syncOrdersToInventory,
   removeDuplicateInventoryItems,
+  loadInventoryFromDB,
 } from '@/data/inventory'
 import { Package, CheckCircle, XCircle, Trash2, Gift, ShoppingBag, Trophy, X, Key, Copy, Check, Clock, Eye, Loader2 } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
@@ -470,14 +471,23 @@ export default function InventoryPage() {
     }
     
     setIsInitialLoading(true)
-    // Synchronisiere zuerst Bestellungen mit Inventar
-    syncInventory()
+    const profile = {
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    }
+    // DB zuerst laden, dann Bestellungen synchronisieren
+    loadInventoryFromDB(user.id, profile)
+      .then(() => syncInventory())
       .then(() => {
         loadInventory()
-        // Warte kurz, damit syncInventory fertig ist
         setTimeout(() => {
           loadOrderStatuses()
         }, 500)
+      })
+      .catch((err) => {
+        console.error('[Inventory Page] Error loading from DB:', err)
+        loadInventory()
       })
       .finally(() => {
         setIsInitialLoading(false)

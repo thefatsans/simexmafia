@@ -206,3 +206,37 @@ export async function sendOrderConfirmationEmailServer(
     html,
   })
 }
+
+export async function sendSackRedemptionFulfilledEmail(
+  email: string,
+  firstName: string,
+  productName: string,
+  redemptionCode: string
+) {
+  const siteUrl = getSiteUrl()
+  const html = `
+    <!DOCTYPE html>
+    <html><head><meta charset="utf-8"></head>
+    <body style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;background:#0b1020">
+      <div style="background:linear-gradient(135deg,#7c3aed 0%,#ec4899 100%);padding:20px;text-align:center;border-radius:10px 10px 0 0">
+        <h1 style="color:white;margin:0">Dein Sack-Gewinn ist bereit!</h1>
+      </div>
+      <div style="background:#111827;padding:24px;border-radius:0 0 10px 10px;color:#e5e7eb">
+        <p>Hallo ${firstName},</p>
+        <p>deine Einlöse-Anfrage für <strong>${productName}</strong> wurde bearbeitet. Hier ist dein Produkt-Key:</p>
+        <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px;margin:20px 0;text-align:center">
+          <code style="color:#a5b4fc;font-size:18px;font-family:monospace;word-break:break-all">${redemptionCode}</code>
+        </div>
+        <p>Du findest den Key auch jederzeit in deinem <a href="${sitePath('/inventory')}" style="color:#a5b4fc">Inventar</a>.</p>
+        <p style="font-size:12px;color:#9ca3af;margin-top:24px">Fragen? <a href="mailto:${SUPPORT_EMAIL}" style="color:#a5b4fc">${SUPPORT_EMAIL}</a></p>
+      </div>
+      <p style="text-align:center;font-size:11px;color:#6b7280;margin-top:12px"><a href="${siteUrl}" style="color:#a5b4fc">${siteUrl}</a></p>
+    </body></html>
+  `
+
+  return sendEmailViaResend({
+    to: email,
+    subject: `Dein Key für ${productName} – SimexMafia`,
+    html,
+  })
+}

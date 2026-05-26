@@ -1,5 +1,4 @@
 import { getOrdersFromAPI } from '@/lib/api/orders'
-import { getInventoryFromAPI } from '@/lib/api/inventory'
 import { getUserOrders, type Order } from '@/data/payments'
 import { getSackHistoryForUser, getSackStatisticsForHistory } from '@/data/sackHistory'
 import { getInventory, type InventoryItem } from '@/data/inventory'
@@ -20,33 +19,14 @@ function mergeOrders(apiOrders: Order[], localOrders: Order[]): Order[] {
   return Array.from(byId.values())
 }
 
-function mapApiInventoryItem(raw: Record<string, unknown>): InventoryItem | null {
-  const product = raw.product as InventoryItem['product'] | undefined
-  if (!product?.id) return null
-
-  return {
-    id: String(raw.id),
-    product,
-    obtainedAt: String(raw.createdAt || raw.obtainedAt || new Date().toISOString()),
-    obtainedFrom: (raw.source as InventoryItem['obtainedFrom']) || 'other',
-    sourceId: raw.sourceId ? String(raw.sourceId) : undefined,
-    sourceName: raw.notes ? String(raw.notes) : undefined,
-    isRedeemed: Boolean(raw.isRedeemed),
-    redeemedAt: raw.redeemedAt ? String(raw.redeemedAt) : undefined,
-    redemptionCode: raw.redemptionCode ? String(raw.redemptionCode) : undefined,
-  }
-}
-
 async function loadInventoryForUser(user: User): Promise<InventoryItem[]> {
+  const { loadInventoryFromDB } = await import('@/data/inventory')
   try {
-    const apiItems = await getInventoryFromAPI(user.id, {
+    return await loadInventoryFromDB(user.id, {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
     })
-    return apiItems
-      .map((item) => mapApiInventoryItem(item as Record<string, unknown>))
-      .filter((item): item is InventoryItem => item !== null)
   } catch {
     return getInventory()
   }
