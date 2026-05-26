@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { isAdmin } from '@/data/admin'
 import { Gift, RefreshCw, Key, CheckCircle, Loader2 } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
+import AdminLoading from '@/components/admin/AdminLoading'
 import LoadingSpinner from '@/components/LoadingSpinner'
 
 type RedemptionStatus = 'pending' | 'fulfilled'
@@ -123,11 +124,7 @@ export default function AdminRedemptionsPage() {
   }
 
   if (isLoading || authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-fortnite-darker">
-        <LoadingSpinner size="lg" centered label="Lädt..." />
-      </div>
-    )
+    return <AdminLoading label="Einlösungen werden geladen..." />
   }
 
   if (!user || !isAdmin(user.email)) {

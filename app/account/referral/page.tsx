@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { Copy, Gift, Users, Coins, ArrowLeft } from 'lucide-react'
+import { LoadingPage } from '@/components/LoadingSpinner'
 
 interface ReferralStats {
   code: string | null
@@ -66,11 +67,7 @@ export default function ReferralPage() {
   }
 
   if (isLoading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-300">
-        Lade…
-      </div>
-    )
+    return <LoadingPage label="Einladungsprogramm wird geladen..." />
   }
 
   return (

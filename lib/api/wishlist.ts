@@ -1,4 +1,6 @@
 import { Product } from '@/types'
+import { getAuthQueryParams } from '@/lib/api/auth-payload'
+import type { User } from '@/types/user'
 
 interface WishlistItem {
   id: string
@@ -7,42 +9,54 @@ interface WishlistItem {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
+type WishlistProfile = Pick<User, 'email' | 'firstName' | 'lastName'>
+
+function mapWishlistItem(item: any): WishlistItem {
+  return {
+    id: item.id,
+    product: {
+      id: item.product.id,
+      name: item.product.name,
+      description: item.product.description,
+      price: item.product.price,
+      originalPrice: item.product.originalPrice,
+      discount: item.product.discount,
+      image: item.product.image,
+      category: item.product.category,
+      platform: item.product.platform,
+      seller: item.product.seller,
+      rating: item.product.rating || 0,
+      reviewCount: item.product.reviewCount || 0,
+      inStock: item.product.inStock,
+      tags: item.product.tags || [],
+    },
+  }
+}
+
 /**
  * Ruft Wunschliste von der API ab
  * Fallback: Verwendet localStorage wenn API nicht verfügbar
  */
-export async function getWishlistFromAPI(userId: string): Promise<WishlistItem[]> {
+export async function getWishlistFromAPI(
+  userId: string,
+  profile?: WishlistProfile
+): Promise<WishlistItem[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/wishlist?userId=${userId}`)
-    
+    const query = profile
+      ? getAuthQueryParams({ id: userId, ...profile })
+      : `userId=${encodeURIComponent(userId)}`
+    const response = await fetch(`${API_BASE_URL}/api/wishlist?${query}`, {
+      credentials: 'include',
+    })
+
     if (!response.ok) {
       throw new Error('Failed to fetch wishlist')
     }
 
     const data = await response.json()
-    
-    return data.map((item: any) => ({
-      id: item.id,
-      product: {
-        id: item.product.id,
-        name: item.product.name,
-        description: item.product.description,
-        price: item.product.price,
-        originalPrice: item.product.originalPrice,
-        discount: item.product.discount,
-        image: item.product.image,
-        category: item.product.category,
-        platform: item.product.platform,
-        seller: item.product.seller,
-        rating: item.product.rating || 0,
-        reviewCount: item.product.reviewCount || 0,
-        inStock: item.product.inStock,
-        tags: item.product.tags || [],
-      },
-    }))
+    return data.map(mapWishlistItem)
   } catch (error) {
     console.warn('API not available, using localStorage fallback:', error)
-    // Fallback zu localStorage
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('simexmafia-wishlist')
       if (stored) {
@@ -54,7 +68,7 @@ export async function getWishlistFromAPI(userId: string): Promise<WishlistItem[]
             const product = products.find(p => p.id === id)
             return product ? { id, product } : null
           }).filter(Boolean) as WishlistItem[]
-        } catch (e) {
+        } catch {
           return []
         }
       }
@@ -66,80 +80,58 @@ export async function getWishlistFromAPI(userId: string): Promise<WishlistItem[]
 /**
  * Fügt Artikel zur Wunschliste hinzu (API)
  */
-export async function addToWishlistAPI(userId: string, product: Product): Promise<WishlistItem> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/wishlist`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId,
-        productId: product.id,
-      }),
-    })
+export async function addToWishlistAPI(
+  userId: string,
+  product: Product,
+  profile?: WishlistProfile
+): Promise<WishlistItem> {
+  const response = await fetch(`${API_BASE_URL}/api/wishlist`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      userId,
+      productId: product.id,
+      ...(profile
+        ? {
+            email: profile.email,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+          }
+        : {}),
+    }),
+  })
 
-    if (!response.ok) {
-      if (response.status === 409) {
-        throw new Error('Item already in wishlist')
-      }
-      throw new Error('Failed to add to wishlist')
+  if (!response.ok) {
+    if (response.status === 409) {
+      throw new Error('Item already in wishlist')
     }
-
-    const data = await response.json()
-    
-    return {
-      id: data.id,
-      product: {
-        id: data.product.id,
-        name: data.product.name,
-        description: data.product.description,
-        price: data.product.price,
-        originalPrice: data.product.originalPrice,
-        discount: data.product.discount,
-        image: data.product.image,
-        category: data.product.category,
-        platform: data.product.platform,
-        seller: data.product.seller,
-        rating: data.product.rating || 0,
-        reviewCount: data.product.reviewCount || 0,
-        inStock: data.product.inStock,
-        tags: data.product.tags || [],
-      },
-    }
-  } catch (error) {
-    console.warn('API not available:', error)
-    throw error
+    throw new Error('Failed to add to wishlist')
   }
+
+  const data = await response.json()
+  return mapWishlistItem(data)
 }
 
 /**
  * Entfernt Artikel aus Wunschliste (API)
  */
-export async function removeFromWishlistAPI(userId: string, productId: string): Promise<void> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/wishlist?userId=${userId}&productId=${productId}`, {
-      method: 'DELETE',
-    })
+export async function removeFromWishlistAPI(
+  userId: string,
+  productId: string,
+  profile?: WishlistProfile
+): Promise<void> {
+  const query = profile
+    ? `${getAuthQueryParams({ id: userId, ...profile })}&productId=${encodeURIComponent(productId)}`
+    : `userId=${encodeURIComponent(userId)}&productId=${encodeURIComponent(productId)}`
+  const response = await fetch(`${API_BASE_URL}/api/wishlist?${query}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
 
-    if (!response.ok) {
-      throw new Error('Failed to remove from wishlist')
-    }
-  } catch (error) {
-    console.warn('API not available:', error)
-    throw error
+  if (!response.ok) {
+    throw new Error('Failed to remove from wishlist')
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

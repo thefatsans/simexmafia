@@ -7,6 +7,7 @@ import { isAdmin } from '@/data/admin'
 import { getProductsFromAPI, createProductAPI, updateProductAPI, deleteProductAPI } from '@/lib/api/products'
 import { Product } from '@/types'
 import { Plus, Edit, Trash2, Search, Package } from 'lucide-react'
+import AdminLoading from '@/components/admin/AdminLoading'
 import { useToast } from '@/contexts/ToastContext'
 import Image from 'next/image'
 import ProductFormModal from '@/components/admin/ProductFormModal'
@@ -92,11 +93,7 @@ export default function AdminProductsPage() {
   )
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-fortnite-darker">
-        <div className="text-white">Lädt...</div>
-      </div>
-    )
+    return <AdminLoading label="Produkte werden geladen..." />
   }
 
   if (!user || !isAdmin(user.email)) {

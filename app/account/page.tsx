@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
-import { User, Edit2, Save, X, LogOut, Coins, ShoppingBag, Calendar, Award, Gift, Trophy, Sparkles } from 'lucide-react'
+import { User, Edit2, Save, X, LogOut, Coins, ShoppingBag, Calendar, Award, Gift, Trophy, Sparkles, ChevronRight } from 'lucide-react'
 import { TIER_INFO, calculateTier } from '@/types/user'
 import { loadAccountStats } from '@/lib/api/account-stats'
 import { LoadingPage } from '@/components/LoadingSpinner'
@@ -25,6 +26,19 @@ export default function AccountPage() {
     sacksOpened: 0,
     itemsWon: 0,
   })
+  const [referralBannerDismissed, setReferralBannerDismissed] = useState(true)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setReferralBannerDismissed(
+      localStorage.getItem('referral-banner-dismissed') === 'true'
+    )
+  }, [])
+
+  const dismissReferralBanner = () => {
+    localStorage.setItem('referral-banner-dismissed', 'true')
+    setReferralBannerDismissed(true)
+  }
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -100,6 +114,32 @@ export default function AccountPage() {
           <h1 className="text-4xl font-bold text-white mb-2">Mein Konto</h1>
           <p className="text-gray-400">Verwalten Sie Ihr Profil und Einstellungen</p>
         </div>
+
+        {!referralBannerDismissed && (
+          <div className="mb-6 flex items-center gap-3 p-4 bg-gradient-to-r from-pink-500/10 to-purple-500/10 border border-pink-500/30 rounded-lg">
+            <Gift className="w-5 h-5 text-pink-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-medium">
+                Freunde einladen und GoofyCoins verdienen
+              </p>
+              <Link
+                href="/account/referral"
+                className="inline-flex items-center gap-1 text-pink-400 hover:text-pink-300 text-sm mt-0.5 transition-colors"
+              >
+                Zum Einladungsprogramm
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <button
+              type="button"
+              onClick={dismissReferralBanner}
+              className="p-1 text-gray-400 hover:text-white transition-colors shrink-0"
+              aria-label="Banner schließen"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Profile */}

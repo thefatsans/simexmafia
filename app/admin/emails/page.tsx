@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { isAdmin } from '@/data/admin'
 import { useToast } from '@/contexts/ToastContext'
 import { Mail, Send, Users, FileText, Loader2, AlertCircle } from 'lucide-react'
+import AdminLoading from '@/components/admin/AdminLoading'
 
 type EmailType = 'custom' | 'newsletter' | 'announcement'
 
@@ -200,11 +201,7 @@ export default function AdminEmailsPage() {
     : dbUsers.length
 
   if (isLoading || authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-fortnite-darker">
-        <div className="text-white">Lädt...</div>
-      </div>
-    )
+    return <AdminLoading label="E-Mails werden geladen..." />
   }
 
   if (!user || !isAdmin(user.email)) {

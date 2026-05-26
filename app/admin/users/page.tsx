@@ -20,6 +20,7 @@ import {
   ShoppingCart,
   Star,
 } from 'lucide-react'
+import AdminLoading from '@/components/admin/AdminLoading'
 import { useToast } from '@/contexts/ToastContext'
 
 interface AdminUserRow {
@@ -224,11 +225,7 @@ export default function AdminUsersPage() {
     new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
   if (isLoading || authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-fortnite-darker">
-        <div className="text-white">Lädt...</div>
-      </div>
-    )
+    return <AdminLoading label="Benutzer werden geladen..." />
   }
 
   if (!user || !isAdmin(user.email)) return null

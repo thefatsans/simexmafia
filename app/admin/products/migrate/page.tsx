@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { isAdmin } from '@/data/admin'
 import { useToast } from '@/contexts/ToastContext'
 import { Upload, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import AdminLoading from '@/components/admin/AdminLoading'
 
 const STORAGE_KEY = 'simexmafia-admin-products'
 
@@ -17,11 +18,7 @@ export default function MigrateProductsPage() {
   const [migrationResult, setMigrationResult] = useState<any>(null)
 
   if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-fortnite-darker">
-        <div className="text-white">Lädt...</div>
-      </div>
-    )
+    return <AdminLoading label="Migration wird geladen..." />
   }
 
   if (!user || !isAdmin(user.email)) {

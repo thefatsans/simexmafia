@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { isAdmin } from '@/data/admin'
 import { Mail, Search, RefreshCw, Trash2 } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
+import AdminLoading from '@/components/admin/AdminLoading'
 
 type ContactStatus = 'pending' | 'in-progress' | 'resolved'
 
@@ -143,11 +144,7 @@ export default function AdminContactRequestsPage() {
   }
 
   if (isLoading || authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-fortnite-darker">
-        <div className="text-white">Lädt...</div>
-      </div>
-    )
+    return <AdminLoading label="Kontaktanfragen werden geladen..." />
   }
 
   if (!user || !isAdmin(user.email)) {

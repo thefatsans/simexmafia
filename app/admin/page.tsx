@@ -9,6 +9,7 @@ import {
   TrendingUp, DollarSign, Gift, BarChart3,
   Settings, LogOut
 } from 'lucide-react'
+import AdminLoading from '@/components/admin/AdminLoading'
 
 interface DashboardData {
   generatedAt: string
@@ -91,11 +92,7 @@ export default function AdminDashboard() {
   }, [user, router, authLoading])
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-fortnite-darker">
-        <div className="text-white">Lädt...</div>
-      </div>
-    )
+    return <AdminLoading label="Dashboard wird geladen..." />
   }
 
   if (!user || !isAdmin(user.email)) {

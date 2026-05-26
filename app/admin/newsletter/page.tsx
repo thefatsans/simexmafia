@@ -15,6 +15,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
+import AdminLoading from '@/components/admin/AdminLoading'
 
 type Tab = 'subscribers' | 'campaigns'
 
@@ -205,11 +206,7 @@ export default function NewsletterPage() {
   }
 
   if (isLoading || authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-fortnite-darker">
-        <div className="text-white">Lädt...</div>
-      </div>
-    )
+    return <AdminLoading label="Newsletter wird geladen..." />
   }
 
   if (!user || !isAdmin(user.email)) {

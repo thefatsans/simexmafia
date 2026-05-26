@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireResourceOwnership } from '@/lib/api-auth'
 
 // GET /api/wishlist?userId=xxx - Wunschliste abrufen
 export async function GET(request: NextRequest) {
   try {
     if (!prisma) {
       console.error('[Wishlist API] Prisma not available for GET request')
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Database connection error',
-        message: 'Please check DATABASE_URL and run migrations'
+        message: 'Please check DATABASE_URL and run migrations',
       }, { status: 503 })
     }
 
@@ -19,8 +20,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 })
     }
 
+    const authResult = await requireResourceOwnership(request, userId)
+    if (authResult?.error) {
+      return authResult.error
+    }
+
+    if (!authResult?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
     const wishlistItems = await prisma.wishlistItem.findMany({
-      where: { userId },
+      where: { userId: authResult.user.id },
       include: {
         product: {
           include: {
@@ -36,14 +46,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(wishlistItems)
   } catch (error: any) {
     console.error('[Wishlist API] Error fetching wishlist:', error)
-    console.error('[Wishlist API] Error details:', {
-      message: error.message,
-      code: error.code,
-      meta: error.meta,
-    })
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Failed to fetch wishlist',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     }, { status: 500 })
   }
 }
@@ -53,9 +58,9 @@ export async function POST(request: NextRequest) {
   try {
     if (!prisma) {
       console.error('[Wishlist API] Prisma not available for POST request')
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Database connection error',
-        message: 'Please check DATABASE_URL and run migrations'
+        message: 'Please check DATABASE_URL and run migrations',
       }, { status: 503 })
     }
 
@@ -66,24 +71,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'userId and productId are required' }, { status: 400 })
     }
 
-    // Prüfe ob User existiert, falls nicht erstelle einen
-    let user = await prisma.user.findUnique({ where: { id: userId } })
-    if (!user) {
-      console.log(`[Wishlist API] User ${userId} not found, creating...`)
-      user = await prisma.user.create({
-        data: {
-          id: userId,
-          email: `user-${userId}@example.com`,
-          firstName: 'User',
-          lastName: userId,
-          goofyCoins: 0,
-          totalSpent: 0,
-        },
-      })
-      console.log(`[Wishlist API] User ${userId} created successfully`)
+    const authResult = await requireResourceOwnership(request, userId, body)
+    if (authResult?.error) {
+      return authResult.error
     }
 
-    // Prüfe ob Produkt existiert
+    if (!authResult?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
     const product = await prisma.product.findUnique({
       where: { id: productId },
     })
@@ -95,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     const wishlistItem = await prisma.wishlistItem.create({
       data: {
-        userId,
+        userId: authResult.user.id,
         productId,
       },
       include: {
@@ -107,22 +103,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    console.log('[Wishlist API] Wishlist item created successfully:', wishlistItem.id)
     return NextResponse.json(wishlistItem, { status: 201 })
   } catch (error: any) {
-    // Wenn Artikel bereits in Wunschliste, ignoriere Fehler
     if (error.code === 'P2002') {
       return NextResponse.json({ error: 'Item already in wishlist' }, { status: 409 })
     }
     console.error('[Wishlist API] Error adding to wishlist:', error)
-    console.error('[Wishlist API] Error details:', {
-      message: error.message,
-      code: error.code,
-      meta: error.meta,
-    })
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Failed to add to wishlist',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     }, { status: 500 })
   }
 }
@@ -142,10 +131,19 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
 
+    const authResult = await requireResourceOwnership(request, userId)
+    if (authResult?.error) {
+      return authResult.error
+    }
+
+    if (!authResult?.user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
     await prisma.wishlistItem.delete({
       where: {
         userId_productId: {
-          userId,
+          userId: authResult.user.id,
           productId,
         },
       },
@@ -157,12 +155,3 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to remove from wishlist' }, { status: 500 })
   }
 }
-
-
-
-
-
-
-
-
-

@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { isAdmin } from '@/data/admin'
 import { Plus, Trash2, Tag, Edit, X, RefreshCw, Search } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
+import AdminLoading from '@/components/admin/AdminLoading'
 
 interface AdminDiscountCode {
   id: string
@@ -233,11 +234,7 @@ export default function AdminDiscountCodesPage() {
   }
 
   if (isLoading || authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-fortnite-darker">
-        <div className="text-white">Lädt...</div>
-      </div>
-    )
+    return <AdminLoading label="Rabattcodes werden geladen..." />
   }
 
   if (!user || !isAdmin(user.email)) {

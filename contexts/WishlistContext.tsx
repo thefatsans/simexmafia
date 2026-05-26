@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { Product } from '@/types'
+import type { User } from '@/types/user'
 import { useAuth } from '@/contexts/AuthContext'
 import { 
   getWishlistFromAPI, 
@@ -22,11 +23,20 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 
 const STORAGE_KEY = 'simexmafia-wishlist'
 
+function getWishlistProfile(user: User) {
+  return {
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+  }
+}
+
 export function WishlistProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const [wishlist, setWishlist] = useState<Product[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [useAPI, setUseAPI] = useState(false)
+  const profile = user ? getWishlistProfile(user) : undefined
 
   // Load wishlist on mount
   useEffect(() => {
@@ -40,7 +50,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         // Wenn User eingeloggt ist, versuche API zu verwenden
         if (user?.id) {
           try {
-            const apiWishlist = await getWishlistFromAPI(user.id)
+            const apiWishlist = await getWishlistFromAPI(user.id, profile)
             setWishlist(apiWishlist.map(item => item.product))
             setUseAPI(true)
             setIsLoaded(true)
@@ -82,14 +92,14 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     }
 
     loadWishlist()
-  }, [user?.id])
+  }, [user?.id, profile])
 
   // Wenn User sich einloggt, lade Wishlist von API
   useEffect(() => {
     if (user?.id && isLoaded) {
       const loadWishlistFromAPI = async () => {
         try {
-          const apiWishlist = await getWishlistFromAPI(user.id)
+          const apiWishlist = await getWishlistFromAPI(user.id, profile)
           setWishlist(apiWishlist.map(item => item.product))
           setUseAPI(true)
           // Merge mit localStorage Wishlist falls vorhanden
@@ -104,13 +114,13 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
                 // Füge localStorage Items zur API hinzu
                 for (const product of validProducts) {
                   try {
-                    await addToWishlistAPI(user.id, product)
+                    await addToWishlistAPI(user.id, product, profile)
                   } catch (e) {
                     // Ignore if already exists
                   }
                 }
                 // Lade erneut von API
-                const updatedWishlist = await getWishlistFromAPI(user.id)
+                const updatedWishlist = await getWishlistFromAPI(user.id, profile)
                 setWishlist(updatedWishlist.map(item => item.product))
                 // Lösche localStorage
                 localStorage.removeItem(STORAGE_KEY)
@@ -128,7 +138,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     } else if (!user && isLoaded) {
       setUseAPI(false)
     }
-  }, [user?.id, isLoaded])
+  }, [user?.id, isLoaded, profile])
 
   // Save wishlist to localStorage wenn nicht API (Fallback)
   useEffect(() => {
@@ -150,7 +160,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     // Wenn API verfügbar und User eingeloggt
     if (useAPI && user?.id) {
       try {
-        await addToWishlistAPI(user.id, product)
+        await addToWishlistAPI(user.id, product, profile)
         setWishlist(prev => {
           if (prev.some(p => p.id === product.id)) {
             return prev
@@ -181,13 +191,13 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, product]
     })
-  }, [useAPI, user?.id])
+  }, [useAPI, user?.id, profile])
 
   const removeFromWishlist = useCallback(async (productId: string) => {
     // Wenn API verfügbar und User eingeloggt
     if (useAPI && user?.id) {
       try {
-        await removeFromWishlistAPI(user.id, productId)
+        await removeFromWishlistAPI(user.id, productId, profile)
         setWishlist(prev => prev.filter(p => p.id !== productId))
         return
       } catch (error) {
@@ -198,7 +208,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
 
     // Fallback: localStorage
     setWishlist(prev => prev.filter(p => p.id !== productId))
-  }, [useAPI, user?.id])
+  }, [useAPI, user?.id, profile])
 
   const toggleWishlist = useCallback(async (product: Product) => {
     const isInList = wishlist.some(p => p.id === product.id)

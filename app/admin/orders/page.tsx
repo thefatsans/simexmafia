@@ -7,6 +7,7 @@ import { isAdmin } from '@/data/admin'
 import { getOrders, updateOrderStatus, Order } from '@/data/payments'
 import { getOrdersFromAPI, updateOrderStatusAPI } from '@/lib/api/orders'
 import { Search, Filter, CheckCircle, XCircle, Clock, Package, Key, Save } from 'lucide-react'
+import AdminLoading from '@/components/admin/AdminLoading'
 
 export default function AdminOrdersPage() {
   const router = useRouter()
@@ -191,11 +192,7 @@ export default function AdminOrdersPage() {
   })
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-fortnite-darker">
-        <div className="text-white">Lädt...</div>
-      </div>
-    )
+    return <AdminLoading label="Bestellungen werden geladen..." />
   }
 
   if (!user || !isAdmin(user.email)) {
@@ -239,78 +236,6 @@ export default function AdminOrdersPage() {
             <Package className="w-4 h-4" />
             <span>Aktualisieren</span>
           </button>
-        </div>
-
-        {/* Debug Info */}
-        <div className="mb-4 p-4 bg-fortnite-dark border border-purple-500/20 rounded-lg">
-          <p className="text-gray-400 text-sm mb-2">
-            <strong>Debug:</strong> {orders.length} Bestellungen geladen | 
-            User: {user?.email} | 
-            Admin: {isAdmin(user?.email) ? 'Ja' : 'Nein'}
-          </p>
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  const stored = localStorage.getItem('simexmafia-orders')
-                  console.log('[Admin Orders] Manual check - localStorage:', stored)
-                  const count = stored ? JSON.parse(stored).length : 0
-                  alert(`localStorage hat ${count} Bestellungen\n\nDaten:\n${stored || 'Keine Daten'}`)
-                }
-              }}
-              className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 rounded text-xs"
-            >
-              localStorage prüfen
-            </button>
-            <button
-              onClick={() => {
-                console.log('[Admin Orders] Force reload')
-                loadOrders()
-              }}
-              className="px-3 py-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-400 rounded text-xs"
-            >
-              Neu laden
-            </button>
-            <button
-              onClick={() => {
-                // Erstelle eine Testbestellung
-                const testOrder = {
-                  id: `ORD-TEST-${Date.now()}`,
-                  userId: 'test-user-1',
-                  items: [{
-                    id: 'test-product',
-                    type: 'product' as const,
-                    name: 'Test Produkt',
-                    price: 10,
-                    quantity: 1,
-                  }],
-                  subtotal: 10,
-                  serviceFee: 0.99,
-                  discount: 0,
-                  total: 10.99,
-                  paymentMethod: 'goofycoins' as const,
-                  status: 'pending' as const,
-                  createdAt: new Date().toISOString(),
-                }
-                
-                try {
-                  const stored = localStorage.getItem('simexmafia-orders')
-                  const orders = stored ? JSON.parse(stored) : []
-                  orders.push(testOrder)
-                  localStorage.setItem('simexmafia-orders', JSON.stringify(orders))
-                  console.log('[Admin Orders] Test order created:', testOrder.id)
-                  alert(`Testbestellung erstellt: ${testOrder.id}\n\nJetzt "Neu laden" klicken!`)
-                  loadOrders()
-                } catch (error) {
-                  console.error('[Admin Orders] Error creating test order:', error)
-                  alert('Fehler beim Erstellen der Testbestellung: ' + error)
-                }
-              }}
-              className="px-3 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 rounded text-xs"
-            >
-              Testbestellung erstellen
-            </button>
-          </div>
         </div>
 
         {/* Filters */}
