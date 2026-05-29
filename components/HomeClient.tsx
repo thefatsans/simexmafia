@@ -13,7 +13,6 @@ import { Product } from '@/types'
 import NewsletterForm from '@/components/NewsletterForm'
 import NewsletterModal from '@/components/NewsletterModal'
 import { useToast } from '@/contexts/ToastContext'
-import SummerSaleBanner from '@/components/SummerSaleBanner'
 import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import { isSimexDiscordServerProduct } from '@/lib/products/simex-discord-server'
 
@@ -131,8 +130,6 @@ export default function HomeClient({ initialCatalog }: { initialCatalog: Product
           </div>
         </div>
       </section>
-
-      <SummerSaleBanner />
 
       {/* Features Section */}
       <section ref={featuresAnimation.elementRef} className="py-16 bg-gradient-to-b from-summer-ocean-dark/20 to-transparent border-b border-summer-sky-light/10">

@@ -8,7 +8,7 @@ import { useAdminGate } from '@/hooks/useAdminGate'
 import { 
   Package, ShoppingCart, Users, Tag, Mail, 
   TrendingUp, DollarSign, Gift, BarChart3,
-  Settings, LogOut
+  Settings, LogOut, Wallet
 } from 'lucide-react'
 import AdminLoading from '@/components/admin/AdminLoading'
 import { adminFetch } from '@/lib/admin-fetch'
@@ -90,6 +90,7 @@ export default function AdminDashboardClient({
   const newUsers7d = data?.users?.new7d ?? 0
   const sackOpens7d = data?.sackOpens?.last7d ?? 0
   const pendingRedemptions = data?.redemptions?.pending ?? 0
+  const pendingCashouts = data?.cashouts?.pending ?? 0
   const pendingContactRequests = data?.contactRequests?.pending ?? 0
 
   const dashboardStats = [
@@ -126,6 +127,16 @@ export default function AdminDashboardClient({
       bgColor: pendingRedemptions > 0 ? 'bg-orange-500/20' : 'bg-gray-500/20',
       href: '/admin/redemptions',
       highlight: pendingRedemptions > 0,
+    },
+    {
+      label: 'Offene Coin-Umtausche',
+      value: pendingCashouts.toString(),
+      subtitle: 'Bargeld & Echtgeld Auszahlungen',
+      icon: Wallet,
+      color: pendingCashouts > 0 ? 'text-green-400' : 'text-gray-400',
+      bgColor: pendingCashouts > 0 ? 'bg-green-500/20' : 'bg-gray-500/20',
+      href: '/admin/goofycoins-cashouts',
+      highlight: pendingCashouts > 0,
     },
     {
       label: 'Offene Kontaktanfragen',
@@ -188,6 +199,15 @@ export default function AdminDashboardClient({
       color: 'from-pink-500 to-rose-500',
       badgeCount: pendingRedemptions,
       highlight: pendingRedemptions > 0,
+    },
+    {
+      title: 'GoofyCoins Umtausch',
+      description: 'Bargeld- und Bank-Auszahlungen bearbeiten',
+      icon: Wallet,
+      href: '/admin/goofycoins-cashouts',
+      color: 'from-green-500 to-emerald-500',
+      badgeCount: pendingCashouts,
+      highlight: pendingCashouts > 0,
     },
     {
       title: 'Benutzer',

@@ -17,6 +17,7 @@ export interface AdminDashboardData {
   coinTransactions: { last24h: number; last7d: number }
   catalog: { products: number; sellers: number }
   redemptions: { pending: number }
+  cashouts: { pending: number }
   contactRequests: { pending: number }
   recentOrders: Array<{
     id: string
@@ -80,6 +81,9 @@ async function buildAdminDashboardData(): Promise<AdminDashboardData> {
     },
     redemptions: {
       pending: stats.pending_redemptions,
+    },
+    cashouts: {
+      pending: stats.pending_cashouts,
     },
     contactRequests: {
       pending: stats.pending_contact_requests,

@@ -35,9 +35,7 @@ export default function CategoryPageContent({
   category: Category
   initialProducts: Product[]
 }) {
-  const [sortOption, setSortOption] = useState<ProductSortOption>(
-    category === 'gift-cards' ? 'discount-desc' : 'default'
-  )
+  const [sortOption, setSortOption] = useState<ProductSortOption>('default')
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | 'all'>('all')
   const [products, setProducts] = useState<Product[]>(initialProducts)
 
@@ -65,16 +63,6 @@ export default function CategoryPageContent({
   return (
     <div className="min-h-screen py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {category === 'gift-cards' && (
-          <div className="mb-6 rounded-xl border border-amber-400/40 bg-gradient-to-r from-amber-500/15 to-cyan-500/15 px-5 py-4">
-            <p className="text-amber-200 font-semibold">☀️ Sommer-Sale auf Gutscheinkarten</p>
-            <p className="text-gray-300 text-sm mt-1">
-              Jeder Gutschein mindestens <strong className="text-white">20%</strong> Rabatt – ausgewählte Karten{' '}
-              <strong className="text-amber-300">30%</strong>.
-            </p>
-          </div>
-        )}
-
         <div className="mb-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold text-white mb-2">{categoryNames[category]}</h1>

@@ -72,11 +72,6 @@ export default function ProductsPageContent({
     if (category && (CATEGORIES as string[]).includes(category)) {
       setSelectedCategory(category as Category)
     }
-    if (params.get('sale') === 'summer' || params.get('sale') === 'gift-cards') {
-      setSelectedCategory('gift-cards')
-      setHasDiscount(true)
-      setSortOption('discount-desc')
-    }
   }, [])
 
   useEffect(() => {

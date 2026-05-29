@@ -65,3 +65,57 @@ export async function getCoinTransactionsFromAPI(
     return []
   }
 }
+
+export type GoofyCoinCashoutRequest = {
+  id: string
+  variant: 'cash' | 'bank'
+  variantLabel: string
+  coinsAmount: number
+  euroAmount: number
+  status: string
+  fullName: string
+  email: string
+  phone: string | null
+  iban: string | null
+  address: string | null
+  notes: string | null
+  createdAt: string
+  processedAt: string | null
+}
+
+export async function getCashoutRequestsFromAPI(): Promise<GoofyCoinCashoutRequest[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/goofycoins/cashout`, {
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    if (!response.ok) return []
+    const data = await response.json()
+    return Array.isArray(data.items) ? data.items : []
+  } catch {
+    return []
+  }
+}
+
+export async function submitCashoutRequest(payload: {
+  variant: 'cash' | 'bank'
+  euroAmount: number
+  fullName: string
+  email: string
+  phone?: string
+  iban?: string
+  address?: string
+  notes?: string
+}): Promise<{ success: boolean; error?: string; newBalance?: number; code?: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/goofycoins/cashout`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    return { success: false, error: data.error || 'Anfrage fehlgeschlagen', code: data.code }
+  }
+  return { success: true, newBalance: data.newBalance }
+}

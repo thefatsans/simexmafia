@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Coins, Award, Gift, ArrowLeft, TrendingUp } from 'lucide-react'
+import { Coins, Award, Gift, ArrowLeft, TrendingUp, Wallet } from 'lucide-react'
 import { mockRedemptionItems } from '@/data/user'
 import { getCoinTransactionsFromAPI } from '@/lib/api/goofycoins'
 import { CoinTransaction } from '@/types/user'
@@ -112,6 +112,13 @@ export default function GoofyCoinsPage() {
               <Coins className="w-5 h-5" />
               <span>GoofyCoins kaufen</span>
             </a>
+            <Link
+              href="/goofycoins/cashout"
+              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold px-6 py-3 rounded-lg transition-all transform hover:scale-105 flex items-center space-x-2"
+            >
+              <Gift className="w-5 h-5" />
+              <span>In Echtgeld umtauschen</span>
+            </Link>
           </div>
         </div>
 
@@ -205,9 +212,16 @@ export default function GoofyCoinsPage() {
                     <Gift className="w-6 h-6 text-purple-400" />
                   </div>
                   <h4 className="text-white font-semibold mb-2">Belohnungen einlösen</h4>
-                  <p className="text-gray-400 text-sm">
-                    Nutze deine GoofyCoins, um Rabatte, kostenlose Produkte und exklusive Items zu erhalten.
+                  <p className="text-gray-400 text-sm mb-3">
+                    Nutze deine GoofyCoins für Rabatte, kostenlose Produkte – oder tausche sie in Bargeld bzw. Echtgeld um.
                   </p>
+                  <Link
+                    href="/goofycoins/cashout"
+                    className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 text-sm font-semibold"
+                  >
+                    <Wallet className="w-4 h-4" />
+                    In Echtgeld umtauschen (10€–500€)
+                  </Link>
                 </div>
               </div>
             </div>

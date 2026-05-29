@@ -44,7 +44,8 @@ model User {
   coinTransactions CoinTransaction[]
   priceAlerts   PriceAlert[]
   sackOpens     SackOpen[]
-  
+  goofyCoinCashouts GoofyCoinCashout[]
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -244,14 +245,40 @@ model CoinTransaction {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   type        String   // earned, purchased, spent, redeemed
   amount      Int      // Positive for earned/purchased, negative for spent
   balance     Int      // Balance after transaction
   description String
   orderId     String?
-  
+
   createdAt   DateTime @default(now())
+}
+
+model GoofyCoinCashout {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  variant      String   // cash (Bargeld) | bank (Echtgeld)
+  coinsAmount  Int
+  euroAmount   Float
+  status       String   @default("pending") // pending, completed, rejected
+
+  fullName     String
+  email        String
+  phone        String?
+  iban         String?
+  address      String?
+  notes        String?
+  adminNotes   String?
+
+  processedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }
 
 model PriceAlert {

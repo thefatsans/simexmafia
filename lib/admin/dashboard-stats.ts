@@ -21,6 +21,7 @@ export type DashboardStatsRow = {
   seller_count: number
   pending_redemptions: number
   pending_contact_requests: number
+  pending_cashouts: number
 }
 
 export async function fetchDashboardStats(since24h: Date, since7d: Date, since30d: Date) {
@@ -37,6 +38,7 @@ export async function fetchDashboardStats(since24h: Date, since7d: Date, since30
     sellerCount,
     pendingRedemptions,
     pendingContactRequests,
+    pendingCashouts,
     recentOrders,
   ] = await Promise.all([
     prisma.$queryRaw<
@@ -89,6 +91,7 @@ export async function fetchDashboardStats(since24h: Date, since7d: Date, since30
       where: { source: 'sack', isRedeemed: true, redemptionStatus: 'pending' },
     }),
     prisma.contactRequest.count({ where: { status: 'pending' } }),
+    prisma.goofyCoinCashout.count({ where: { status: 'pending' } }),
     prisma.order.findMany({
       select: {
         id: true,
@@ -110,6 +113,7 @@ export async function fetchDashboardStats(since24h: Date, since7d: Date, since30
     seller_count: sellerCount,
     pending_redemptions: pendingRedemptions,
     pending_contact_requests: pendingContactRequests,
+    pending_cashouts: pendingCashouts,
   }
 
   return { stats, recentOrders }
