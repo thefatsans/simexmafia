@@ -12,6 +12,7 @@ import AdminLoading from '@/components/admin/AdminLoading'
 import { useToast } from '@/contexts/ToastContext'
 import Image from 'next/image'
 import ProductFormModal from '@/components/admin/ProductFormModal'
+import { adminFetch } from '@/lib/admin-fetch'
 
 export default function AdminProductsPage() {
   const router = useRouter()
@@ -46,18 +47,16 @@ export default function AdminProductsPage() {
     }
     
     console.log('User is admin, loading products')
-    loadProducts()
+    loadProducts(user)
   }, [user, router, authLoading])
 
-  const loadProducts = async () => {
+  const loadProducts = async (currentUser: NonNullable<typeof user>) => {
     setIsLoading(true)
     try {
-      const res = await fetch('/api/admin/products', {
-        credentials: 'include',
-        cache: 'no-store',
-      })
+      const res = await adminFetch('/api/admin/products', currentUser)
       if (!res.ok) {
-        throw new Error('Failed to load products')
+        const errBody = await res.json().catch(() => ({}))
+        throw new Error(errBody.error || `HTTP ${res.status}`)
       }
       const data = await res.json()
       const mapped: Product[] = (data || []).map((p: any) => ({

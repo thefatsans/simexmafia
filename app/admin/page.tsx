@@ -10,6 +10,7 @@ import {
   Settings, LogOut
 } from 'lucide-react'
 import AdminLoading from '@/components/admin/AdminLoading'
+import { adminFetch } from '@/lib/admin-fetch'
 
 interface DashboardData {
   generatedAt: string
@@ -69,7 +70,7 @@ export default function AdminDashboard() {
     const loadStats = async () => {
       try {
         const [dashRes, ordersRes] = await Promise.all([
-          fetch('/api/admin/dashboard', { credentials: 'include', cache: 'no-store' }),
+          adminFetch('/api/admin/dashboard', user),
           fetch('/api/orders', { credentials: 'include', cache: 'no-store' }),
         ])
         if (!dashRes.ok) {

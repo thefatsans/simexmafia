@@ -78,30 +78,34 @@ export async function getKeyInventoryStatsForProducts(
     result.set(id, { available: 0, used: 0, total: 0 })
   }
 
-  const availableRows = await prisma.productStockKey.groupBy({
-    by: ['productId'],
-    where: { productId: { in: productIds }, usedAt: null },
-    _count: { id: true },
-  })
+  try {
+    const availableRows = await prisma.productStockKey.groupBy({
+      by: ['productId'],
+      where: { productId: { in: productIds }, usedAt: null },
+      _count: { id: true },
+    })
 
-  const usedRows = await prisma.productStockKey.groupBy({
-    by: ['productId'],
-    where: { productId: { in: productIds }, usedAt: { not: null } },
-    _count: { id: true },
-  })
+    const usedRows = await prisma.productStockKey.groupBy({
+      by: ['productId'],
+      where: { productId: { in: productIds }, usedAt: { not: null } },
+      _count: { id: true },
+    })
 
-  for (const row of availableRows) {
-    const current = result.get(row.productId) || { available: 0, used: 0, total: 0 }
-    current.available = row._count.id
-    current.total += row._count.id
-    result.set(row.productId, current)
-  }
+    for (const row of availableRows) {
+      const current = result.get(row.productId) || { available: 0, used: 0, total: 0 }
+      current.available = row._count.id
+      current.total += row._count.id
+      result.set(row.productId, current)
+    }
 
-  for (const row of usedRows) {
-    const current = result.get(row.productId) || { available: 0, used: 0, total: 0 }
-    current.used = row._count.id
-    current.total += row._count.id
-    result.set(row.productId, current)
+    for (const row of usedRows) {
+      const current = result.get(row.productId) || { available: 0, used: 0, total: 0 }
+      current.used = row._count.id
+      current.total += row._count.id
+      result.set(row.productId, current)
+    }
+  } catch (error) {
+    console.warn('[Stock] getKeyInventoryStatsForProducts failed:', error)
   }
 
   return result
