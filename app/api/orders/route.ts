@@ -54,9 +54,33 @@ export async function GET(request: NextRequest) {
     
     if (status) where.status = status
 
+    const limitParam = searchParams.get('limit')
+    const summary = searchParams.get('summary') === '1'
+    const take = limitParam
+      ? Math.min(Math.max(parseInt(limitParam, 10) || 0, 1), 100)
+      : undefined
+
     if (!prisma) {
       console.error('[Orders API] Prisma client is null!')
       return NextResponse.json([])
+    }
+
+    if (summary) {
+      const orders = await prisma.order.findMany({
+        where,
+        select: {
+          id: true,
+          userId: true,
+          total: true,
+          status: true,
+          statusReason: true,
+          createdAt: true,
+          completedAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: take ?? 6,
+      })
+      return NextResponse.json(orders)
     }
 
     const orders = await prisma.order.findMany({
@@ -83,38 +107,10 @@ export async function GET(request: NextRequest) {
       orderBy: {
         createdAt: 'desc',
       },
+      ...(take ? { take } : {}),
     })
 
-    // Füge statusReason zu jedem Order hinzu, falls es nicht automatisch zurückgegeben wurde
-    const ordersWithStatusReason = await Promise.all(orders.map(async (order: any) => {
-      // Prüfe ob statusReason bereits vorhanden ist
-      if (order.statusReason !== undefined) {
-        return order
-      }
-      
-      // Hole statusReason mit Raw Query, falls es nicht automatisch zurückgegeben wurde
-      try {
-        if (!prisma) {
-          order.statusReason = null
-        } else {
-          const result = await prisma.$queryRaw<Array<{ statusReason: string | null }>>`
-            SELECT "statusReason" FROM "Order" WHERE "id" = ${order.id}
-          `
-          if (result && result.length > 0) {
-            order.statusReason = result[0].statusReason
-          } else {
-            order.statusReason = null
-          }
-        }
-      } catch (rawError: any) {
-        console.warn(`[Orders API] Could not fetch statusReason for order ${order.id}:`, rawError.message)
-        order.statusReason = null
-      }
-      
-      return order
-    }))
-    
-    return NextResponse.json(ordersWithStatusReason)
+    return NextResponse.json(orders)
   } catch (error: any) {
     console.error('[Orders API] Error fetching orders:', error)
     console.error('[Orders API] Error details:', {

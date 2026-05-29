@@ -21,6 +21,7 @@ import {
   Star,
 } from 'lucide-react'
 import AdminLoading from '@/components/admin/AdminLoading'
+import { adminFetch } from '@/lib/admin-fetch'
 import { useToast } from '@/contexts/ToastContext'
 
 interface AdminUserRow {
@@ -109,7 +110,7 @@ export default function AdminUsersPage() {
     try {
       const params = new URLSearchParams({ limit: '100' })
       if (debouncedQuery) params.set('q', debouncedQuery)
-      const res = await fetch(`/api/admin/users?${params}`, { credentials: 'include', cache: 'no-store' })
+      const res = await adminFetch(`/api/admin/users?${params}`, user)
       if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error || `Fehler ${res.status}`) }
       const data = await res.json()
       setUsers(data.users || [])
@@ -127,11 +128,12 @@ export default function AdminUsersPage() {
   }, [authLoading, user, loadUsers])
 
   const openDetail = async (u: AdminUserRow) => {
+    if (!user) return
     setIsLoadingDetail(true)
     setSelectedUser(null)
     setIsEditMode(false)
     try {
-      const res = await fetch(`/api/admin/users/${u.id}`, { credentials: 'include' })
+      const res = await adminFetch(`/api/admin/users/${u.id}`, user)
       if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error || `Fehler ${res.status}`) }
       const data = await res.json()
       setSelectedUser(data.user)
@@ -149,12 +151,11 @@ export default function AdminUsersPage() {
   }
 
   const handleSaveEdit = async () => {
-    if (!selectedUser) return
+    if (!selectedUser || !user) return
     try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+      const res = await adminFetch(`/api/admin/users/${selectedUser.id}`, user, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           firstName: editForm.firstName,
           lastName: editForm.lastName,
@@ -174,13 +175,13 @@ export default function AdminUsersPage() {
   }
 
   const handleToggleAdmin = async (u: AdminUserDetail) => {
+    if (!user) return
     const newVal = !u.isAdmin
     if (!confirm(newVal ? `${u.email} zum Admin machen?` : `Admin-Rechte von ${u.email} entziehen?`)) return
     try {
-      const res = await fetch(`/api/admin/users/${u.id}`, {
+      const res = await adminFetch(`/api/admin/users/${u.id}`, user, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ isAdmin: newVal }),
       })
       const data = await res.json().catch(() => ({}))
@@ -192,12 +193,12 @@ export default function AdminUsersPage() {
   }
 
   const handleToggleVerified = async (u: AdminUserDetail) => {
+    if (!user) return
     const newVal = !u.emailVerified
     try {
-      const res = await fetch(`/api/admin/users/${u.id}`, {
+      const res = await adminFetch(`/api/admin/users/${u.id}`, user, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ emailVerified: newVal }),
       })
       const data = await res.json().catch(() => ({}))
@@ -209,9 +210,10 @@ export default function AdminUsersPage() {
   }
 
   const handleDelete = async (u: AdminUserDetail) => {
+    if (!user) return
     if (!confirm(`Benutzer "${u.email}" und alle zugehörigen Daten (Bestellungen, Bewertungen, Inventar) wirklich löschen? Diese Aktion ist nicht rückgängig zu machen.`)) return
     try {
-      const res = await fetch(`/api/admin/users/${u.id}`, { method: 'DELETE', credentials: 'include' })
+      const res = await adminFetch(`/api/admin/users/${u.id}`, user, { method: 'DELETE' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { showError(data.error || `Fehler ${res.status}`); return }
       setSelectedUser(null)

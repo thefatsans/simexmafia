@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { isAdmin } from '@/data/admin'
@@ -29,6 +30,12 @@ interface DashboardData {
   catalog: { products: number; sellers: number }
   redemptions: { pending: number }
   contactRequests: { pending: number }
+  recentOrders: Array<{
+    id: string
+    total: number
+    status: string
+    createdAt: string
+  }>
   integrations: {
     resendConfigured: boolean
     paypalConfigured: boolean
@@ -69,22 +76,17 @@ export default function AdminDashboard() {
     
     const loadStats = async () => {
       try {
-        const [dashRes, ordersRes] = await Promise.all([
-          adminFetch('/api/admin/dashboard', user),
-          fetch('/api/orders', { credentials: 'include', cache: 'no-store' }),
-        ])
+        const dashRes = await adminFetch('/api/admin/dashboard', user)
         if (!dashRes.ok) {
           throw new Error(`Dashboard error: ${dashRes.status}`)
         }
         const dashboard = (await dashRes.json()) as DashboardData
         setData(dashboard)
-        if (ordersRes.ok) {
-          const orders = await ordersRes.json()
-          setRecentOrders(Array.isArray(orders) ? orders.slice(0, 6) : [])
-        }
-      } catch (err: any) {
+        setRecentOrders(dashboard.recentOrders ?? [])
+      } catch (err: unknown) {
         console.error('Error loading dashboard:', err)
-        setError(err?.message || 'Dashboard konnte nicht geladen werden.')
+        const message = err instanceof Error ? err.message : 'Dashboard konnte nicht geladen werden.'
+        setError(message)
       } finally {
         setIsLoading(false)
       }
@@ -288,12 +290,12 @@ export default function AdminDashboard() {
                 : 'Kontaktanfragen warten'}{' '}
               auf Bearbeitung.
             </p>
-            <a
+            <Link
               href="/admin/contact-requests"
               className="inline-flex items-center justify-center px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg text-sm transition-colors shrink-0"
             >
               Zu Kontaktanfragen
-            </a>
+            </Link>
           </div>
         )}
         {pendingRedemptions > 0 && (
@@ -305,12 +307,12 @@ export default function AdminDashboard() {
                 : 'Sack-Einlösungen warten'}{' '}
               auf einen Produkt-Key.
             </p>
-            <a
+            <Link
               href="/admin/redemptions"
               className="inline-flex items-center justify-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg text-sm transition-colors shrink-0"
             >
               Jetzt bearbeiten
-            </a>
+            </Link>
           </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -338,9 +340,9 @@ export default function AdminDashboard() {
             const href = (stat as { href?: string }).href
             if (href) {
               return (
-                <a key={index} href={href} className={cardClass}>
+                <Link key={index} href={href} className={cardClass}>
                   {content}
-                </a>
+                </Link>
               )
             }
             return (
@@ -392,14 +394,10 @@ export default function AdminDashboard() {
               const badgeCount = (action as { badgeCount?: number }).badgeCount ?? 0
               const highlight = (action as { highlight?: boolean }).highlight
               return (
-                <div
+                <Link
                   key={index}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = action.href
-                  }}
-                  className={`bg-gradient-to-r ${action.color} hover:opacity-90 rounded-lg p-6 text-white transition-all transform hover:scale-105 cursor-pointer pointer-events-auto relative ${
+                  href={action.href}
+                  className={`bg-gradient-to-r ${action.color} hover:opacity-90 rounded-lg p-6 text-white transition-all transform hover:scale-105 cursor-pointer pointer-events-auto relative block ${
                     highlight ? 'ring-2 ring-white/40 ring-offset-2 ring-offset-fortnite-darker' : ''
                   }`}
                 >
@@ -413,7 +411,7 @@ export default function AdminDashboard() {
                   </div>
                   <h3 className="text-xl font-bold mb-2">{action.title}</h3>
                   <p className="text-white/80 text-sm">{action.description}</p>
-                </div>
+                </Link>
               )
             })}
           </div>

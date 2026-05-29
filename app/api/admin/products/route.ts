@@ -2,6 +2,33 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/api-auth'
 import { getKeyInventoryStatsForProducts } from '@/lib/product-keys/stock'
+import { KEY_INVENTORY_PRODUCT_IDS } from '@/lib/products/key-inventory-catalog'
+import { STOREFRONT_PRODUCT_IDS } from '@/lib/products/storefront-ids'
+
+const ADMIN_CACHE_HEADERS = {
+  'Cache-Control': 'private, max-age=15',
+}
+
+function storefrontProductWhere(includeAll: boolean) {
+  const base = { NOT: { name: { startsWith: '[ARCHIV]' } } } as const
+
+  if (includeAll) {
+    return base
+  }
+
+  return {
+    ...base,
+    OR: [
+      { id: { in: [...STOREFRONT_PRODUCT_IDS] } },
+      {
+        AND: [
+          { name: { contains: 'simex', mode: 'insensitive' as const } },
+          { name: { contains: 'discord', mode: 'insensitive' as const } },
+        ],
+      },
+    ],
+  }
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request)
@@ -14,15 +41,22 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const includeAll = request.nextUrl.searchParams.get('all') === '1'
+
     const products = await prisma.product.findMany({
-      where: {
-        NOT: { name: { startsWith: '[ARCHIV]' } },
-      },
+      where: storefrontProductWhere(includeAll),
       include: { seller: true },
       orderBy: { createdAt: 'desc' },
     })
 
-    const statsMap = await getKeyInventoryStatsForProducts(products.map((p) => p.id))
+    const keyTrackedIds = products
+      .map((product) => product.id)
+      .filter((id) => KEY_INVENTORY_PRODUCT_IDS.has(id))
+
+    const statsMap =
+      keyTrackedIds.length > 0
+        ? await getKeyInventoryStatsForProducts(keyTrackedIds)
+        : new Map<string, { available: number; used: number; total: number }>()
 
     const payload = products.map((product) => {
       const stats = statsMap.get(product.id)
@@ -36,11 +70,11 @@ export async function GET(request: NextRequest) {
         keysAvailable: stats?.available ?? 0,
         keysUsed: stats?.used ?? 0,
         keysTotal: stats?.total ?? 0,
-        inStock: hasKeyPool ? (stats!.available > 0) : product.inStock,
+        inStock: hasKeyPool ? stats!.available > 0 : product.inStock,
       }
     })
 
-    return NextResponse.json(payload)
+    return NextResponse.json(payload, { headers: ADMIN_CACHE_HEADERS })
   } catch (error) {
     console.error('[admin/products] GET failed:', error)
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })

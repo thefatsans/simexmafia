@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { isAdmin } from '@/data/admin'
 import { Order } from '@/data/payments'
-import { getOrdersFromAPI, updateOrderStatusAPI } from '@/lib/api/orders'
+import { adminFetch } from '@/lib/admin-fetch'
+import { updateOrderStatusAPI } from '@/lib/api/orders'
 import { Search, Filter, CheckCircle, XCircle, Clock, Package, Key, Save } from 'lucide-react'
 import AdminLoading from '@/components/admin/AdminLoading'
 
@@ -26,7 +27,11 @@ export default function AdminOrdersPage() {
 
     try {
       setLoadError(null)
-      const apiOrders = await getOrdersFromAPI(user.id)
+      const response = await adminFetch('/api/orders?limit=100', user)
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders')
+      }
+      const apiOrders = await response.json()
 
       const convertedOrders: Order[] = apiOrders.map((apiOrder: any) => ({
         id: apiOrder.id,

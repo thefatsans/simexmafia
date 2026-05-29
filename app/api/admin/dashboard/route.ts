@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/api-auth'
 
+const ADMIN_CACHE_HEADERS = {
+  'Cache-Control': 'private, max-age=30',
+}
+
 function startOf(daysAgo: number): Date {
   const d = new Date()
   d.setUTCHours(0, 0, 0, 0)
@@ -44,6 +48,7 @@ export async function GET(request: NextRequest) {
       sellerCount,
       pendingRedemptions,
       pendingContactRequests,
+      recentOrders,
     ] = await Promise.all([
       prisma.order.count(),
       prisma.order.count({ where: { status: 'pending' } }),
@@ -66,7 +71,7 @@ export async function GET(request: NextRequest) {
       prisma.sackOpen.count({ where: { createdAt: { gte: since7d } } }),
       prisma.coinTransaction.count({ where: { createdAt: { gte: since24h } } }),
       prisma.coinTransaction.count({ where: { createdAt: { gte: since7d } } }),
-      prisma.product.count(),
+      prisma.product.count({ where: { NOT: { name: { startsWith: '[ARCHIV]' } } } }),
       prisma.seller.count(),
       prisma.inventoryItem.count({
         where: {
@@ -76,57 +81,72 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.contactRequest.count({ where: { status: 'pending' } }),
+      prisma.order.findMany({
+        select: {
+          id: true,
+          total: true,
+          status: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      }),
     ])
 
-    return NextResponse.json({
-      generatedAt: new Date().toISOString(),
-      orders: {
-        total: totalOrders,
-        pending: pendingOrders,
-        completed: completedOrders,
-        last24h: orders24h,
-        last7d: orders7d,
-        last30d: orders30d,
-      },
-      revenue: {
-        total: revenueAgg._sum.total ?? 0,
-        last30d: revenue30Agg._sum.total ?? 0,
-      },
-      users: {
-        new24h: newUsers24h,
-        new7d: newUsers7d,
-        new30d: newUsers30d,
-      },
-      sackOpens: {
-        last24h: sackOpens24h,
-        last7d: sackOpens7d,
-      },
-      coinTransactions: {
-        last24h: coinTxs24h,
-        last7d: coinTxs7d,
-      },
-      catalog: {
-        products: productCount,
-        sellers: sellerCount,
-      },
-      redemptions: {
-        pending: pendingRedemptions,
-      },
-      contactRequests: {
-        pending: pendingContactRequests,
-      },
-      integrations: {
-        resendConfigured: Boolean(process.env.RESEND_API_KEY),
-        paypalConfigured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
-        stripeConfigured: Boolean(process.env.STRIPE_SECRET_KEY),
-        turnstileConfigured: Boolean(process.env.TURNSTILE_SECRET_KEY),
-        discordInvite: Boolean(process.env.DISCORD_INVITE_URL),
-      },
-    })
-  } catch (err: any) {
-    console.error('[Admin Dashboard] Error:', err)
     return NextResponse.json(
-      { error: 'Failed to load dashboard', details: err?.message },
+      {
+        generatedAt: new Date().toISOString(),
+        orders: {
+          total: totalOrders,
+          pending: pendingOrders,
+          completed: completedOrders,
+          last24h: orders24h,
+          last7d: orders7d,
+          last30d: orders30d,
+        },
+        revenue: {
+          total: revenueAgg._sum.total ?? 0,
+          last30d: revenue30Agg._sum.total ?? 0,
+        },
+        users: {
+          new24h: newUsers24h,
+          new7d: newUsers7d,
+          new30d: newUsers30d,
+        },
+        sackOpens: {
+          last24h: sackOpens24h,
+          last7d: sackOpens7d,
+        },
+        coinTransactions: {
+          last24h: coinTxs24h,
+          last7d: coinTxs7d,
+        },
+        catalog: {
+          products: productCount,
+          sellers: sellerCount,
+        },
+        redemptions: {
+          pending: pendingRedemptions,
+        },
+        contactRequests: {
+          pending: pendingContactRequests,
+        },
+        recentOrders,
+        integrations: {
+          resendConfigured: Boolean(process.env.RESEND_API_KEY),
+          paypalConfigured: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
+          stripeConfigured: Boolean(process.env.STRIPE_SECRET_KEY),
+          turnstileConfigured: Boolean(process.env.TURNSTILE_SECRET_KEY),
+          discordInvite: Boolean(process.env.DISCORD_INVITE_URL),
+        },
+      },
+      { headers: ADMIN_CACHE_HEADERS }
+    )
+  } catch (err: unknown) {
+    console.error('[Admin Dashboard] Error:', err)
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json(
+      { error: 'Failed to load dashboard', details: message },
       { status: 500 }
     )
   }
