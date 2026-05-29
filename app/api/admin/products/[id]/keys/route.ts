@@ -5,6 +5,7 @@ import {
   addProductKeys,
   getKeyInventoryStats,
 } from '@/lib/product-keys/stock'
+import { ensureProductStockKeyTable } from '@/lib/product-keys/ensure-table'
 import { invalidateStorefrontCache } from '@/lib/products/storefront-cache'
 
 function parseCodesFromBody(body: {
@@ -42,6 +43,7 @@ export async function GET(
     return NextResponse.json({ error: 'Product not found' }, { status: 404 })
   }
 
+  await ensureProductStockKeyTable()
   const stats = await getKeyInventoryStats(params.id)
   return NextResponse.json({
     available: stats.available,
@@ -80,6 +82,7 @@ export async function POST(
       return NextResponse.json({ error: 'No keys provided' }, { status: 400 })
     }
 
+    await ensureProductStockKeyTable()
     const result = await addProductKeys(params.id, codes)
     const stats = await getKeyInventoryStats(params.id)
     invalidateStorefrontCache(params.id)
