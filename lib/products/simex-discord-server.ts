@@ -2,17 +2,9 @@ import { Product } from '@/types'
 import { applyProductQueryFilters, type ProductQueryFilters } from '@/lib/products/query'
 import { createSimexDiscordServerProduct } from '@/lib/products/storefront-seeds'
 import { SIMEXMAFIA_SELLER } from '@/lib/sellers'
+import { isSimexDiscordServerProduct } from '@/lib/products/discord-product'
 
-export const SIMEX_DISCORD_SERVER_NAME = 'Simex Geheimer Discord-Server'
-
-export function isSimexDiscordServerProduct(product: Pick<Product, 'name'>): boolean {
-  const name = product.name.toLowerCase()
-  return (
-    name.includes('simex') &&
-    name.includes('discord') &&
-    (name.includes('server') || name.includes('geheim'))
-  )
-}
+export { isSimexDiscordServerProduct, SIMEX_DISCORD_SERVER_NAME } from '@/lib/products/discord-product'
 
 function withSimexMafiaSeller<T extends Product>(product: T): T {
   return { ...product, seller: SIMEXMAFIA_SELLER }
@@ -29,7 +21,7 @@ export function applySimexMafiaSellerToDiscordProducts<T extends Product>(produc
   )
 }
 
-/** Stellt sicher, dass das exklusive Discord-Produkt im Katalog sichtbar ist (auch wenn die DB es nicht enthält). */
+/** Stellt sicher, dass das exklusive Discord-Produkt im Katalog sichtbar ist. */
 export async function ensureSimexDiscordServerInCatalog<T extends Product>(
   products: T[],
   filters: ProductQueryFilters = {}

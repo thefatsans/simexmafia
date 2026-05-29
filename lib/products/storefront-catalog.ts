@@ -1,5 +1,5 @@
 import { Product } from '@/types'
-import { isSimexDiscordServerProduct } from '@/lib/products/simex-discord-server'
+import { isSimexDiscordServerProduct } from '@/lib/products/discord-product'
 
 export const PSN_10_DE_PRODUCT_NAME = 'PlayStation Store Guthaben 10 € (DE)'
 export const PSN_10_DE_LEGACY_NAME = 'PlayStation Store Gift Card €10'

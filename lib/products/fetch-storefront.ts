@@ -6,12 +6,13 @@ import {
   ensureSimexDiscordServerInCatalog,
 } from '@/lib/products/simex-discord-server'
 import { filterStorefrontCatalog } from '@/lib/products/storefront-catalog'
+import { getStorefrontFallbackCatalog } from '@/lib/products/storefront-seeds'
 import {
-  getStorefrontFallbackCatalog,
+  PSN_10_DE_PRODUCT_ID,
+  ROBLOX_800_PRODUCT_ID,
   SIMEX_DISCORD_SERVER_ID,
   STOREFRONT_PRODUCT_IDS,
-} from '@/lib/products/storefront-seeds'
-import { PSN_10_DE_PRODUCT_ID, ROBLOX_800_PRODUCT_ID } from '@/data/products'
+} from '@/lib/products/storefront-ids'
 
 function normalizeDbProduct(product: Record<string, unknown>) {
   const reviews = product.reviews as Array<{ rating: number }> | undefined
