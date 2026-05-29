@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { isAdmin } from '@/data/admin'
+import { useAdminGate } from '@/hooks/useAdminGate'
 import { 
   Package, ShoppingCart, Users, Tag, Mail, 
   TrendingUp, DollarSign, Gift, BarChart3,
@@ -47,62 +47,55 @@ interface DashboardData {
 
 export default function AdminDashboard() {
   const router = useRouter()
-  const { user, logout, isLoading: authLoading } = useAuth()
+  const { logout } = useAuth()
+  const { user, isLoading: gateLoading, isReady } = useAdminGate()
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<DashboardData | null>(null)
-  const [recentOrders, setRecentOrders] = useState<any[]>([])
 
   useEffect(() => {
-    if (authLoading) {
-      setIsLoading(true)
-      return // Wait for auth to load
-    }
-    
-    if (!user) {
-      console.log('No user, redirecting to login')
-      router.push('/auth/login')
-      return
-    }
-    
-    const userIsAdmin = isAdmin(user.email)
-    console.log('Checking admin access:', { email: user.email, isAdmin: userIsAdmin })
-    
-    if (!userIsAdmin) {
-      console.log('User is not admin, redirecting to account')
-      router.push('/account')
-      return
-    }
-    
+    if (!isReady || !user) return
+
+    let cancelled = false
+
     const loadStats = async () => {
+      setIsLoading(true)
+      setError(null)
       try {
         const dashRes = await adminFetch('/api/admin/dashboard', user)
         if (!dashRes.ok) {
-          throw new Error(`Dashboard error: ${dashRes.status}`)
+          const body = await dashRes.json().catch(() => ({}))
+          throw new Error(body.error || `Dashboard error: ${dashRes.status}`)
         }
         const dashboard = (await dashRes.json()) as DashboardData
-        setData(dashboard)
-        setRecentOrders(dashboard.recentOrders ?? [])
+        if (!cancelled) setData(dashboard)
       } catch (err: unknown) {
         console.error('Error loading dashboard:', err)
-        const message = err instanceof Error ? err.message : 'Dashboard konnte nicht geladen werden.'
-        setError(message)
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Dashboard konnte nicht geladen werden.'
+          setError(message)
+        }
       } finally {
-        setIsLoading(false)
+        if (!cancelled) setIsLoading(false)
       }
     }
 
     loadStats()
-  }, [user, router, authLoading])
 
-  if (isLoading) {
+    return () => {
+      cancelled = true
+    }
+  }, [isReady, user])
+
+  if (gateLoading || (isReady && isLoading && !data && !error)) {
     return <AdminLoading label="Dashboard wird geladen..." />
   }
 
-  if (!user || !isAdmin(user.email)) {
+  if (!isReady || !user) {
     return null
   }
 
+  const recentOrders = data?.recentOrders ?? []
   const totalRevenue = data?.revenue?.total ?? 0
   const totalRevenue30d = data?.revenue?.last30d ?? 0
   const totalOrders = data?.orders?.total ?? 0

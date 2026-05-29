@@ -10,9 +10,10 @@ import { checkReviewEligibilityAPI } from '@/lib/api/reviews'
 interface ProductReviewsProps {
   reviews: Review[]
   productId: string
+  isLoading?: boolean
 }
 
-export default function ProductReviews({ reviews, productId }: ProductReviewsProps) {
+export default function ProductReviews({ reviews, productId, isLoading = false }: ProductReviewsProps) {
   const router = useRouter()
   const { isAuthenticated, user } = useAuth()
   const [helpfulReviews, setHelpfulReviews] = useState<Set<string>>(new Set())
@@ -83,6 +84,14 @@ export default function ProductReviews({ reviews, productId }: ProductReviewsPro
         Bewertungen sind nur nach einem abgeschlossenen Kauf möglich.
       </p>
     ) : null
+
+  if (isLoading) {
+    return (
+      <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-8 text-center">
+        <p className="text-gray-400">Bewertungen werden geladen...</p>
+      </div>
+    )
+  }
 
   if (reviews.length === 0) {
     return (

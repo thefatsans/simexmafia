@@ -63,52 +63,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false
 
     const loadSession = async () => {
+      let localUser: User | null = null
+
       try {
         const storedUser = localStorage.getItem('simexmafia-user')
         if (!storedUser) return
 
         const parsed = JSON.parse(storedUser)
         const { password: _, ...userData } = parsed as User & { password?: string }
+        localUser = userData
         if (cancelled) return
         setUser(userData)
-
-        if (userData.email) {
-          const lastSync = sessionStorage.getItem('simexmafia-user-sync-at')
-          const syncFresh = lastSync && Date.now() - Number(lastSync) < 5 * 60 * 1000
-
-          if (syncFresh) {
-            return
-          }
-
-          const { getUserFromAPI } = await import('@/lib/api/users')
-          const dbUser = await getUserFromAPI(userData.id, {
-            email: userData.email,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-          })
-          if (cancelled || !dbUser || dbUser.error) return
-
-          const synced: User = {
-            id: dbUser.id,
-            email: dbUser.email,
-            firstName: dbUser.firstName,
-            lastName: dbUser.lastName,
-            goofyCoins: dbUser.goofyCoins ?? userData.goofyCoins ?? 0,
-            totalSpent: dbUser.totalSpent ?? userData.totalSpent ?? 0,
-            tier: dbUser.tier || userData.tier || 'Bronze',
-            joinDate: dbUser.joinDate
-              ? new Date(dbUser.joinDate).toISOString().split('T')[0]
-              : userData.joinDate,
-            avatar: dbUser.avatar ?? userData.avatar,
-          }
-          setUser(synced)
-          persistUserSession(synced)
-          sessionStorage.setItem('simexmafia-user-sync-at', String(Date.now()))
-        }
       } catch (error) {
         console.error('Error loading user from localStorage:', error)
       } finally {
         if (!cancelled) setIsLoading(false)
+      }
+
+      if (cancelled || !localUser?.email) return
+
+      const lastSync = sessionStorage.getItem('simexmafia-user-sync-at')
+      const syncFresh = lastSync && Date.now() - Number(lastSync) < 5 * 60 * 1000
+      if (syncFresh) return
+
+      try {
+        const { getUserFromAPI } = await import('@/lib/api/users')
+        const dbUser = await getUserFromAPI(localUser.id, {
+          email: localUser.email,
+          firstName: localUser.firstName,
+          lastName: localUser.lastName,
+        })
+        if (cancelled || !dbUser || dbUser.error) return
+
+        const synced: User = {
+          id: dbUser.id,
+          email: dbUser.email,
+          firstName: dbUser.firstName,
+          lastName: dbUser.lastName,
+          goofyCoins: dbUser.goofyCoins ?? localUser.goofyCoins ?? 0,
+          totalSpent: dbUser.totalSpent ?? localUser.totalSpent ?? 0,
+          tier: dbUser.tier || localUser.tier || 'Bronze',
+          joinDate: dbUser.joinDate
+            ? new Date(dbUser.joinDate).toISOString().split('T')[0]
+            : localUser.joinDate,
+          avatar: dbUser.avatar ?? localUser.avatar,
+        }
+        setUser(synced)
+        persistUserSession(synced)
+        sessionStorage.setItem('simexmafia-user-sync-at', String(Date.now()))
+      } catch (error) {
+        console.error('Error syncing user from database:', error)
       }
     }
 

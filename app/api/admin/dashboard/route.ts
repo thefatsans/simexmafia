@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/api-auth'
+import { fetchDashboardStats } from '@/lib/admin/dashboard-stats'
 
 const ADMIN_CACHE_HEADERS = {
   'Cache-Control': 'private, max-age=30',
@@ -28,108 +29,45 @@ export async function GET(request: NextRequest) {
     const since7d = startOf(7)
     const since30d = startOf(30)
 
-    const [
-      totalOrders,
-      pendingOrders,
-      completedOrders,
-      orders24h,
-      orders7d,
-      orders30d,
-      revenueAgg,
-      revenue30Agg,
-      newUsers24h,
-      newUsers7d,
-      newUsers30d,
-      sackOpens24h,
-      sackOpens7d,
-      coinTxs24h,
-      coinTxs7d,
-      productCount,
-      sellerCount,
-      pendingRedemptions,
-      pendingContactRequests,
-      recentOrders,
-    ] = await Promise.all([
-      prisma.order.count(),
-      prisma.order.count({ where: { status: 'pending' } }),
-      prisma.order.count({ where: { status: 'completed' } }),
-      prisma.order.count({ where: { createdAt: { gte: since24h } } }),
-      prisma.order.count({ where: { createdAt: { gte: since7d } } }),
-      prisma.order.count({ where: { createdAt: { gte: since30d } } }),
-      prisma.order.aggregate({
-        where: { status: 'completed' },
-        _sum: { total: true },
-      }),
-      prisma.order.aggregate({
-        where: { status: 'completed', completedAt: { gte: since30d } },
-        _sum: { total: true },
-      }),
-      prisma.user.count({ where: { createdAt: { gte: since24h } } }),
-      prisma.user.count({ where: { createdAt: { gte: since7d } } }),
-      prisma.user.count({ where: { createdAt: { gte: since30d } } }),
-      prisma.sackOpen.count({ where: { createdAt: { gte: since24h } } }),
-      prisma.sackOpen.count({ where: { createdAt: { gte: since7d } } }),
-      prisma.coinTransaction.count({ where: { createdAt: { gte: since24h } } }),
-      prisma.coinTransaction.count({ where: { createdAt: { gte: since7d } } }),
-      prisma.product.count({ where: { NOT: { name: { startsWith: '[ARCHIV]' } } } }),
-      prisma.seller.count(),
-      prisma.inventoryItem.count({
-        where: {
-          source: 'sack',
-          isRedeemed: true,
-          redemptionStatus: 'pending',
-        },
-      }),
-      prisma.contactRequest.count({ where: { status: 'pending' } }),
-      prisma.order.findMany({
-        select: {
-          id: true,
-          total: true,
-          status: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 6,
-      }),
-    ])
+    const { stats, recentOrders } = await fetchDashboardStats(since24h, since7d, since30d)
 
     return NextResponse.json(
       {
         generatedAt: new Date().toISOString(),
         orders: {
-          total: totalOrders,
-          pending: pendingOrders,
-          completed: completedOrders,
-          last24h: orders24h,
-          last7d: orders7d,
-          last30d: orders30d,
+          total: stats.total_orders,
+          pending: stats.pending_orders,
+          completed: stats.completed_orders,
+          last24h: stats.orders_24h,
+          last7d: stats.orders_7d,
+          last30d: stats.orders_30d,
         },
         revenue: {
-          total: revenueAgg._sum.total ?? 0,
-          last30d: revenue30Agg._sum.total ?? 0,
+          total: stats.revenue_total ?? 0,
+          last30d: stats.revenue_30d ?? 0,
         },
         users: {
-          new24h: newUsers24h,
-          new7d: newUsers7d,
-          new30d: newUsers30d,
+          new24h: stats.users_24h,
+          new7d: stats.users_7d,
+          new30d: stats.users_30d,
         },
         sackOpens: {
-          last24h: sackOpens24h,
-          last7d: sackOpens7d,
+          last24h: stats.sack_opens_24h,
+          last7d: stats.sack_opens_7d,
         },
         coinTransactions: {
-          last24h: coinTxs24h,
-          last7d: coinTxs7d,
+          last24h: stats.coin_txs_24h,
+          last7d: stats.coin_txs_7d,
         },
         catalog: {
-          products: productCount,
-          sellers: sellerCount,
+          products: stats.product_count,
+          sellers: stats.seller_count,
         },
         redemptions: {
-          pending: pendingRedemptions,
+          pending: stats.pending_redemptions,
         },
         contactRequests: {
-          pending: pendingContactRequests,
+          pending: stats.pending_contact_requests,
         },
         recentOrders,
         integrations: {

@@ -11,6 +11,12 @@ const CLIENT_PRODUCTS_CACHE_MS = 120_000
 
 let productsListCache: { key: string; data: Product[]; ts: number } | null = null
 
+/** Sofort aus dem Client-Katalog-Cache (z. B. nach Produktliste). */
+export function peekProductFromClientCache(id: string): Product | null {
+  if (!productsListCache) return null
+  return productsListCache.data.find((product) => String(product.id) === String(id)) ?? null
+}
+
 function productsCacheKey(filters?: Record<string, unknown>): string {
   return JSON.stringify(filters ?? {})
 }
@@ -152,6 +158,25 @@ async function getProductFromStorefrontFallback(id: string): Promise<Product | n
 }
 
 export async function getProductFromAPI(id: string): Promise<Product | null> {
+  const cached = peekProductFromClientCache(id)
+  if (cached) {
+    void refreshProductFromAPI(id).then((fresh) => {
+      if (fresh && productsListCache) {
+        productsListCache = {
+          ...productsListCache,
+          data: productsListCache.data.map((product) =>
+            product.id === fresh.id ? fresh : product
+          ),
+        }
+      }
+    })
+    return cached
+  }
+
+  return refreshProductFromAPI(id)
+}
+
+async function refreshProductFromAPI(id: string): Promise<Product | null> {
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 8000)

@@ -43,6 +43,17 @@ export async function getAuthenticatedUser(
   body?: any
 ): Promise<{ user: any; error?: NextResponse } | null> {
   try {
+    const sessionPayload = readSessionPayload(request)
+    if (sessionPayload) {
+      return {
+        user: {
+          id: sessionPayload.userId,
+          email: sessionPayload.email,
+          isAdmin: sessionPayload.isAdmin || isAdminByEmail(sessionPayload.email),
+        },
+      }
+    }
+
     const profile = getProfileFromRequest(request, body)
 
     if (!profile.userId && !profile.email) {
@@ -179,12 +190,24 @@ export async function requireAdmin(
   request: NextRequest,
   body?: any
 ): Promise<{ user: any; error?: NextResponse } | null> {
-  const sessionResult = await requireSecureSession(request)
-  if (sessionResult && !sessionResult.error && sessionResult.user?.isAdmin) {
-    return sessionResult
+  const payload = readSessionPayload(request)
+  if (payload) {
+    const admin = payload.isAdmin || isAdminByEmail(payload.email)
+    if (!admin) {
+      return {
+        user: null,
+        error: NextResponse.json({ error: 'Admin access required' }, { status: 403 }),
+      }
+    }
+    return {
+      user: {
+        id: payload.userId,
+        email: payload.email,
+        isAdmin: true,
+      },
+    }
   }
 
-  // Fallback (older clients without cookie): legacy lookup
   const authResult = await getAuthenticatedUser(request, body)
   if (!authResult || authResult.error) {
     return authResult

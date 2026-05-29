@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
-import { isAdmin } from '@/data/admin'
+import { useAdminGate } from '@/hooks/useAdminGate'
 import { Order } from '@/data/payments'
 import { adminFetch } from '@/lib/admin-fetch'
 import { updateOrderStatusAPI } from '@/lib/api/orders'
@@ -12,7 +11,7 @@ import AdminLoading from '@/components/admin/AdminLoading'
 
 export default function AdminOrdersPage() {
   const router = useRouter()
-  const { user, isLoading: authLoading } = useAuth()
+  const { user, isLoading: gateLoading, isReady } = useAdminGate()
   const [orders, setOrders] = useState<Order[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -72,20 +71,7 @@ export default function AdminOrdersPage() {
   }
 
   useEffect(() => {
-    if (authLoading) {
-      setIsLoading(true)
-      return
-    }
-
-    if (!user) {
-      router.push('/auth/login')
-      return
-    }
-
-    if (!isAdmin(user.email)) {
-      router.push('/account')
-      return
-    }
+    if (!isReady || !user) return
 
     const init = async () => {
       setIsLoading(true)
@@ -93,7 +79,7 @@ export default function AdminOrdersPage() {
       setIsLoading(false)
     }
     init()
-  }, [user, router, authLoading])
+  }, [isReady, user])
 
   const handleStatusUpdate = async (orderId: string, newStatus: Order['status'], reason?: string) => {
     try {
@@ -158,11 +144,11 @@ export default function AdminOrdersPage() {
     return matchesSearch && matchesStatus
   })
 
-  if (isLoading) {
+  if (gateLoading || isLoading) {
     return <AdminLoading label="Bestellungen werden geladen..." />
   }
 
-  if (!user || !isAdmin(user.email)) {
+  if (!isReady || !user) {
     return null
   }
 

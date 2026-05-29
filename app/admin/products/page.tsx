@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
-import { isAdmin } from '@/data/admin'
+import { useAdminGate } from '@/hooks/useAdminGate'
 import { createProductAPI, updateProductAPI, deleteProductAPI } from '@/lib/api/products'
 import { Product } from '@/types'
 import { Plus, Edit, Trash2, Search, Package, Key } from 'lucide-react'
@@ -16,7 +15,7 @@ import { adminFetch } from '@/lib/admin-fetch'
 
 export default function AdminProductsPage() {
   const router = useRouter()
-  const { user, isLoading: authLoading } = useAuth()
+  const { user, isLoading: gateLoading, isReady } = useAdminGate()
   const { showSuccess, showError } = useToast()
   const [products, setProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -26,29 +25,9 @@ export default function AdminProductsPage() {
   const [keysProduct, setKeysProduct] = useState<Product | null>(null)
 
   useEffect(() => {
-    if (authLoading) {
-      setIsLoading(true)
-      return // Wait for auth to load
-    }
-    
-    if (!user) {
-      console.log('No user, redirecting to login')
-      router.push('/auth/login')
-      return
-    }
-    
-    const userIsAdmin = isAdmin(user.email)
-    console.log('Admin products page - Checking admin access:', { email: user.email, isAdmin: userIsAdmin })
-    
-    if (!userIsAdmin) {
-      console.log('User is not admin, redirecting to account')
-      router.push('/account')
-      return
-    }
-    
-    console.log('User is admin, loading products')
+    if (!isReady || !user) return
     loadProducts(user)
-  }, [user, router, authLoading])
+  }, [isReady, user])
 
   const loadProducts = async (currentUser: NonNullable<typeof user>) => {
     setIsLoading(true)
@@ -132,11 +111,11 @@ export default function AdminProductsPage() {
     product.category.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  if (isLoading) {
+  if (gateLoading || isLoading) {
     return <AdminLoading label="Produkte werden geladen..." />
   }
 
-  if (!user || !isAdmin(user.email)) {
+  if (!isReady || !user) {
     return null
   }
 
