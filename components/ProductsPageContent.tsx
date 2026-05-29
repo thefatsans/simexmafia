@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import ProductCard from '@/components/ProductCard'
 import ProductCardSkeleton from '@/components/ProductCardSkeleton'
-import { getProductsFromAPI } from '@/lib/api/products'
+import { seedProductsClientCache } from '@/lib/api/products'
 import { Product, Category, Platform } from '@/types'
 import {
   sortProducts,
@@ -50,9 +50,13 @@ const PLATFORMS: Platform[] = [
   'Other',
 ]
 
-export default function ProductsPageContent() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+export default function ProductsPageContent({
+  initialProducts,
+}: {
+  initialProducts: Product[]
+}) {
+  const [products, setProducts] = useState<Product[]>(initialProducts)
+  const [isLoading, setIsLoading] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<Category | 'all'>('all')
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | 'all'>('all')
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500])
@@ -76,20 +80,9 @@ export default function ProductsPageContent() {
   }, [])
 
   useEffect(() => {
-    const loadProducts = async () => {
-      setIsLoading(true)
-      try {
-        const data = await getProductsFromAPI()
-        setProducts(data)
-      } catch (error) {
-        console.error('Error loading products:', error)
-        setProducts([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    loadProducts()
-  }, [])
+    seedProductsClientCache(initialProducts)
+    setProducts(initialProducts)
+  }, [initialProducts])
 
   const maxPrice = useMemo(() => {
     if (products.length === 0) return 500

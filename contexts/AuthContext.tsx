@@ -82,15 +82,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (cancelled || !localUser?.email) return
 
-      fetch('/api/auth/sync-session', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: localUser.id, email: localUser.email }),
-      }).catch(() => {})
-
       const lastSync = sessionStorage.getItem('simexmafia-user-sync-at')
       const syncFresh = lastSync && Date.now() - Number(lastSync) < 5 * 60 * 1000
+
+      if (!syncFresh) {
+        fetch('/api/auth/sync-session', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: localUser.id, email: localUser.email }),
+        }).catch(() => {})
+      }
+
       if (syncFresh) return
 
       try {

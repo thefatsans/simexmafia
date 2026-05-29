@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import dynamic from 'next/dynamic'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { CartProvider } from '@/contexts/CartContext'
@@ -11,9 +12,10 @@ import { CompareProvider } from '@/contexts/CompareContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ChatProvider } from '@/contexts/ChatContext'
 import StructuredData from '@/components/StructuredData'
-import ChatWidget from '@/components/ChatWidget'
 import CookieConsent from '@/components/CookieConsent'
 import MobileBottomNav from '@/components/MobileBottomNav'
+
+const ChatWidget = dynamic(() => import('@/components/ChatWidget'), { ssr: false })
 
 const inter = Inter({ subsets: ['latin'] })
 

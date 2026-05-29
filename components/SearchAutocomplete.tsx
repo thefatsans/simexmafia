@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Search, Clock, TrendingUp, X } from 'lucide-react'
-import { getProductsFromAPI } from '@/lib/api/products'
+import { getProductsFromAPI, getCatalogFromCacheOrAPI } from '@/lib/api/products'
 import { Product } from '@/types'
 import { searchProducts } from '@/lib/search-utils'
 import { getProductUrl } from '@/lib/products/product-url'
@@ -155,7 +155,7 @@ export default function SearchAutocomplete({
           const matched =
             fromApi.length > 0
               ? fromApi.slice(0, MAX_SUGGESTIONS)
-              : searchProducts(await getProductsFromAPI(), trimmed, {
+              : searchProducts(await getCatalogFromCacheOrAPI(), trimmed, {
                   minScore: 45,
                   maxResults: MAX_SUGGESTIONS,
                 })

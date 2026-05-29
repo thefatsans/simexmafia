@@ -11,6 +11,28 @@ const CLIENT_PRODUCTS_CACHE_MS = 120_000
 
 let productsListCache: { key: string; data: Product[]; ts: number } | null = null
 
+/** Nach Server-Render Client-Cache füllen (Search, Empfehlungen). */
+export function seedProductsClientCache(products: Product[]): void {
+  productsListCache = {
+    key: productsCacheKey(),
+    data: products,
+    ts: Date.now(),
+  }
+}
+
+/** Katalog aus Cache oder einmalig von API — für Client-Komponenten ohne Server-Props. */
+export async function getCatalogFromCacheOrAPI(): Promise<Product[]> {
+  if (
+    productsListCache &&
+    Date.now() - productsListCache.ts < CLIENT_PRODUCTS_CACHE_MS
+  ) {
+    return productsListCache.data
+  }
+  const products = await getProductsFromAPI()
+  seedProductsClientCache(products)
+  return products
+}
+
 /** Sofort aus dem Client-Katalog-Cache (z. B. nach Produktliste). */
 export function peekProductFromClientCache(id: string): Product | null {
   if (!productsListCache) return null

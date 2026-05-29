@@ -1,11 +1,9 @@
-import { Suspense } from 'react'
 import ProductsPageContent from '@/components/ProductsPageContent'
-import { LoadingPage } from '@/components/LoadingSpinner'
+import { loadStorefrontCatalog } from '@/lib/products/load-storefront-catalog'
 
-export default function ProductsPage() {
-  return (
-    <Suspense fallback={<LoadingPage label="Produkte werden geladen..." />}>
-      <ProductsPageContent />
-    </Suspense>
-  )
+export const revalidate = 60
+
+export default async function ProductsPage() {
+  const initialProducts = await loadStorefrontCatalog()
+  return <ProductsPageContent initialProducts={initialProducts} />
 }

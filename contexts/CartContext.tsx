@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useState, useMemo, useEffect, useCallback, ReactNode } from 'react'
 import { Product, CartItem } from '@/types'
 import type { User } from '@/types/user'
 import { useAuth } from '@/contexts/AuthContext'
@@ -37,7 +37,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [useAPI, setUseAPI] = useState(false)
-  const profile = user ? getCartProfile(user) : undefined
+  const profile = useMemo(
+    () => (user ? getCartProfile(user) : undefined),
+    [user?.id, user?.email, user?.firstName, user?.lastName]
+  )
 
   useEffect(() => {
     if (typeof window === 'undefined') {

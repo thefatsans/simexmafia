@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { getProductFromAPI } from '@/lib/api/products'
 import { getProductReviewsFromAPI } from '@/lib/api/reviews'
 import { Review } from '@/data/reviews'
 import { Product } from '@/types'
@@ -92,12 +91,6 @@ export default function ProductDetailClient({
     }
 
     loadExtras()
-
-    getProductFromAPI(productId)
-      .then((fresh) => {
-        if (!cancelled && fresh) setProduct(fresh)
-      })
-      .catch(() => {})
 
     return () => {
       cancelled = true

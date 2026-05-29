@@ -1,5 +1,5 @@
 import { faqData } from '@/data/faq'
-import { getProductsFromAPI } from '@/lib/api/products'
+import { getCatalogFromCacheOrAPI } from '@/lib/api/products'
 import { companyInfo } from '@/lib/company-info'
 import { Product } from '@/types'
 
@@ -16,7 +16,7 @@ export interface ChatContext {
  * Sammelt alle Website-Informationen für den KI-Kontext
  */
 export async function getWebsiteContext(): Promise<ChatContext> {
-  const products = await getProductsFromAPI()
+  const products = await getCatalogFromCacheOrAPI()
   const categories = Array.from(new Set(products.map(p => p.category)))
   const platforms = Array.from(new Set(products.map(p => p.platform)))
   const prices = products.map(p => p.price)
