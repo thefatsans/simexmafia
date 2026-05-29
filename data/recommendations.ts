@@ -9,9 +9,10 @@ import { getOrders, Order } from './payments'
 export async function getSimilarProducts(
   product: Product,
   limit: number = 4,
-  excludeId?: string
+  excludeId?: string,
+  catalog?: Product[]
 ): Promise<Product[]> {
-  const allProducts = await getProductsFromAPI()
+  const allProducts = catalog ?? (await getProductsFromAPI())
   const exclude = excludeId || product.id
 
   // Berechne Ähnlichkeits-Score für jedes Produkt
@@ -55,14 +56,15 @@ export async function getSimilarProducts(
  */
 export async function getCustomersAlsoBought(
   productId: string,
-  limit: number = 4
+  limit: number = 4,
+  catalog?: Product[]
 ): Promise<Product[]> {
   if (typeof window === 'undefined') {
     return []
   }
 
   const orders = await getOrders()
-  const allProducts = await getProductsFromAPI()
+  const allProducts = catalog ?? (await getProductsFromAPI())
   
   // Finde alle Bestellungen, die dieses Produkt enthalten
   const ordersWithProduct = orders.filter(order => 
@@ -121,8 +123,11 @@ export async function getCustomersAlsoBought(
  * Empfohlene Produkte für die Startseite
  * Kombiniert beliebte Produkte, neue Produkte und Produkte mit Rabatten
  */
-export async function getHomePageRecommendations(limit: number = 8): Promise<Product[]> {
-  const allProducts = (await getProductsFromAPI()).filter(p => p.inStock)
+export async function getHomePageRecommendations(
+  limit: number = 8,
+  catalog?: Product[]
+): Promise<Product[]> {
+  const allProducts = (catalog ?? (await getProductsFromAPI())).filter((p) => p.inStock)
   const discordExclusive = allProducts.find(isSimexDiscordServerProduct)
 
   // Beliebte Produkte (hohe Bewertung + viele Reviews)
@@ -176,21 +181,22 @@ export async function getHomePageRecommendations(limit: number = 8): Promise<Pro
  */
 export async function getPersonalizedRecommendations(
   userId: string,
-  limit: number = 6
+  limit: number = 6,
+  catalog?: Product[]
 ): Promise<Product[]> {
   if (typeof window === 'undefined') {
     return []
   }
 
   const orders = await getOrders()
-  const allProducts = await getProductsFromAPI()
+  const allProducts = catalog ?? (await getProductsFromAPI())
   
   // Finde alle Bestellungen des Benutzers
   const userOrders = orders.filter(order => order.userId === userId && order.status === 'completed')
 
   if (userOrders.length === 0) {
     // Falls keine Bestellungen, verwende Startseiten-Empfehlungen
-    return await getHomePageRecommendations(limit)
+    return await getHomePageRecommendations(limit, catalog)
   }
 
   // Sammle alle gekauften Produkt-IDs

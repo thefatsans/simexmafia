@@ -19,8 +19,8 @@ export function formatGeneratedProducts(generatedProducts: Array<Record<string, 
   }))
 }
 
+/** @deprecated Nutze getStorefrontFallbackCatalog() — lädt nur Shop-Produkte, nicht den vollen Seed-Katalog. */
 export async function loadGeneratedProductsCatalog() {
-  const { generateProducts } = await import('@/prisma/product-data')
-  const sellerIds = ['seller1', 'seller2', 'seller3', 'seller4', 'seller-simexmafia']
-  return formatGeneratedProducts(generateProducts(sellerIds) as any)
+  const { getStorefrontFallbackCatalog } = await import('@/lib/products/storefront-seeds')
+  return getStorefrontFallbackCatalog()
 }

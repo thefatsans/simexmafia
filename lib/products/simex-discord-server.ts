@@ -1,6 +1,6 @@
 import { Product } from '@/types'
 import { applyProductQueryFilters, type ProductQueryFilters } from '@/lib/products/query'
-import { loadGeneratedProductsCatalog } from '@/lib/products/format-generated'
+import { createSimexDiscordServerProduct } from '@/lib/products/storefront-seeds'
 import { SIMEXMAFIA_SELLER } from '@/lib/sellers'
 
 export const SIMEX_DISCORD_SERVER_NAME = 'Simex Geheimer Discord-Server'
@@ -19,9 +19,7 @@ function withSimexMafiaSeller<T extends Product>(product: T): T {
 }
 
 export async function getSimexDiscordServerProduct(): Promise<Product | null> {
-  const catalog = await loadGeneratedProductsCatalog()
-  const found = catalog.find(isSimexDiscordServerProduct)
-  return found ? withSimexMafiaSeller(found) : null
+  return withSimexMafiaSeller(createSimexDiscordServerProduct())
 }
 
 /** Discord-Produkt immer mit Verkäufer SimexMafia anzeigen */

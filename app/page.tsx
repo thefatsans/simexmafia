@@ -25,82 +25,50 @@ export default function Home() {
   const { user } = useAuth()
 
   useEffect(() => {
-    const loadRecommendations = async () => {
-      // Lade allgemeine Empfehlungen
-      const recommendations = await getHomePageRecommendations(8)
-      setFeaturedProducts(recommendations)
-      
-      // Lade personalisierte Empfehlungen, wenn Benutzer eingeloggt ist
-      if (user?.id) {
-        const personalized = await getPersonalizedRecommendations(user.id, 6)
-        setPersonalizedProducts(personalized)
-      }
-    }
-    loadRecommendations()
-  }, [user])
-
-  useEffect(() => {
-    // Lade echte Produktanzahlen pro Kategorie
-    const loadCategoryCounts = async () => {
+    const loadHomeCatalog = async () => {
       try {
-        // Timeout für API-Anfrage (5 Sekunden)
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 5000)
-        )
-        
-        // Lade alle Produkte ohne Filter mit Timeout
-        const allProducts = await Promise.race([
-          getProductsFromAPI(),
-          timeoutPromise
-        ]) as Product[]
-        
+        const allProducts = await getProductsFromAPI()
+        const discord = allProducts.find(isSimexDiscordServerProduct) ?? null
+        setDiscordExclusive(discord)
+
         const counts: Record<string, number> = {
-          'games': 0,
+          games: 0,
           'gift-cards': 0,
-          'subscriptions': 0,
-          'dlc': 0,
+          subscriptions: 0,
+          dlc: 0,
           'in-game-currency': 0,
         }
-        
-        // Zähle Produkte pro Kategorie
-        allProducts.forEach(product => {
+        allProducts.forEach((product) => {
           const category = product.category
           if (category in counts) {
             counts[category]++
           }
         })
-        
-        console.log('Category counts:', counts)
-        console.log('Total products:', allProducts.length)
-        
         setCategoryCounts(counts)
+
+        const recommendations = await getHomePageRecommendations(8, allProducts)
+        setFeaturedProducts(recommendations)
+
+        if (user?.id) {
+          const personalized = await getPersonalizedRecommendations(user.id, 6, allProducts)
+          setPersonalizedProducts(personalized)
+        } else {
+          setPersonalizedProducts([])
+        }
       } catch (error) {
-        console.error('Error loading category counts:', error)
-        // Fallback: Setze 0 für alle Kategorien
+        console.error('Error loading home catalog:', error)
+        setDiscordExclusive(null)
         setCategoryCounts({
-          'games': 0,
+          games: 0,
           'gift-cards': 0,
-          'subscriptions': 0,
-          'dlc': 0,
+          subscriptions: 0,
+          dlc: 0,
           'in-game-currency': 0,
         })
       }
     }
-    loadCategoryCounts()
-  }, [])
-
-  useEffect(() => {
-    const loadDiscordExclusive = async () => {
-      try {
-        const allProducts = await getProductsFromAPI()
-        const discord = allProducts.find(isSimexDiscordServerProduct) ?? null
-        setDiscordExclusive(discord)
-      } catch {
-        setDiscordExclusive(null)
-      }
-    }
-    loadDiscordExclusive()
-  }, [])
+    loadHomeCatalog()
+  }, [user])
   
   const { recentlyViewed } = useRecentlyViewed()
   const [displayedRecent, setDisplayedRecent] = useState<Product[]>([])

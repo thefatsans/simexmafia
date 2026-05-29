@@ -1,6 +1,34 @@
 import { prisma } from '@/lib/prisma'
 import { SIMEXMAFIA_SELLER_ID } from '@/lib/sellers'
 
+const SELLER_SETUP_CACHE_MS = 5 * 60 * 1000
+let sellerSetupReadyAt = 0
+let sellerSetupInFlight: Promise<void> | null = null
+
+/** Seller + Discord-Verknüpfung — maximal einmal alle 5 Minuten pro Instanz. */
+export async function ensureStorefrontSellerReady(): Promise<void> {
+  if (Date.now() - sellerSetupReadyAt < SELLER_SETUP_CACHE_MS) {
+    return
+  }
+
+  if (sellerSetupInFlight) {
+    await sellerSetupInFlight
+    return
+  }
+
+  sellerSetupInFlight = (async () => {
+    await ensureSimexMafiaSellerInDatabase()
+    await linkDiscordServerProductToSimexMafia()
+    sellerSetupReadyAt = Date.now()
+  })()
+
+  try {
+    await sellerSetupInFlight
+  } finally {
+    sellerSetupInFlight = null
+  }
+}
+
 export async function ensureSimexMafiaSellerInDatabase() {
   if (!process.env.DATABASE_URL || !prisma) {
     return null

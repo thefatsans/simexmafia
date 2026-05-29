@@ -232,13 +232,16 @@ export async function enrichProductsWithStock<T extends { id: string; inStock?: 
     return products.map((p) => ({ ...p, inStock: p.inStock ?? true }))
   }
 
-  const ids = products.map((p) => p.id)
-  const keyInventoryProducts = await productsWithKeyInventory(ids)
-  const stockMap = await countAvailableKeysForProducts(
-    [...keyInventoryProducts]
-  )
+  try {
+    const ids = products.map((p) => p.id)
+    const keyInventoryProducts = await productsWithKeyInventory(ids)
+    const stockMap = await countAvailableKeysForProducts([...keyInventoryProducts])
 
-  return products.map((p) =>
-    enrichProductWithStock(p, stockMap, keyInventoryProducts)
-  )
+    return products.map((p) =>
+      enrichProductWithStock(p, stockMap, keyInventoryProducts)
+    )
+  } catch (error) {
+    console.warn('[Stock] enrichProductsWithStock failed:', error)
+    return products.map((p) => ({ ...p, inStock: p.inStock ?? true }))
+  }
 }

@@ -7,6 +7,43 @@ import {
 } from '@/lib/products/storefront-catalog'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+const CLIENT_PRODUCTS_CACHE_MS = 30_000
+
+let productsListCache: { key: string; data: Product[]; ts: number } | null = null
+
+function productsCacheKey(filters?: Record<string, unknown>): string {
+  return JSON.stringify(filters ?? {})
+}
+
+function mapApiProduct(p: Record<string, unknown>): Product {
+  const seller = p.seller as Record<string, unknown> | undefined
+  return {
+    id: p.id as string,
+    name: p.name as string,
+    description: p.description as string,
+    price: p.price as number,
+    originalPrice: p.originalPrice as number | undefined,
+    discount: p.discount as number | undefined,
+    image: p.image as string,
+    category: p.category as Product['category'],
+    platform: p.platform as Product['platform'],
+    seller: seller
+      ? {
+          id: seller.id as string,
+          name: seller.name as string,
+          rating: seller.rating as number,
+          reviewCount: seller.reviewCount as number,
+          verified: seller.verified as boolean,
+          avatar: seller.avatar as string | undefined,
+        }
+      : resolveSeller(p.sellerId as string),
+    rating: (p.rating as number) || 0,
+    reviewCount: (p.reviewCount as number) || 0,
+    inStock: (p.inStock as boolean) ?? true,
+    stockCount: p.stockCount as number | undefined,
+    tags: (p.tags as string[]) || [],
+  }
+}
 
 /**
  * Ruft alle Produkte von der API ab
@@ -20,6 +57,15 @@ export async function getProductsFromAPI(filters?: {
   search?: string
   inStock?: boolean
 }): Promise<Product[]> {
+  const cacheKey = productsCacheKey(filters)
+  if (
+    productsListCache &&
+    productsListCache.key === cacheKey &&
+    Date.now() - productsListCache.ts < CLIENT_PRODUCTS_CACHE_MS
+  ) {
+    return productsListCache.data
+  }
+
   try {
     const params = new URLSearchParams()
     if (filters?.category) params.append('category', filters.category)
@@ -29,16 +75,16 @@ export async function getProductsFromAPI(filters?: {
     if (filters?.search) params.append('search', filters.search)
     if (filters?.inStock) params.append('inStock', 'true')
 
-    // Timeout für Fetch-Anfrage (10 Sekunden)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000)
-    
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
     const response = await fetch(`${API_BASE_URL}/api/products?${params.toString()}`, {
-      signal: controller.signal
+      signal: controller.signal,
+      next: { revalidate: 60 },
     })
-    
+
     clearTimeout(timeoutId)
-    
+
     if (!response.ok) {
       throw new Error('Failed to fetch products')
     }
@@ -48,54 +94,16 @@ export async function getProductsFromAPI(filters?: {
     if (!Array.isArray(data)) {
       throw new Error('Invalid products response')
     }
-    
-    // Konvertiere Datenbank-Format zu Product-Format und aktualisiere Bilder
-    const products = data.map((p: any) => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      price: p.price,
-      originalPrice: p.originalPrice,
-      discount: p.discount,
-      image: p.image,
-      category: p.category as Product['category'],
-      platform: p.platform as Product['platform'],
-      seller: p.seller
-        ? {
-            id: p.seller.id,
-            name: p.seller.name,
-            rating: p.seller.rating,
-            reviewCount: p.seller.reviewCount,
-            verified: p.seller.verified,
-            avatar: p.seller.avatar,
-          }
-        : resolveSeller(p.sellerId),
-      rating: p.rating || 0,
-      reviewCount: p.reviewCount || 0,
-      inStock: p.inStock ?? true,
-      stockCount: p.stockCount,
-      tags: p.tags || [],
-    }))
-    
-    const { finalizeProductsForStorefront } = await import('@/lib/promotions/finalize-products')
-    const { ensureSimexDiscordServerInCatalog } = await import('@/lib/products/simex-discord-server')
-    const withDiscord = await ensureSimexDiscordServerInCatalog(products, {
-      category: filters?.category ?? null,
-      platform: filters?.platform ?? null,
-      minPrice: filters?.minPrice ?? null,
-      maxPrice: filters?.maxPrice ?? null,
-      inStock: filters?.inStock,
-      search: filters?.search ?? null,
-    })
-    return finalizeProductsForStorefront(
-      filterStorefrontCatalog(applySimexMafiaSellerToDiscordProducts(withDiscord))
-    )
+
+    const products = data.map((p) => mapApiProduct(p))
+    productsListCache = { key: cacheKey, data: products, ts: Date.now() }
+    return products
   } catch (error) {
     console.warn('API not available, using fallback:', error)
-    const { getProducts } = await import('@/data/products')
+    const { getStorefrontFallbackCatalog } = await import('@/lib/products/storefront-seeds')
     const { applyProductQueryFilters } = await import('@/lib/products/query')
     const { finalizeProductsForStorefront } = await import('@/lib/promotions/finalize-products')
-    let products = getProducts()
+    let products = getStorefrontFallbackCatalog()
     const filterPayload = {
       category: filters?.category ?? null,
       platform: filters?.platform ?? null,
@@ -119,79 +127,70 @@ export async function getProductsFromAPI(filters?: {
         products = applyProductQueryFilters(products, filterPayload)
       }
     }
-    const { ensureSimexDiscordServerInCatalog } = await import('@/lib/products/simex-discord-server')
-    const withDiscord = await ensureSimexDiscordServerInCatalog(products, filterPayload)
-    return finalizeProductsForStorefront(
-      filterStorefrontCatalog(applySimexMafiaSellerToDiscordProducts(withDiscord))
+    const result = finalizeProductsForStorefront(
+      filterStorefrontCatalog(applySimexMafiaSellerToDiscordProducts(products))
     )
+    productsListCache = { key: cacheKey, data: result, ts: Date.now() }
+    return result
   }
 }
 
 /**
  * Ruft ein einzelnes Produkt von der API ab
  */
+async function getProductFromStorefrontFallback(id: string): Promise<Product | null> {
+  const { getStorefrontFallbackCatalog } = await import('@/lib/products/storefront-seeds')
+  const { resolveProductFromCatalog } = await import('@/lib/products/resolve-product')
+  const found = resolveProductFromCatalog(getStorefrontFallbackCatalog(), id)
+  if (!found) return null
+
+  const { getCompleteProductImage } = await import('@/prisma/complete-product-images')
+  const product = mapApiProduct(found as unknown as Record<string, unknown>)
+  product.image = getCompleteProductImage(product.name) || product.image
+  const [withSeller] = applySimexMafiaSellerToDiscordProducts([product])
+  return isProductAllowedInStorefront(withSeller) ? withSeller : null
+}
+
 export async function getProductFromAPI(id: string): Promise<Product | null> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/products/${id}`)
-    
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(`${API_BASE_URL}/api/products/${encodeURIComponent(id)}`, {
+      signal: controller.signal,
+      next: { revalidate: 60 },
+    })
+
+    clearTimeout(timeoutId)
+
     if (!response.ok) {
       if (response.status === 404) {
-        // Prüfe ob es eine numerische ID ist - dann keine Name-Suche
         const isNumericId = /^\d+$/.test(id)
+        const local = await getProductFromStorefrontFallback(id)
+        if (local) return local
         if (!isNumericId) {
-          // Versuche nach Name zu suchen, falls ID nicht gefunden (nur für nicht-numerische IDs)
           return await searchProductByName(id)
         }
-        // Für numerische IDs: null zurückgeben
         return null
       }
       throw new Error('Failed to fetch product')
     }
 
     const p = await response.json()
-    
-    // Prüfe ob es ein Fehler-Objekt ist
+
     if (p.error) {
-      // Prüfe ob es eine numerische ID ist - dann keine Name-Suche
+      const local = await getProductFromStorefrontFallback(id)
+      if (local) return local
       const isNumericId = /^\d+$/.test(id)
       if (!isNumericId) {
-        // Versuche nach Name zu suchen (nur für nicht-numerische IDs)
         return await searchProductByName(id)
       }
-      // Für numerische IDs: null zurückgeben
       return null
     }
-    
-    // Verwende getCompleteProductImage für korrektes Bild
+
     const { getCompleteProductImage } = await import('@/prisma/complete-product-images')
-    const correctImage = getCompleteProductImage(p.name) || p.image
-    
-    const product: Product = {
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      price: p.price,
-      originalPrice: p.originalPrice,
-      discount: p.discount,
-      image: correctImage,
-      category: p.category as Product['category'],
-      platform: p.platform as Product['platform'],
-      seller: p.seller
-        ? {
-            id: p.seller.id,
-            name: p.seller.name,
-            rating: p.seller.rating,
-            reviewCount: p.seller.reviewCount,
-            verified: p.seller.verified,
-            avatar: p.seller.avatar,
-          }
-        : resolveSeller(p.sellerId),
-      rating: p.rating || 0,
-      reviewCount: p.reviewCount || 0,
-      inStock: p.inStock,
-      stockCount: p.stockCount,
-      tags: p.tags || [],
-    }
+    const product = mapApiProduct(p)
+    product.image = getCompleteProductImage(product.name) || product.image
 
     const [withSeller] = applySimexMafiaSellerToDiscordProducts([product])
     if (!isProductAllowedInStorefront(withSeller)) {
@@ -200,127 +199,9 @@ export async function getProductFromAPI(id: string): Promise<Product | null> {
     return withSeller
   } catch (error) {
     console.warn('API not available, using fallback:', error)
-    // Fallback: Versuche zuerst generierte Produkte
-    try {
-      const { generateProducts } = await import('@/prisma/product-data')
-      const sellerIds = ['seller1', 'seller2', 'seller3', 'seller4', 'seller-simexmafia']
-      const generatedProducts = generateProducts(sellerIds)
-      
-      // Suche zuerst nach exakter ID-Übereinstimmung
-      let foundProduct = generatedProducts.find((p: any) => p.id === id)
-      
-      // Wenn nicht gefunden UND die ID nicht wie eine numerische ID aussieht, versuche nach Name zu suchen
-      // Numerische IDs sollten nicht als Namen interpretiert werden
-      const isNumericId = /^\d+$/.test(id)
-      
-      // Für numerische IDs: Keine Name-Suche, nur exakte ID-Übereinstimmung
-      if (!foundProduct && !isNumericId) {
-        const idLower = id.toLowerCase().trim()
-        
-        // Erstelle eine Liste von Kandidaten mit Relevanz-Score
-        const candidates = generatedProducts
-          .map((p: any) => {
-            if (!p.name) return null
-            const nameLower = (p.name || '').toLowerCase().trim()
-            let score = 0
-            
-            // Exakte Übereinstimmung = höchste Priorität (Score 100)
-            if (nameLower === idLower) {
-              score = 100
-            }
-            // Exakte Übereinstimmung nach Normalisierung (Score 90)
-            else {
-              const nameNormalized = nameLower.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
-              const idNormalized = idLower.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
-              
-              if (nameNormalized === idNormalized) {
-                score = 90
-              }
-              // Name beginnt mit Suchbegriff (Score 80)
-              else if (nameLower.startsWith(idLower)) {
-                score = 80
-              }
-              // Name enthält Suchbegriff (Score 70)
-              else if (nameLower.includes(idLower)) {
-                score = 70
-              }
-              // Normalisierter Name enthält normalisierten Suchbegriff (Score 60)
-              else if (nameNormalized.includes(idNormalized)) {
-                score = 60
-              }
-              // Spezielle Suche für "Simex Geheimer Discord-Server"
-              else if (idLower.includes('simex') && idLower.includes('discord')) {
-                if (nameLower.includes('simex') && nameLower.includes('discord')) {
-                  score = 95 // Sehr hohe Priorität für Discord-Server
-                }
-              }
-              else if (idLower.includes('discord') && idLower.includes('server')) {
-                if (nameLower.includes('discord') && nameLower.includes('server')) {
-                  score = 85
-                }
-              }
-            }
-            
-            return score > 0 ? { product: p, score } : null
-          })
-          .filter((c: any) => c !== null)
-          .sort((a: any, b: any) => b.score - a.score) // Sortiere nach Score (höchste zuerst)
-        
-        // Nimm das Produkt mit dem höchsten Score (nur wenn Score >= 90 für Name-Suche)
-        // Für numerische IDs sollte keine Name-Suche durchgeführt werden
-        if (candidates.length > 0 && candidates[0] && candidates[0].score >= 90) {
-          foundProduct = candidates[0].product
-        }
-      }
-      
-      // Wenn immer noch nicht gefunden, versuche auch in Mock-Daten (nur nach exakter ID)
-      if (!foundProduct) {
-        try {
-          const { getProducts } = await import('@/data/products')
-          const mockProducts = getProducts()
-          const mockProduct = mockProducts.find((p: any) => String(p.id) === String(id))
-          
-          if (mockProduct) {
-            console.log(`[Client] Product with ID "${id}" found in mock data: ${mockProduct.name}`)
-            // Konvertiere Mock-Product zu Product-Format
-            foundProduct = mockProduct as any
-          }
-        } catch (mockError) {
-          console.warn('Error loading mock products:', mockError)
-        }
-      }
-      
-      if (foundProduct) {
-        const { getCompleteProductImage } = await import('@/prisma/complete-product-images')
-        const correctImage = getCompleteProductImage(foundProduct.name) || foundProduct.image
+    const local = await getProductFromStorefrontFallback(id)
+    if (local) return local
 
-        const product: Product = {
-          id: foundProduct.id,
-          name: foundProduct.name,
-          description: foundProduct.description,
-          price: foundProduct.price,
-          originalPrice: foundProduct.originalPrice,
-          discount: foundProduct.discount,
-          image: correctImage,
-          category: foundProduct.category as Product['category'],
-          platform: foundProduct.platform as Product['platform'],
-          seller: resolveSeller(foundProduct.sellerId),
-          rating: foundProduct.rating || 0,
-          reviewCount: foundProduct.reviewCount || 0,
-          inStock: foundProduct.inStock,
-          tags: foundProduct.tags || [],
-        }
-
-        if (!isProductAllowedInStorefront(product)) {
-          return null
-        }
-        return product
-      }
-    } catch (genError) {
-      console.warn('Generated products fallback failed:', genError)
-    }
-    
-    // Letzter Fallback zu Mock-Daten
     try {
       const { getProducts } = await import('@/data/products')
       const products = getProducts()
