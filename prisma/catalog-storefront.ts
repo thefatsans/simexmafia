@@ -76,14 +76,12 @@ async function main() {
       update: {
         name: 'SimexMafia',
         verified: true,
-        rating: 5.0,
-        reviewCount: 847,
       },
       create: {
         id: SIMEXMAFIA_SELLER_ID,
         name: 'SimexMafia',
-        rating: 5.0,
-        reviewCount: 847,
+        rating: 0,
+        reviewCount: 0,
         verified: true,
       },
     })

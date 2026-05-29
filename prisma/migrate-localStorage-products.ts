@@ -70,7 +70,7 @@ adminProducts.forEach(async (product) => {
       reviewCount: product.reviewCount || 0,
       inStock: product.inStock,
       tags: product.tags || [],
-      sellerId: product.seller.id || 'seller1', // Default seller
+      sellerId: product.seller.id || 'seller-simexmafia', // Default seller
     }),
   });
 });

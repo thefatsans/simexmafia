@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { Star, ThumbsUp, CheckCircle, Edit3 } from 'lucide-react'
+import { Star, ThumbsUp, CheckCircle, Edit3, ShoppingBag } from 'lucide-react'
 import { Review } from '@/data/reviews'
+import { checkReviewEligibilityAPI } from '@/lib/api/reviews'
 
 interface ProductReviewsProps {
   reviews: Review[]
@@ -15,11 +16,29 @@ export default function ProductReviews({ reviews, productId }: ProductReviewsPro
   const router = useRouter()
   const { isAuthenticated, user } = useAuth()
   const [helpfulReviews, setHelpfulReviews] = useState<Set<string>>(new Set())
-  
-  // Prüfe ob User bereits ein Review geschrieben hat
-  const userHasReviewed = isAuthenticated && user 
-    ? reviews.some(r => r.userId === user.id)
-    : false
+  const [canReview, setCanReview] = useState(false)
+  const [hasPurchased, setHasPurchased] = useState(false)
+  const [eligibilityLoaded, setEligibilityLoaded] = useState(false)
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      setCanReview(false)
+      setHasPurchased(false)
+      setEligibilityLoaded(true)
+      return
+    }
+
+    checkReviewEligibilityAPI(productId, user)
+      .then((result) => {
+        setCanReview(result.canReview)
+        setHasPurchased(result.hasPurchased)
+      })
+      .catch(() => {
+        setCanReview(false)
+        setHasPurchased(false)
+      })
+      .finally(() => setEligibilityLoaded(true))
+  }, [isAuthenticated, user, productId])
 
   const handleHelpful = (reviewId: string) => {
     setHelpfulReviews((prev) => {
@@ -33,55 +52,60 @@ export default function ProductReviews({ reviews, productId }: ProductReviewsPro
     })
   }
 
-  const averageRating = reviews.length > 0
-    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-    : 0
+  const averageRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+      : 0
 
   const ratingDistribution = [5, 4, 3, 2, 1].map((rating) => ({
     rating,
     count: reviews.filter((r) => r.rating === rating).length,
-    percentage: reviews.length > 0
-      ? (reviews.filter((r) => r.rating === rating).length / reviews.length) * 100
-      : 0,
+    percentage:
+      reviews.length > 0
+        ? (reviews.filter((r) => r.rating === rating).length / reviews.length) * 100
+        : 0,
   }))
+
+  const writeReviewButton = canReview ? (
+    <button
+      onClick={() => router.push(`/products/${productId}/review`)}
+      className="inline-flex items-center justify-center space-x-2 bg-purple-500 hover:bg-purple-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
+    >
+      <Edit3 className="w-4 h-4" />
+      <span>Bewertung schreiben</span>
+    </button>
+  ) : null
+
+  const purchaseHint =
+    eligibilityLoaded && isAuthenticated && !hasPurchased ? (
+      <p className="text-gray-500 text-sm mt-3 flex items-center justify-center gap-2">
+        <ShoppingBag className="w-4 h-4 shrink-0" />
+        Bewertungen sind nur nach einem abgeschlossenen Kauf möglich.
+      </p>
+    ) : null
 
   if (reviews.length === 0) {
     return (
       <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-8 text-center">
-        <p className="text-gray-400 mb-4">Noch keine Bewertungen. Seien Sie der Erste, der dieses Produkt bewertet!</p>
-        {isAuthenticated && (
-          <button
-            onClick={() => router.push(`/products/${productId}/review`)}
-            className="inline-flex items-center space-x-2 bg-purple-500 hover:bg-purple-600 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
-          >
-            <Edit3 className="w-5 h-5" />
-            <span>Bewertung schreiben</span>
-          </button>
-        )}
+        <p className="text-gray-400 mb-4">
+          Noch keine Bewertungen. Seien Sie der Erste, der dieses Produkt bewertet!
+        </p>
+        {writeReviewButton}
+        {purchaseHint}
       </div>
     )
   }
 
   return (
     <div className="space-y-8">
-      {/* Reviews Summary */}
       <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
           <h3 className="text-2xl font-bold text-white">Kundenbewertungen</h3>
-          {isAuthenticated && !userHasReviewed && (
-            <button
-              onClick={() => router.push(`/products/${productId}/review`)}
-              className="inline-flex items-center justify-center space-x-2 bg-purple-500 hover:bg-purple-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
-            >
-              <Edit3 className="w-4 h-4" />
-              <span>Bewertung schreiben</span>
-            </button>
-          )}
+          {writeReviewButton}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Average Rating */}
+        {purchaseHint}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
           <div>
-            <h3 className="text-white font-semibold mb-4">Kundenbewertungen</h3>
             <div className="flex items-center space-x-4 mb-4">
               <div className="text-center">
                 <div className="text-5xl font-bold text-white">{averageRating.toFixed(1)}</div>
@@ -97,12 +121,13 @@ export default function ProductReviews({ reviews, productId }: ProductReviewsPro
                     />
                   ))}
                 </div>
-                <p className="text-gray-400 text-sm mt-2">{reviews.length} Bewertungen</p>
+                <p className="text-gray-400 text-sm mt-2">
+                  {reviews.length} {reviews.length === 1 ? 'Bewertung' : 'Bewertungen'}
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Rating Distribution */}
           <div>
             <h4 className="text-white font-semibold mb-4">Bewertungsaufteilung</h4>
             <div className="space-y-2">
@@ -126,7 +151,6 @@ export default function ProductReviews({ reviews, productId }: ProductReviewsPro
         </div>
       </div>
 
-      {/* Reviews List */}
       <div className="space-y-6">
         <h3 className="text-2xl font-bold text-white">Alle Bewertungen</h3>
         {reviews.map((review) => (
@@ -183,5 +207,3 @@ export default function ProductReviews({ reviews, productId }: ProductReviewsPro
     </div>
   )
 }
-
-

@@ -1,5 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
+import {
+  isKeyInventoryProductId,
+  KEY_INVENTORY_PRODUCT_IDS,
+} from '@/lib/products/key-inventory-catalog'
 
 type TransactionClient = Prisma.TransactionClient
 
@@ -7,6 +11,10 @@ export async function productUsesKeyInventory(
   productId: string,
   tx?: TransactionClient
 ): Promise<boolean> {
+  if (isKeyInventoryProductId(productId)) {
+    return true
+  }
+
   const db = tx ?? prisma
   if (!db) return false
   const count = await db.productStockKey.count({
@@ -211,37 +219,70 @@ export async function reserveKeysForOrderItem(
 
 export function enrichProductWithStock<T extends { id: string; inStock?: boolean }>(
   product: T,
-  stockMap: Map<string, number>,
-  keyInventoryProducts: Set<string>
+  stockMap: Map<string, number>
 ): T & { stockCount?: number; inStock: boolean } {
-  if (!keyInventoryProducts.has(product.id)) {
-    return { ...product, inStock: product.inStock ?? true }
+  if (isKeyInventoryProductId(product.id)) {
+    const stockCount = stockMap.get(product.id) ?? 0
+    return {
+      ...product,
+      stockCount,
+      inStock: stockCount > 0,
+    }
   }
-  const stockCount = stockMap.get(product.id) ?? 0
-  return {
-    ...product,
-    stockCount,
-    inStock: stockCount > 0,
+
+  if (stockMap.has(product.id)) {
+    const stockCount = stockMap.get(product.id) ?? 0
+    return {
+      ...product,
+      stockCount,
+      inStock: stockCount > 0,
+    }
   }
+
+  return { ...product, inStock: product.inStock ?? true }
 }
 
 export async function enrichProductsWithStock<T extends { id: string; inStock?: boolean }>(
   products: T[]
 ): Promise<Array<T & { stockCount?: number; inStock: boolean }>> {
-  if (!prisma || products.length === 0) {
-    return products.map((p) => ({ ...p, inStock: p.inStock ?? true }))
+  if (products.length === 0) {
+    return []
+  }
+
+  const idsToCount = new Set<string>()
+  for (const product of products) {
+    if (isKeyInventoryProductId(product.id)) {
+      idsToCount.add(product.id)
+    }
+  }
+
+  if (!prisma) {
+    return products.map((p) => {
+      if (isKeyInventoryProductId(p.id)) {
+        return { ...p, stockCount: 0, inStock: false }
+      }
+      return { ...p, inStock: p.inStock ?? true }
+    })
   }
 
   try {
-    const ids = products.map((p) => p.id)
-    const keyInventoryProducts = await productsWithKeyInventory(ids)
-    const stockMap = await countAvailableKeysForProducts([...keyInventoryProducts])
-
-    return products.map((p) =>
-      enrichProductWithStock(p, stockMap, keyInventoryProducts)
+    const legacyKeyProducts = await productsWithKeyInventory(
+      products.map((p) => p.id).filter((id) => !KEY_INVENTORY_PRODUCT_IDS.has(id))
     )
+    for (const id of legacyKeyProducts) {
+      idsToCount.add(id)
+    }
+
+    const stockMap = await countAvailableKeysForProducts([...idsToCount])
+
+    return products.map((p) => enrichProductWithStock(p, stockMap))
   } catch (error) {
     console.warn('[Stock] enrichProductsWithStock failed:', error)
-    return products.map((p) => ({ ...p, inStock: p.inStock ?? true }))
+    return products.map((p) => {
+      if (isKeyInventoryProductId(p.id)) {
+        return { ...p, stockCount: 0, inStock: false }
+      }
+      return { ...p, inStock: p.inStock ?? true }
+    })
   }
 }

@@ -7,7 +7,7 @@ import { getProductReviewsFromAPI } from '@/lib/api/reviews'
 import { Review } from '@/data/reviews'
 import { Product } from '@/types'
 import Image from 'next/image'
-import { Star, ShoppingCart, Shield, Zap, CheckCircle, AlertCircle, GitCompare } from 'lucide-react'
+import { Star, ShoppingCart, Shield, Zap, CheckCircle, AlertCircle, GitCompare, Package } from 'lucide-react'
 import ProductReviews from '@/components/ProductReviews'
 import ProductCard from '@/components/ProductCard'
 import ProductRecommendations from '@/components/ProductRecommendations'
@@ -23,7 +23,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { LoadingPage } from '@/components/LoadingSpinner'
 import { Loader2 } from 'lucide-react'
-import { getStockLabel, isProductOutOfStock } from '@/lib/products/stock-display'
+import { getStockDetailLabel, isProductOutOfStock } from '@/lib/products/stock-display'
+import { isKeyInventoryProduct } from '@/lib/products/key-inventory-catalog'
 
 function ProductDetailContent({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -42,7 +43,13 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
   const [customersAlsoBought, setCustomersAlsoBought] = useState<Product[]>([])
   const inCompare = isInCompare(product?.id || '')
   const outOfStock = product ? isProductOutOfStock(product) : false
-  const stockLabel = product ? getStockLabel(product) : null
+  const stockDetailLabel = product ? getStockDetailLabel(product) : null
+  const showKeyStock = product ? isKeyInventoryProduct(product) : false
+  const displayRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0
+  const displayReviewCount = reviews.length
 
   // Load product when ID changes
   useEffect(() => {
@@ -178,20 +185,31 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
               
               {/* Rating */}
               <div className="flex items-center space-x-4 mb-6">
-                <div className="flex items-center">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-5 h-5 ${
-                        i < Math.floor(product.rating)
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-gray-600'
-                      }`}
-                    />
-                  ))}
-                  <span className="ml-2 text-white font-medium">{product.rating}</span>
-                </div>
-                <span className="text-gray-400">({product.reviewCount} reviews)</span>
+                {displayReviewCount > 0 ? (
+                  <>
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-5 h-5 ${
+                            i < Math.floor(displayRating)
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-600'
+                          }`}
+                        />
+                      ))}
+                      <span className="ml-2 text-white font-medium">
+                        {displayRating.toFixed(1)}
+                      </span>
+                    </div>
+                    <span className="text-gray-400">
+                      ({displayReviewCount}{' '}
+                      {displayReviewCount === 1 ? 'Bewertung' : 'Bewertungen'})
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-gray-400">Noch keine Bewertungen</span>
+                )}
               </div>
 
               {/* Price */}
@@ -215,14 +233,19 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
                 {product.discount && product.discount > 0 && (
                   <p className="text-green-400">Save €{(product.originalPrice! - product.price).toFixed(2)}</p>
                 )}
-                {stockLabel && (
-                  <p
-                    className={`mt-2 text-sm font-medium ${
-                      outOfStock ? 'text-red-400' : 'text-green-400'
+                {stockDetailLabel && (
+                  <div
+                    className={`mt-3 inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium ${
+                      outOfStock
+                        ? 'border-red-500/30 bg-red-500/10 text-red-400'
+                        : showKeyStock
+                          ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                          : 'border-purple-500/30 bg-purple-500/10 text-purple-300'
                     }`}
                   >
-                    {stockLabel}
-                  </p>
+                    {showKeyStock && <Package className="w-4 h-4 shrink-0" />}
+                    <span>{stockDetailLabel}</span>
+                  </div>
                 )}
               </div>
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Product, Category, Platform } from '@/types'
 import { X, Upload, Save } from 'lucide-react'
-import { mockSellers } from '@/data/sellers'
+import { SIMEXMAFIA_SELLER, SIMEXMAFIA_SELLER_ID } from '@/lib/sellers'
 
 interface ProductFormModalProps {
   product: Product | null
@@ -24,7 +24,7 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
     image: '',
     category: 'games' as Category,
     platform: 'Steam' as Platform,
-    sellerId: mockSellers[0]?.id || '',
+    sellerId: SIMEXMAFIA_SELLER_ID,
     rating: '4.5',
     reviewCount: '0',
     inStock: true,
@@ -91,11 +91,6 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
       return
     }
 
-    const selectedSeller = mockSellers.find(s => s.id === formData.sellerId)
-    if (!selectedSeller) {
-      return
-    }
-
     const tags = formData.tags.split(',').map(t => t.trim()).filter(t => t.length > 0)
 
     const productData: Product = {
@@ -108,7 +103,7 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
       image: formData.image.trim(),
       category: formData.category,
       platform: formData.platform,
-      seller: selectedSeller,
+      seller: SIMEXMAFIA_SELLER,
       rating: parseFloat(formData.rating),
       reviewCount: parseInt(formData.reviewCount) || 0,
       inStock: formData.inStock,
@@ -243,25 +238,17 @@ export default function ProductFormModal({ product, onClose, onSave }: ProductFo
               </select>
             </div>
 
-            {/* Seller */}
+            {/* Seller — aktuell nur SimexMafia */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Verkäufer *
+                Verkäufer
               </label>
-              <select
-                value={formData.sellerId}
-                onChange={(e) => setFormData({ ...formData, sellerId: e.target.value })}
-                className={`w-full px-4 py-3 bg-fortnite-darker border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  errors.sellerId ? 'border-red-500' : 'border-purple-500/30'
-                }`}
-              >
-                {mockSellers.map((seller) => (
-                  <option key={seller.id} value={seller.id}>
-                    {seller.name}
-                  </option>
-                ))}
-              </select>
-              {errors.sellerId && <p className="text-red-400 text-sm mt-1">{errors.sellerId}</p>}
+              <input
+                type="text"
+                value={SIMEXMAFIA_SELLER.name}
+                readOnly
+                className="w-full px-4 py-3 bg-fortnite-darker border border-purple-500/30 rounded-lg text-gray-400 cursor-not-allowed"
+              />
             </div>
 
             {/* Image URL */}

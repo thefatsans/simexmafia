@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { handleApiError, checkDatabaseConfig } from '@/lib/api-error-handler'
+import { SIMEXMAFIA_SELLER_ID } from '@/lib/sellers'
 
 // POST /api/products/migrate - Migrate products from localStorage to database
 export async function POST(request: NextRequest) {
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     const sellerMap = new Map(sellers.map((s: { name: string; id: string }) => [s.name, s.id]))
     
     // Default seller if seller not found
-    const defaultSellerId = sellers[0]?.id || 'seller1'
+    const defaultSellerId = SIMEXMAFIA_SELLER_ID
 
     const migratedProducts = []
     const errors = []

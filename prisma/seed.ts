@@ -39,6 +39,7 @@ console.log('🔗 Using DATABASE_URL:', DATABASE_URL.substring(0, 50) + '...')
 // Import Pool from pg and create adapter
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { SIMEXMAFIA_SELLER_ID } from '../lib/sellers'
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
@@ -55,73 +56,23 @@ const prisma = new PrismaClient({ adapter })
 async function main() {
   console.log('🌱 Seeding database...')
 
-  // Erstelle alle Seller
-  const seller1 = await prisma.seller.upsert({
-    where: { id: 'seller1' },
-    update: {},
-    create: {
-      id: 'seller1',
-      name: 'GameDeals Pro',
-      rating: 4.8,
-      reviewCount: 1245,
-      verified: true,
-    },
-  })
-
-  const seller2 = await prisma.seller.upsert({
-    where: { id: 'seller2' },
-    update: {},
-    create: {
-      id: 'seller2',
-      name: 'DigitalKeys Store',
-      rating: 4.9,
-      reviewCount: 3421,
-      verified: true,
-    },
-  })
-
-  const seller3 = await prisma.seller.upsert({
-    where: { id: 'seller3' },
-    update: {},
-    create: {
-      id: 'seller3',
-      name: 'GiftCard Masters',
-      rating: 4.7,
-      reviewCount: 8923,
-      verified: true,
-    },
-  })
-
-  const seller4 = await prisma.seller.upsert({
-    where: { id: 'seller4' },
-    update: {},
-    create: {
-      id: 'seller4',
-      name: 'Subscriptions Hub',
-      rating: 4.6,
-      reviewCount: 2134,
-      verified: true,
-    },
-  })
-
+  // Einziger Verkäufer: SimexMafia
   const sellerSimex = await prisma.seller.upsert({
-    where: { id: 'seller-simexmafia' },
+    where: { id: SIMEXMAFIA_SELLER_ID },
     update: {
       name: 'SimexMafia',
       verified: true,
-      rating: 5.0,
-      reviewCount: 847,
     },
     create: {
-      id: 'seller-simexmafia',
+      id: SIMEXMAFIA_SELLER_ID,
       name: 'SimexMafia',
-      rating: 5.0,
-      reviewCount: 847,
+      rating: 0,
+      reviewCount: 0,
       verified: true,
     },
   })
 
-  console.log('✅ Sellers created')
+  console.log('✅ Seller created (SimexMafia only)')
 
   // Erstelle Test-User
   const user1 = await prisma.user.upsert({
@@ -170,7 +121,7 @@ async function main() {
   // Importiere erweiterte Produktdaten
   const { generateProducts } = await import('./product-data')
   const { getProductImage } = await import('./image-helper')
-  const sellerIds = [seller1.id, seller2.id, seller3.id, seller4.id, sellerSimex.id]
+  const sellerIds = [sellerSimex.id]
   
   // Generiere alle Produkte (200-300+)
   const generatedProducts = generateProducts(sellerIds)
@@ -191,7 +142,7 @@ async function main() {
       reviewCount: 892,
       inStock: true,
       tags: ['fortnite', 'v-bucks', 'popular'],
-      sellerId: seller1.id,
+      sellerId: sellerSimex.id,
     },
     {
       id: '2',
@@ -207,7 +158,7 @@ async function main() {
       reviewCount: 2156,
       inStock: true,
       tags: ['fps', 'action', 'multiplayer'],
-      sellerId: seller2.id,
+      sellerId: sellerSimex.id,
     },
     {
       id: '3',
@@ -223,7 +174,7 @@ async function main() {
       reviewCount: 5678,
       inStock: true,
       tags: ['gift-card', 'playstation', 'instant'],
-      sellerId: seller3.id,
+      sellerId: sellerSimex.id,
     },
     {
       id: '4',
@@ -239,7 +190,7 @@ async function main() {
       reviewCount: 1234,
       inStock: true,
       tags: ['subscription', 'xbox', 'game-pass'],
-      sellerId: seller4.id,
+      sellerId: sellerSimex.id,
     },
     {
       id: '5',
@@ -255,7 +206,7 @@ async function main() {
       reviewCount: 3456,
       inStock: true,
       tags: ['rpg', 'fantasy', 'single-player'],
-      sellerId: seller1.id,
+      sellerId: sellerSimex.id,
     },
     {
       id: '6',
@@ -271,7 +222,7 @@ async function main() {
       reviewCount: 4567,
       inStock: true,
       tags: ['gift-card', 'steam', 'instant'],
-      sellerId: seller3.id,
+      sellerId: sellerSimex.id,
     },
     {
       id: '7',
@@ -287,7 +238,7 @@ async function main() {
       reviewCount: 1890,
       inStock: true,
       tags: ['dlc', 'rpg', 'expansion'],
-      sellerId: seller2.id,
+      sellerId: sellerSimex.id,
     },
     {
       id: '8',
@@ -303,7 +254,7 @@ async function main() {
       reviewCount: 987,
       inStock: true,
       tags: ['fifa', 'sports', 'points'],
-      sellerId: seller4.id,
+      sellerId: sellerSimex.id,
     },
   ]
 

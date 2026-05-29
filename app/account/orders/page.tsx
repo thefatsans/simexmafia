@@ -12,6 +12,7 @@ import { getUserOrders, Order, OrderItem } from '@/data/payments'
 import { getOrdersFromAPI } from '@/lib/api/orders'
 import { getSackByType } from '@/data/sacks'
 import { useAuth } from '@/contexts/AuthContext'
+import { SIMEXMAFIA_SELLER, SIMEXMAFIA_SELLER_ID } from '@/lib/sellers'
 
 export default function OrdersPage() {
   const { user, isLoading: authLoading, syncUserFromDatabase } = useAuth()
@@ -88,19 +89,11 @@ export default function OrdersPage() {
     // Load user reviews from API
     const loadReviews = async () => {
       try {
-        const reviews = await getUserReviewsFromAPI(user.id)
+        const reviews = await getUserReviewsFromAPI(user)
         setUserReviews(reviews)
       } catch (error) {
         console.error('Error loading user reviews:', error)
-        // Fallback zu localStorage
-        if (typeof window !== 'undefined') {
-          try {
-            const localReviews = JSON.parse(localStorage.getItem('userReviews') || '[]')
-            setUserReviews(localReviews)
-          } catch (e) {
-            console.error('Error loading reviews from localStorage:', e)
-          }
-        }
+        setUserReviews([])
       }
     }
     loadReviews()
@@ -263,7 +256,7 @@ export default function OrdersPage() {
     const searchProductByNameForLink = async (productName: string): Promise<any> => {
       try {
         const { generateProducts } = await import('@/prisma/product-data')
-        const sellerIds = ['seller1', 'seller2', 'seller3', 'seller4']
+        const sellerIds = [SIMEXMAFIA_SELLER_ID]
         const generatedProducts = generateProducts(sellerIds)
         const found = generatedProducts.find((p: any) => 
           p.name.toLowerCase() === productName.toLowerCase()
@@ -362,7 +355,7 @@ export default function OrdersPage() {
       try {
         // Suche in generierten Produkten
         const { generateProducts } = await import('@/prisma/product-data')
-        const sellerIds = ['seller1', 'seller2', 'seller3', 'seller4']
+        const sellerIds = [SIMEXMAFIA_SELLER_ID]
         const generatedProducts = generateProducts(sellerIds)
         
         const searchNameLower = productName.toLowerCase().trim()
@@ -439,11 +432,7 @@ export default function OrdersPage() {
             inStock: found.inStock,
             tags: found.tags,
             seller: {
-              id: found.sellerId || 'seller1',
-              name: found.sellerId === 'seller1' ? 'GameDeals Pro' : found.sellerId === 'seller2' ? 'DigitalKeys Store' : found.sellerId === 'seller3' ? 'GiftCard Masters' : 'Subscriptions Hub',
-              rating: 4.7,
-              reviewCount: 2000,
-              verified: true,
+              ...SIMEXMAFIA_SELLER,
             },
           }
         }

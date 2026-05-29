@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { getStockLabel, isProductOutOfStock } from '@/lib/products/stock-display'
+import { isKeyInventoryProduct } from '@/lib/products/key-inventory-catalog'
 
 interface ProductCardProps {
   product: Product
@@ -29,7 +30,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const inCompare = isInCompare(product.id)
   const [isAdding, setIsAdding] = useState(false)
   const outOfStock = isProductOutOfStock(product)
-  const stockLabel = getStockLabel(product)
+  const stockLabel = getStockLabel(product) ?? (isKeyInventoryProduct(product) ? 'Ausverkauft' : null)
 
   const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()

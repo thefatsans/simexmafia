@@ -1,5 +1,5 @@
 import { Product } from '@/types'
-import { resolveSeller } from '@/lib/sellers'
+import { resolveSeller, SIMEXMAFIA_SELLER_ID } from '@/lib/sellers'
 import { applySimexMafiaSellerToDiscordProducts } from '@/lib/products/simex-discord-server'
 import {
   filterStorefrontCatalog,
@@ -287,13 +287,7 @@ export async function searchProductByName(searchTerm: string): Promise<Product |
                 verified: p.seller.verified,
                 avatar: p.seller.avatar,
               }
-            : {
-                id: 'seller1',
-                name: 'SimexMafia Partner',
-                rating: 4.7,
-                reviewCount: 2000,
-                verified: true,
-              },
+            : resolveSeller(),
           rating: p.rating || 0,
           reviewCount: p.reviewCount || 0,
           inStock: p.inStock,
@@ -308,7 +302,7 @@ export async function searchProductByName(searchTerm: string): Promise<Product |
   // Fallback: Suche in generierten Produkten
   try {
     const { generateProducts } = await import('@/prisma/product-data')
-    const sellerIds = ['seller1', 'seller2', 'seller3', 'seller4']
+    const sellerIds = [SIMEXMAFIA_SELLER_ID]
     const generatedProducts = generateProducts(sellerIds)
     
     const { pickBestSearchMatch } = await import('@/lib/products/resolve-product')

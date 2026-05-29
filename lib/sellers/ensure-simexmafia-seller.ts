@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { SIMEXMAFIA_SELLER_ID } from '@/lib/sellers'
+import { syncSellerRatingFromReviews } from '@/lib/sellers/sync-seller-rating'
 
 const SELLER_SETUP_CACHE_MS = 5 * 60 * 1000
 let sellerSetupReadyAt = 0
@@ -18,7 +19,10 @@ export async function ensureStorefrontSellerReady(): Promise<void> {
 
   sellerSetupInFlight = (async () => {
     await ensureSimexMafiaSellerInDatabase()
+    await linkAllProductsToSimexMafia()
     await linkDiscordServerProductToSimexMafia()
+    await removeNonSimexMafiaSellers()
+    await syncSellerRatingFromReviews(SIMEXMAFIA_SELLER_ID)
     sellerSetupReadyAt = Date.now()
   })()
 
@@ -40,14 +44,12 @@ export async function ensureSimexMafiaSellerInDatabase() {
       update: {
         name: 'SimexMafia',
         verified: true,
-        rating: 5.0,
-        reviewCount: 847,
       },
       create: {
         id: SIMEXMAFIA_SELLER_ID,
         name: 'SimexMafia',
-        rating: 5.0,
-        reviewCount: 847,
+        rating: 0,
+        reviewCount: 0,
         verified: true,
       },
     })
@@ -57,7 +59,24 @@ export async function ensureSimexMafiaSellerInDatabase() {
   }
 }
 
-/** Discord-Server-Produkt in der DB dem Verkäufer SimexMafia zuordnen */
+/** Alle Produkte dem Verkäufer SimexMafia zuordnen. */
+export async function linkAllProductsToSimexMafia() {
+  if (!process.env.DATABASE_URL || !prisma) {
+    return
+  }
+
+  try {
+    await ensureSimexMafiaSellerInDatabase()
+    await prisma.product.updateMany({
+      where: { sellerId: { not: SIMEXMAFIA_SELLER_ID } },
+      data: { sellerId: SIMEXMAFIA_SELLER_ID },
+    })
+  } catch (error) {
+    console.warn('[Sellers] Could not link products to SimexMafia:', error)
+  }
+}
+
+/** Discord-Server-Produkt dem Verkäufer SimexMafia zuordnen */
 export async function linkDiscordServerProductToSimexMafia() {
   if (!process.env.DATABASE_URL || !prisma) {
     return
@@ -80,4 +99,19 @@ export async function linkDiscordServerProductToSimexMafia() {
   } catch (error) {
     console.warn('[Sellers] Could not link Discord product:', error)
   }
+}
+
+/** Entfernt alle Verkäufer außer SimexMafia (nach Produkt-Umverknüpfung). */
+export async function removeNonSimexMafiaSellers() {
+  if (!process.env.DATABASE_URL || !prisma) {
+    return 0
+  }
+
+  await linkAllProductsToSimexMafia()
+
+  const result = await prisma.seller.deleteMany({
+    where: { id: { not: SIMEXMAFIA_SELLER_ID } },
+  })
+
+  return result.count
 }

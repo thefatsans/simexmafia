@@ -1,62 +1,52 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { notFound, useRouter } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import ProductCard from '@/components/ProductCard'
-import { getSellerById } from '@/data/sellers'
+import { getSellerFromAPI, SellerWithStats } from '@/lib/api/sellers'
 import { getProductsFromAPI } from '@/lib/api/products'
-import { Star, CheckCircle, TrendingUp, Package, Clock, Shield } from 'lucide-react'
+import { Star, CheckCircle, Package, Shield } from 'lucide-react'
 import { Product } from '@/types'
+import { SIMEXMAFIA_SELLER_ID } from '@/lib/sellers'
 
 export default function SellerPage({ params }: { params: { id: string } }) {
-  const router = useRouter()
-  const seller = getSellerById(params.id)
+  const [seller, setSeller] = useState<SellerWithStats | null>(null)
   const [sellerProducts, setSellerProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [totalSales, setTotalSales] = useState(0)
-  const [averagePrice, setAveragePrice] = useState(0)
+  const [notFoundState, setNotFoundState] = useState(false)
 
   useEffect(() => {
-    if (!seller) {
-      notFound()
-      return
-    }
-
-    const loadSellerProducts = async () => {
+    const load = async () => {
+      setIsLoading(true)
       try {
-        // Lade alle Produkte von der API
-        const products = await getProductsFromAPI()
-        
-        // Filtere Produkte für diesen Verkäufer
-        const filtered = products.filter((product: Product) => product.seller.id === params.id)
-        setSellerProducts(filtered)
+        const [sellerData, products] = await Promise.all([
+          getSellerFromAPI(params.id),
+          getProductsFromAPI(),
+        ])
 
-        // Berechne Statistiken
-        const sales = filtered.reduce((sum, product) => sum + product.reviewCount, 0)
-        const avgPrice = filtered.length > 0
-          ? filtered.reduce((sum, product) => sum + product.price, 0) / filtered.length
-          : 0
+        if (!sellerData || params.id !== SIMEXMAFIA_SELLER_ID) {
+          setNotFoundState(true)
+          return
+        }
 
-        setTotalSales(sales)
-        setAveragePrice(avgPrice)
+        setSeller(sellerData)
+        setSellerProducts(products.filter((product) => product.seller.id === params.id))
       } catch (error) {
-        console.error('Error loading seller products:', error)
-        setSellerProducts([])
+        console.error('Error loading seller:', error)
+        setNotFoundState(true)
       } finally {
         setIsLoading(false)
       }
     }
+    load()
+  }, [params.id])
 
-    loadSellerProducts()
-  }, [params.id, seller])
-
-  if (!seller) {
+  if (notFoundState) {
     notFound()
-    return null
   }
 
-  if (isLoading) {
+  if (isLoading || !seller) {
     return (
       <div className="min-h-screen py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -66,19 +56,26 @@ export default function SellerPage({ params }: { params: { id: string } }) {
     )
   }
 
+  const averagePrice =
+    sellerProducts.length > 0
+      ? sellerProducts.reduce((sum, product) => sum + product.price, 0) / sellerProducts.length
+      : 0
+
   return (
     <div className="min-h-screen py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Breadcrumb */}
         <nav className="mb-6 text-sm text-gray-400">
-          <Link href="/" className="hover:text-purple-400">Startseite</Link>
+          <Link href="/" className="hover:text-purple-400">
+            Startseite
+          </Link>
           <span className="mx-2">/</span>
-          <Link href="/sellers" className="hover:text-purple-400">Verkäufer</Link>
+          <Link href="/sellers" className="hover:text-purple-400">
+            Verkäufer
+          </Link>
           <span className="mx-2">/</span>
           <span className="text-white">{seller.name}</span>
         </nav>
 
-        {/* Seller Header */}
         <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-8 mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div className="mb-6 md:mb-0">
@@ -93,27 +90,36 @@ export default function SellerPage({ params }: { params: { id: string } }) {
                   </div>
                 )}
               </div>
-              
-              {/* Rating */}
+
               <div className="flex items-center space-x-4 mb-4">
-                <div className="flex items-center">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-6 h-6 ${
-                        i < Math.floor(seller.rating)
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-gray-600'
-                      }`}
-                    />
-                  ))}
-                  <span className="ml-3 text-white font-semibold text-xl">{seller.rating}</span>
-                </div>
-                <span className="text-gray-400">({seller.reviewCount.toLocaleString()} Bewertungen)</span>
+                {seller.reviewCount > 0 ? (
+                  <>
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-6 h-6 ${
+                            i < Math.floor(seller.rating)
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-600'
+                          }`}
+                        />
+                      ))}
+                      <span className="ml-3 text-white font-semibold text-xl">
+                        {seller.rating.toFixed(1)}
+                      </span>
+                    </div>
+                    <span className="text-gray-400">
+                      ({seller.reviewCount}{' '}
+                      {seller.reviewCount === 1 ? 'Bewertung' : 'Bewertungen'})
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-gray-400">Noch keine Bewertungen</span>
+                )}
               </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
                 <div className="bg-fortnite-darker rounded-lg p-4">
                   <div className="flex items-center space-x-2 mb-1">
                     <Package className="w-5 h-5 text-purple-400" />
@@ -123,51 +129,39 @@ export default function SellerPage({ params }: { params: { id: string } }) {
                 </div>
                 <div className="bg-fortnite-darker rounded-lg p-4">
                   <div className="flex items-center space-x-2 mb-1">
-                    <TrendingUp className="w-5 h-5 text-purple-400" />
-                    <span className="text-gray-400 text-sm">Gesamtverkäufe</span>
-                  </div>
-                  <p className="text-white font-bold text-2xl">{totalSales.toLocaleString()}</p>
-                </div>
-                <div className="bg-fortnite-darker rounded-lg p-4">
-                  <div className="flex items-center space-x-2 mb-1">
                     <Star className="w-5 h-5 text-purple-400" />
-                    <span className="text-gray-400 text-sm">Bewertung</span>
+                    <span className="text-gray-400 text-sm">Bewertungen</span>
                   </div>
-                  <p className="text-white font-bold text-2xl">{seller.rating}</p>
+                  <p className="text-white font-bold text-2xl">{seller.reviewCount}</p>
                 </div>
                 <div className="bg-fortnite-darker rounded-lg p-4">
                   <div className="flex items-center space-x-2 mb-1">
-                    <Clock className="w-5 h-5 text-purple-400" />
                     <span className="text-gray-400 text-sm">Ø Preis</span>
                   </div>
-                  <p className="text-white font-bold text-2xl">€{averagePrice.toFixed(0)}</p>
+                  <p className="text-white font-bold text-2xl">€{averagePrice.toFixed(2)}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Seller Info */}
         <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6 mb-8">
           <div className="flex items-start space-x-3">
             <Shield className="w-6 h-6 text-purple-400 flex-shrink-0 mt-1" />
             <div>
-              <h3 className="text-white font-semibold mb-2">Über diesen Verkäufer</h3>
+              <h3 className="text-white font-semibold mb-2">Über SimexMafia</h3>
               <p className="text-gray-400 text-sm leading-relaxed">
-                {seller.verified
-                  ? `${seller.name} ist ein verifizierter Verkäufer auf SimexMafia mit einer ausgezeichneten Erfolgsbilanz. Sie bieten konkurrenzfähige Preise und schnelle Lieferung bei allen digitalen Gaming-Produkten. Alle Transaktionen sind sicher und durch unsere Käuferschutzrichtlinie abgedeckt.`
-                  : `${seller.name} bietet eine große Auswahl an digitalen Gaming-Produkten zu konkurrenzfähigen Preisen.`}
+                SimexMafia ist der offizielle Verkäufer auf diesem Marktplatz. Alle Produkte
+                werden direkt ausgeliefert — Bewertungen stammen ausschließlich von verifizierten
+                Käufern.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Products */}
         <div>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-3xl font-bold text-white">
-              Produkte von {seller.name}
-            </h2>
+            <h2 className="text-3xl font-bold text-white">Produkte von {seller.name}</h2>
             <span className="text-gray-400">
               {sellerProducts.length} {sellerProducts.length === 1 ? 'Produkt' : 'Produkte'}
             </span>
@@ -182,7 +176,7 @@ export default function SellerPage({ params }: { params: { id: string } }) {
           ) : (
             <div className="text-center py-12 bg-fortnite-dark border border-purple-500/20 rounded-lg">
               <Package className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400 text-lg">Dieser Verkäufer hat derzeit keine Produkte verfügbar.</p>
+              <p className="text-gray-400 text-lg">Derzeit keine Produkte verfügbar.</p>
             </div>
           )}
         </div>
@@ -190,5 +184,3 @@ export default function SellerPage({ params }: { params: { id: string } }) {
     </div>
   )
 }
-
-
