@@ -16,6 +16,7 @@ import { useCompare } from '@/contexts/CompareContext'
 import { useToast } from '@/contexts/ToastContext'
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed'
 import { getSimilarProducts, getCustomersAlsoBought } from '@/data/recommendations'
+import { getProductsFromAPI } from '@/lib/api/products'
 import StructuredData from '@/components/StructuredData'
 import SocialShare from '@/components/SocialShare'
 import PriceAlertButton from '@/components/PriceAlertButton'
@@ -59,16 +60,17 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
         const data = await getProductFromAPI(params.id)
         if (data) {
           setProduct(data)
-          
-          // Lade Reviews von API
-          const productReviews = await getProductReviewsFromAPI(data.id)
-          setReviews(productReviews)
-          
           addProduct(data)
-          
-          // Lade Empfehlungen
-          const similar = await getSimilarProducts(data, 4, data.id)
-          const alsoBought = await getCustomersAlsoBought(data.id, 4)
+
+          const [productReviews, catalog] = await Promise.all([
+            getProductReviewsFromAPI(data.id),
+            getProductsFromAPI(),
+          ])
+          const [similar, alsoBought] = await Promise.all([
+            getSimilarProducts(data, 4, data.id, catalog),
+            getCustomersAlsoBought(data.id, 4, catalog),
+          ])
+          setReviews(productReviews)
           setSimilarProducts(similar)
           setCustomersAlsoBought(alsoBought)
         } else {

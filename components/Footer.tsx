@@ -1,9 +1,16 @@
 'use client'
 
+import Link from 'next/link'
 import { Youtube, Twitter, Instagram } from 'lucide-react'
 import Logo from './Logo'
 import NewsletterForm from './NewsletterForm'
 import { companyInfo } from '@/lib/company-info'
+
+const footerLinkClass =
+  'text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer'
+
+const legalLinkClass =
+  'text-gray-400 hover:text-summer-sky-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer'
 
 export default function Footer() {
 
@@ -28,84 +35,12 @@ export default function Footer() {
           <div className="pointer-events-auto relative z-[10001]">
             <h4 className="text-white dark:text-white text-gray-900 font-semibold mb-4">Schnelllinks</h4>
             <ul className="space-y-2">
-              <li>
-                <a 
-                  href="/products" 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = '/products'
-                  }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-                >
-                  Alle Produkte
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="/categories" 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = '/categories'
-                  }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-                >
-                  Kategorien
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="/sellers" 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = '/sellers'
-                  }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-                >
-                  Top Verkäufer
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="/about" 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = '/about'
-                  }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-                >
-                  Über uns
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="/contact" 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = '/contact'
-                  }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-                >
-                  Kontakt
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="/faq" 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = '/faq'
-                  }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-                >
-                  FAQ
-                </a>
-              </li>
+              <li><Link href="/products" className={footerLinkClass}>Alle Produkte</Link></li>
+              <li><Link href="/categories" className={footerLinkClass}>Kategorien</Link></li>
+              <li><Link href="/sellers" className={footerLinkClass}>Top Verkäufer</Link></li>
+              <li><Link href="/about" className={footerLinkClass}>Über uns</Link></li>
+              <li><Link href="/contact" className={footerLinkClass}>Kontakt</Link></li>
+              <li><Link href="/faq" className={footerLinkClass}>FAQ</Link></li>
             </ul>
           </div>
 
@@ -113,58 +48,10 @@ export default function Footer() {
           <div className="pointer-events-auto relative z-[10001]">
             <h4 className="text-white dark:text-white text-gray-900 font-semibold mb-4">Support</h4>
             <ul className="space-y-2">
-              <li>
-                <a 
-                  href="/help" 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = '/help'
-                  }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-                >
-                  Hilfe-Center
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="/refunds" 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = '/refunds'
-                  }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-                >
-                  Rückerstattungsrichtlinie
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="/contact" 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = '/contact'
-                  }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-                >
-                  Kontaktieren Sie uns
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="/faq" 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = '/faq'
-                  }}
-                  className="text-gray-400 dark:text-gray-400 text-gray-600 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-                >
-                  FAQ
-                </a>
-              </li>
+              <li><Link href="/help" className={footerLinkClass}>Hilfe-Center</Link></li>
+              <li><Link href="/refunds" className={footerLinkClass}>Rückerstattungsrichtlinie</Link></li>
+              <li><Link href="/contact" className={footerLinkClass}>Kontaktieren Sie uns</Link></li>
+              <li><Link href="/faq" className={footerLinkClass}>FAQ</Link></li>
             </ul>
           </div>
 
@@ -216,50 +103,10 @@ export default function Footer() {
               © {new Date().getFullYear()} SimexMafia. Alle Rechte vorbehalten.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-              <a
-                href="/legal/imprint"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.location.href = '/legal/imprint'
-                }}
-                className="text-gray-400 hover:text-summer-sky-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-              >
-                Impressum
-              </a>
-              <a
-                href="/legal/privacy"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.location.href = '/legal/privacy'
-                }}
-                className="text-gray-400 hover:text-summer-sky-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-              >
-                Datenschutz
-              </a>
-              <a
-                href="/legal/terms"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.location.href = '/legal/terms'
-                }}
-                className="text-gray-400 hover:text-summer-sky-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-              >
-                AGB
-              </a>
-              <a
-                href="/legal/cancellation"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.location.href = '/legal/cancellation'
-                }}
-                className="text-gray-400 hover:text-summer-sky-light transition-colors text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-              >
-                Widerruf
-              </a>
+              <Link href="/legal/imprint" className={legalLinkClass}>Impressum</Link>
+              <Link href="/legal/privacy" className={legalLinkClass}>Datenschutz</Link>
+              <Link href="/legal/terms" className={legalLinkClass}>AGB</Link>
+              <Link href="/legal/cancellation" className={legalLinkClass}>Widerruf</Link>
             </div>
           </div>
         </div>

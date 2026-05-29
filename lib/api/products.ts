@@ -7,7 +7,7 @@ import {
 } from '@/lib/products/storefront-catalog'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
-const CLIENT_PRODUCTS_CACHE_MS = 30_000
+const CLIENT_PRODUCTS_CACHE_MS = 120_000
 
 let productsListCache: { key: string; data: Product[]; ts: number } | null = null
 

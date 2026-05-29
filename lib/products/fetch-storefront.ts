@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
 import { enrichProductsWithStock } from '@/lib/product-keys/stock'
-import { ensureStorefrontSellerReady } from '@/lib/sellers/ensure-simexmafia-seller'
 import {
   applySimexMafiaSellerToDiscordProducts,
   ensureSimexDiscordServerInCatalog,
@@ -36,8 +35,6 @@ export async function fetchStorefrontProductsFromDatabase() {
   }
 
   try {
-    await ensureStorefrontSellerReady()
-
     const products = await prisma.product.findMany({
       where: {
         OR: [
@@ -82,8 +79,6 @@ export async function fetchStorefrontProductByIdFromDatabase(id: string) {
   }
 
   try {
-    await ensureStorefrontSellerReady()
-
     const product = await prisma.product.findUnique({
       where: { id: decodedId },
       include: {

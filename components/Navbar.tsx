@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ShoppingCart, Search, User, Menu, Coins, Heart, LogIn, LogOut, Settings, GitCompare, Sun, Moon } from 'lucide-react'
 import { isAdmin } from '@/data/admin'
@@ -52,6 +53,14 @@ export default function Navbar() {
 
   // Autocomplete closes via onBlur on the input field - no global event listeners needed
 
+  const closeMobileMenu = () => setIsMenuOpen(false)
+
+  const navLinkClass =
+    'text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer'
+
+  const mobileNavLinkClass =
+    'text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30'
+
   return (
     <nav className="bg-fortnite-darker/95 dark:bg-fortnite-darker/95 bg-white/95 dark:border-summer-sky-light/30 border-gray-200 border-b sticky top-0 z-[9999] backdrop-blur-md pointer-events-auto transition-all duration-300 shadow-lg shadow-summer-ocean/10" style={{
       background: 'linear-gradient(135deg, rgba(8, 20, 35, 0.95) 0%, rgba(4, 12, 24, 0.95) 100%)',
@@ -63,13 +72,8 @@ export default function Navbar() {
           {/* Left Section: Logo + Navigation */}
           <div className="flex items-center gap-6 flex-shrink-0">
             {/* Logo */}
-            <a 
-              href="/" 
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                window.location.href = '/'
-              }}
+            <Link
+              href="/"
               className="group flex items-center flex-shrink-0 pointer-events-auto relative z-[10001] cursor-pointer transition-transform hover:scale-105"
             >
               <div className="hidden sm:block">
@@ -79,54 +83,22 @@ export default function Navbar() {
                 <Logo width={48} height={48} showText={false} />
                 <span className="ml-2 text-lg font-bold bg-gradient-to-r from-summer-sky-light to-summer-ocean-light bg-clip-text text-transparent">SimexMafia</span>
               </div>
-            </a>
+            </Link>
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center space-x-4 pointer-events-auto relative z-[10001]">
-              <a 
-                href="/" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.location.href = '/'
-                }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-              >
+              <Link href="/" className={navLinkClass}>
                 Startseite
-              </a>
-              <a 
-                href="/products" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.location.href = '/products'
-                }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-              >
+              </Link>
+              <Link href="/products" className={navLinkClass}>
                 Produkte
-              </a>
-              <a 
-                href="/categories" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.location.href = '/categories'
-                }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-              >
+              </Link>
+              <Link href="/categories" className={navLinkClass}>
                 Kategorien
-              </a>
-              <a 
-                href="/sellers" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.location.href = '/sellers'
-                }}
-                className="text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors whitespace-nowrap text-sm pointer-events-auto relative z-[10002] cursor-pointer"
-              >
+              </Link>
+              <Link href="/sellers" className={navLinkClass}>
                 Verkäufer
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -167,27 +139,17 @@ export default function Navbar() {
           {/* Right Section: Actions */}
           <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 flex-shrink-0 relative z-[10000] pointer-events-auto">
             {!mounted ? null : isAuthenticated && user ? (
-              <a 
-                href="/account/goofycoins" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.location.href = '/account/goofycoins'
-                }}
+              <Link
+                href="/account/goofycoins"
                 className="hidden lg:flex items-center space-x-2 px-3 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 rounded-lg transition-colors group pointer-events-auto relative z-[10003] cursor-pointer"
                 title="GoofyCoins verwalten"
               >
                 <Coins className="w-5 h-5 text-yellow-400 group-hover:scale-110 transition-transform" />
                 <span className="text-yellow-400 font-semibold text-sm">{user?.goofyCoins ?? 0}</span>
-              </a>
+              </Link>
             ) : null}
-            <a 
-              href="/wishlist" 
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                window.location.href = '/wishlist'
-              }}
+            <Link
+              href="/wishlist"
               className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               title="Wunschliste"
             >
@@ -197,14 +159,9 @@ export default function Navbar() {
                   {wishlistCount > 9 ? '9+' : wishlistCount}
                 </span>
               )}
-            </a>
-            <a 
-              href="/compare" 
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                window.location.href = '/compare'
-              }}
+            </Link>
+            <Link
+              href="/compare"
               className="hidden sm:flex relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] items-center justify-center touch-manipulation"
               title="Produktvergleich"
             >
@@ -214,7 +171,7 @@ export default function Navbar() {
                   {compareCount > 9 ? '9+' : compareCount}
                 </span>
               )}
-            </a>
+            </Link>
             <button
               onClick={toggleTheme}
               className="hidden sm:flex p-2 text-gray-300 hover:text-summer-sky-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] items-center justify-center touch-manipulation"
@@ -229,13 +186,8 @@ export default function Navbar() {
                 <Moon className="w-5 h-5" />
               )}
             </button>
-            <a 
-              href="/cart" 
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                window.location.href = '/cart'
-              }}
+            <Link
+              href="/cart"
               className="relative p-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto z-[10003] cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center touch-manipulation"
               title="Warenkorb"
             >
@@ -245,53 +197,38 @@ export default function Navbar() {
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
-            </a>
+            </Link>
             {!mounted || !clientIsAuthenticated ? (
-              <a
+              <Link
                 href="/auth/login"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.location.href = '/auth/login'
-                }}
                 className="hidden lg:flex items-center space-x-2 px-3 py-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto relative z-[10003] cursor-pointer"
               >
                 <LogIn className="w-5 h-5" />
                 <span className="text-sm">Anmelden</span>
-              </a>
+              </Link>
             ) : (
               <>
                 {user && isAdmin(user.email) && (
-                  <a
+                  <Link
                     href="/admin"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      window.location.href = '/admin'
-                    }}
                     className="hidden lg:flex items-center space-x-2 px-3 py-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto relative z-[10003] cursor-pointer"
                     title="Admin Panel"
                   >
                     <Settings className="w-5 h-5" />
                     <span className="text-sm">Admin</span>
-                  </a>
+                  </Link>
                 )}
-                <a
+                <Link
                   href="/account"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.location.href = '/account'
-                  }}
                   className="hidden lg:flex items-center space-x-2 px-3 py-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-summer-sky-light hover:text-summer-ocean-light transition-colors pointer-events-auto relative z-[10003] cursor-pointer"
                 >
                   <User className="w-5 h-5" />
                   <span className="text-sm">{user?.firstName || 'Konto'}</span>
-                </a>
+                </Link>
                 <button
                   onClick={() => {
                     logout()
-                    window.location.href = '/'
+                    router.push('/')
                   }}
                   className="hidden lg:flex items-center space-x-2 px-3 py-2 text-gray-300 dark:text-gray-300 text-gray-700 dark:hover:text-red-400 hover:text-red-600 transition-colors pointer-events-auto relative z-[10003] cursor-pointer"
                   suppressHydrationWarning
@@ -353,75 +290,25 @@ export default function Navbar() {
                   />
                 </div>
               </form>
-              <a 
-                href="/" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                  window.location.href = '/'
-                }}
-                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
-              >
+              <Link href="/" onClick={closeMobileMenu} className={mobileNavLinkClass}>
                 Startseite
-              </a>
-              <a 
-                href="/products" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                  window.location.href = '/products'
-                }}
-                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
-              >
+              </Link>
+              <Link href="/products" onClick={closeMobileMenu} className={mobileNavLinkClass}>
                 Produkte
-              </a>
-              <a 
-                href="/categories" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                  window.location.href = '/categories'
-                }}
-                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
-              >
+              </Link>
+              <Link href="/categories" onClick={closeMobileMenu} className={mobileNavLinkClass}>
                 Kategorien
-              </a>
-              <a 
-                href="/sellers" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                  window.location.href = '/sellers'
-                }}
-                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
-              >
+              </Link>
+              <Link href="/sellers" onClick={closeMobileMenu} className={mobileNavLinkClass}>
                 Verkäufer
-              </a>
-              <a
-                href="/sacks"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                  window.location.href = '/sacks'
-                }}
-                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
-              >
+              </Link>
+              <Link href="/sacks" onClick={closeMobileMenu} className={mobileNavLinkClass}>
                 🎁 Säcke öffnen
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/cart"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                  window.location.href = '/cart'
-                }}
-                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30 flex items-center justify-between"
+                onClick={closeMobileMenu}
+                className={`${mobileNavLinkClass} flex items-center justify-between`}
               >
                 <span className="flex items-center gap-2">
                   <ShoppingCart className="w-5 h-5" />
@@ -432,67 +319,34 @@ export default function Navbar() {
                     {cartCount > 9 ? '9+' : cartCount}
                   </span>
                 )}
-              </a>
-              <a 
-                href="/inventory" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                  window.location.href = '/inventory'
-                }}
+              </Link>
+              <Link
+                href="/inventory"
+                onClick={closeMobileMenu}
                 className="text-white hover:text-green-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-green-500/20 active:bg-green-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-green-500/30"
               >
                 📦 Inventar
-              </a>
-              <a 
-                href="/daily-rewards" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                  window.location.href = '/daily-rewards'
-                }}
+              </Link>
+              <Link
+                href="/daily-rewards"
+                onClick={closeMobileMenu}
                 className="text-white hover:text-yellow-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-yellow-500/20 active:bg-yellow-500/30 touch-manipulation text-base font-bold border border-transparent hover:border-yellow-500/30"
               >
                 🎁 Tägliche Belohnung
-              </a>
-              <a 
-                href="/leaderboard" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                  window.location.href = '/leaderboard'
-                }}
+              </Link>
+              <Link
+                href="/leaderboard"
+                onClick={closeMobileMenu}
                 className="text-white hover:text-yellow-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-yellow-500/20 active:bg-yellow-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-yellow-500/30"
               >
                 🏆 Leaderboard
-              </a>
-              <a 
-                href="/wishlist" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                  window.location.href = '/wishlist'
-                }}
-                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
-              >
+              </Link>
+              <Link href="/wishlist" onClick={closeMobileMenu} className={mobileNavLinkClass}>
                 Wunschliste
-              </a>
-              <a 
-                href="/compare" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                  window.location.href = '/compare'
-                }}
-                className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
-              >
+              </Link>
+              <Link href="/compare" onClick={closeMobileMenu} className={mobileNavLinkClass}>
                 Produktvergleich {compareCount > 0 && `(${compareCount})`}
-              </a>
+              </Link>
               <button
                 onClick={() => {
                   toggleTheme()
@@ -521,64 +375,32 @@ export default function Navbar() {
                 )}
               </button>
               {!mounted || !clientIsAuthenticated ? (
-                <a 
-                  href="/auth/login" 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setIsMenuOpen(false)
-                    window.location.href = '/auth/login'
-                  }}
-                  className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
-                >
+                <Link href="/auth/login" onClick={closeMobileMenu} className={mobileNavLinkClass}>
                   🔐 Anmelden
-                </a>
+                </Link>
               ) : (
                 <>
-                  <a 
-                    href="/account/goofycoins" 
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setIsMenuOpen(false)
-                      window.location.href = '/account/goofycoins'
-                    }}
+                  <Link
+                    href="/account/goofycoins"
+                    onClick={closeMobileMenu}
                     className="flex items-center space-x-2 px-3 py-3 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 rounded-lg transition-colors group pointer-events-auto relative z-[10004] cursor-pointer touch-manipulation"
                   >
                     <Coins className="w-6 h-6 text-yellow-400 group-hover:scale-110 transition-transform" />
                     <span className="text-yellow-400 font-bold text-base">{user?.goofyCoins ?? 0} GoofyCoins</span>
-                  </a>
+                  </Link>
                   {user && isAdmin(user.email) && (
-                    <a 
-                      href="/admin" 
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setIsMenuOpen(false)
-                        window.location.href = '/admin'
-                      }}
-                      className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-bold border border-transparent hover:border-purple-500/30"
-                    >
+                    <Link href="/admin" onClick={closeMobileMenu} className={`${mobileNavLinkClass} font-bold`}>
                       ⚙️ Admin Panel
-                    </a>
+                    </Link>
                   )}
-                  <a 
-                    href="/account" 
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setIsMenuOpen(false)
-                      window.location.href = '/account'
-                    }}
-                    className="text-white hover:text-purple-300 transition-colors pointer-events-auto relative cursor-pointer py-3 px-4 rounded-lg hover:bg-purple-500/20 active:bg-purple-500/30 touch-manipulation text-base font-medium border border-transparent hover:border-purple-500/30"
-                  >
+                  <Link href="/account" onClick={closeMobileMenu} className={mobileNavLinkClass}>
                     👤 {user?.firstName || 'Konto'}
-                  </a>
+                  </Link>
                   <button
                     onClick={() => {
                       logout()
-                      setIsMenuOpen(false)
-                      window.location.href = '/'
+                      closeMobileMenu()
+                      router.push('/')
                     }}
                     className="text-white hover:text-red-300 transition-colors pointer-events-auto relative cursor-pointer text-left py-3 px-4 rounded-lg hover:bg-red-500/20 active:bg-red-500/30 touch-manipulation text-base font-medium w-full border border-transparent hover:border-red-500/30"
                     suppressHydrationWarning

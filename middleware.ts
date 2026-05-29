@@ -16,7 +16,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-  // Do not run on static assets or Next.js internals (CSS, JS, images)
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js|ico|woff2?)$).*)',
+    '/account/:path*',
+    '/admin/:path*',
+    '/auth/:path*',
+    '/api/auth/:path*',
   ],
 }

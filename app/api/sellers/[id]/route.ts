@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { SIMEXMAFIA_SELLER_ID } from '@/lib/sellers'
-import {
-  ensureSimexMafiaSellerInDatabase,
-  linkAllProductsToSimexMafia,
-  removeNonSimexMafiaSellers,
-} from '@/lib/sellers/ensure-simexmafia-seller'
-import { syncSellerRatingFromReviews } from '@/lib/sellers/sync-seller-rating'
 import { getStorefrontProductCountForSeller } from '@/lib/sellers/storefront-product-count'
+
+const SELLERS_CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+}
 
 // GET /api/sellers/[id]
 export async function GET(
@@ -23,11 +21,6 @@ export async function GET(
       return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
 
-    await ensureSimexMafiaSellerInDatabase()
-    await linkAllProductsToSimexMafia()
-    await removeNonSimexMafiaSellers()
-    await syncSellerRatingFromReviews(SIMEXMAFIA_SELLER_ID)
-
     const seller = await prisma.seller.findUnique({
       where: { id: params.id },
     })
@@ -38,15 +31,18 @@ export async function GET(
 
     const productCount = await getStorefrontProductCountForSeller(params.id)
 
-    return NextResponse.json({
-      id: seller.id,
-      name: seller.name,
-      rating: seller.rating,
-      reviewCount: seller.reviewCount,
-      verified: seller.verified,
-      avatar: seller.avatar ?? undefined,
-      productCount,
-    })
+    return NextResponse.json(
+      {
+        id: seller.id,
+        name: seller.name,
+        rating: seller.rating,
+        reviewCount: seller.reviewCount,
+        verified: seller.verified,
+        avatar: seller.avatar ?? undefined,
+        productCount,
+      },
+      { headers: SELLERS_CACHE_HEADERS }
+    )
   } catch (error: unknown) {
     console.error('Error fetching seller:', error)
     return NextResponse.json({ error: 'Failed to fetch seller' }, { status: 500 })

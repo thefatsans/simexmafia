@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { SIMEXMAFIA_SELLER_ID } from '@/lib/sellers'
-import {
-  ensureSimexMafiaSellerInDatabase,
-  linkAllProductsToSimexMafia,
-  removeNonSimexMafiaSellers,
-} from '@/lib/sellers/ensure-simexmafia-seller'
-import { syncSellerRatingFromReviews } from '@/lib/sellers/sync-seller-rating'
 import { getStorefrontProductCountForSeller } from '@/lib/sellers/storefront-product-count'
+
+const SELLERS_CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+}
 
 function mapSeller(
   seller: {
@@ -35,25 +33,20 @@ function mapSeller(
 export async function GET() {
   try {
     if (!prisma) {
-      return NextResponse.json([])
+      return NextResponse.json([], { headers: SELLERS_CACHE_HEADERS })
     }
-
-    await ensureSimexMafiaSellerInDatabase()
-    await linkAllProductsToSimexMafia()
-    await removeNonSimexMafiaSellers()
-    await syncSellerRatingFromReviews(SIMEXMAFIA_SELLER_ID)
 
     const seller = await prisma.seller.findUnique({
       where: { id: SIMEXMAFIA_SELLER_ID },
     })
 
     if (!seller) {
-      return NextResponse.json([])
+      return NextResponse.json([], { headers: SELLERS_CACHE_HEADERS })
     }
 
     const productCount = await getStorefrontProductCountForSeller(SIMEXMAFIA_SELLER_ID)
 
-    return NextResponse.json([mapSeller(seller, productCount)])
+    return NextResponse.json([mapSeller(seller, productCount)], { headers: SELLERS_CACHE_HEADERS })
   } catch (error: unknown) {
     console.error('Error fetching sellers:', error)
     return NextResponse.json({ error: 'Failed to fetch sellers' }, { status: 500 })

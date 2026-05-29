@@ -73,6 +73,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData)
 
         if (userData.email) {
+          const lastSync = sessionStorage.getItem('simexmafia-user-sync-at')
+          const syncFresh = lastSync && Date.now() - Number(lastSync) < 5 * 60 * 1000
+
+          if (syncFresh) {
+            return
+          }
+
           const { getUserFromAPI } = await import('@/lib/api/users')
           const dbUser = await getUserFromAPI(userData.id, {
             email: userData.email,
@@ -96,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           setUser(synced)
           persistUserSession(synced)
+          sessionStorage.setItem('simexmafia-user-sync-at', String(Date.now()))
         }
       } catch (error) {
         console.error('Error loading user from localStorage:', error)
