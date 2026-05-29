@@ -68,6 +68,106 @@ export async function getKeyInventoryStats(productId: string): Promise<{
   return { available, used, total: available + used }
 }
 
+export type ProductKeyStatus = 'available' | 'used' | 'all'
+
+export type ProductKeyRow = {
+  id: string
+  code: string
+  usedAt: string | null
+  orderItemId: string | null
+  createdAt: string
+}
+
+function keyStatusWhere(
+  status: ProductKeyStatus
+): { usedAt: null } | { usedAt: { not: null } } | undefined {
+  if (status === 'available') return { usedAt: null }
+  if (status === 'used') return { usedAt: { not: null } }
+  return undefined
+}
+
+export async function listProductKeys(
+  productId: string,
+  options: {
+    status?: ProductKeyStatus
+    page?: number
+    limit?: number
+  } = {}
+): Promise<{ keys: ProductKeyRow[]; total: number }> {
+  if (!prisma) {
+    return { keys: [], total: 0 }
+  }
+
+  const status = options.status ?? 'all'
+  const page = Math.max(options.page ?? 1, 1)
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100)
+  const skip = (page - 1) * limit
+  const usedAtFilter = keyStatusWhere(status)
+  const where = {
+    productId,
+    ...(usedAtFilter ?? {}),
+  }
+
+  const [rows, total] = await Promise.all([
+    prisma.productStockKey.findMany({
+      where,
+      select: {
+        id: true,
+        code: true,
+        usedAt: true,
+        orderItemId: true,
+        createdAt: true,
+      },
+      orderBy: [{ usedAt: 'asc' }, { createdAt: 'desc' }],
+      skip,
+      take: limit,
+    }),
+    prisma.productStockKey.count({ where }),
+  ])
+
+  return {
+    keys: rows.map((row) => ({
+      id: row.id,
+      code: row.code,
+      usedAt: row.usedAt ? row.usedAt.toISOString() : null,
+      orderItemId: row.orderItemId,
+      createdAt: row.createdAt.toISOString(),
+    })),
+    total,
+  }
+}
+
+export async function deleteAvailableProductKeys(
+  productId: string,
+  keyIds: string[]
+): Promise<{ deleted: number; skipped: number }> {
+  if (!prisma) {
+    throw new Error('Database not available')
+  }
+
+  const uniqueIds = [...new Set(keyIds.filter(Boolean))]
+  if (uniqueIds.length === 0) {
+    return { deleted: 0, skipped: 0 }
+  }
+
+  const keys = await prisma.productStockKey.findMany({
+    where: { productId, id: { in: uniqueIds } },
+    select: { id: true, usedAt: true },
+  })
+
+  const deletableIds = keys.filter((k) => k.usedAt === null).map((k) => k.id)
+  const skipped = uniqueIds.length - deletableIds.length
+
+  if (deletableIds.length > 0) {
+    await prisma.productStockKey.deleteMany({
+      where: { productId, id: { in: deletableIds }, usedAt: null },
+    })
+    await syncProductInStock(productId)
+  }
+
+  return { deleted: deletableIds.length, skipped }
+}
+
 export async function getKeyInventoryStatsForProducts(
   productIds: string[]
 ): Promise<Map<string, { available: number; used: number; total: number }>> {

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/api-auth'
 import { getKeyInventoryStatsForProducts } from '@/lib/product-keys/stock'
-import { KEY_INVENTORY_PRODUCT_IDS } from '@/lib/products/key-inventory-catalog'
 import { STOREFRONT_PRODUCT_IDS } from '@/lib/products/storefront-ids'
 
 const ADMIN_CACHE_HEADERS = {
@@ -49,9 +48,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
-    const keyTrackedIds = products
-      .map((product) => product.id)
-      .filter((id) => KEY_INVENTORY_PRODUCT_IDS.has(id))
+    const keyTrackedIds = products.map((product) => product.id)
 
     const statsMap =
       keyTrackedIds.length > 0

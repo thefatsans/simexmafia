@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAdminGate } from '@/hooks/useAdminGate'
-import { createProductAPI, updateProductAPI, deleteProductAPI } from '@/lib/api/products'
 import { Product } from '@/types'
 import { Plus, Edit, Trash2, Search, Package, Key } from 'lucide-react'
 import ProductKeysModal from '@/components/admin/ProductKeysModal'
@@ -13,16 +12,60 @@ import Image from 'next/image'
 import ProductFormModal from '@/components/admin/ProductFormModal'
 import { adminFetch } from '@/lib/admin-fetch'
 
+type AdminProduct = Product & {
+  keysAvailable?: number
+  keysUsed?: number
+  keysTotal?: number
+}
+
+function mapAdminProduct(p: Record<string, unknown>): AdminProduct {
+  return {
+    id: p.id as string,
+    name: p.name as string,
+    description: p.description as string,
+    price: p.price as number,
+    originalPrice: p.originalPrice as number | undefined,
+    discount: p.discount as number | undefined,
+    image: p.image as string,
+    category: p.category as Product['category'],
+    platform: p.platform as Product['platform'],
+    seller: (p.seller as Product['seller'])
+      ? {
+          id: (p.seller as Product['seller']).id,
+          name: (p.seller as Product['seller']).name,
+          rating: (p.seller as Product['seller']).rating,
+          reviewCount: (p.seller as Product['seller']).reviewCount,
+          verified: (p.seller as Product['seller']).verified,
+          avatar: (p.seller as Product['seller']).avatar,
+        }
+      : {
+          id: 'seller-simexmafia',
+          name: 'SimexMafia',
+          rating: 5,
+          reviewCount: 0,
+          verified: true,
+        },
+    rating: (p.rating as number) || 0,
+    reviewCount: (p.reviewCount as number) || 0,
+    inStock: (p.inStock as boolean) ?? true,
+    stockCount: p.stockCount as number | undefined,
+    keysAvailable: (p.keysAvailable as number) ?? 0,
+    keysUsed: (p.keysUsed as number) ?? 0,
+    keysTotal: (p.keysTotal as number) ?? 0,
+    tags: (p.tags as string[]) || [],
+  }
+}
+
 export default function AdminProductsPage() {
   const router = useRouter()
   const { user, isLoading: gateLoading, isReady } = useAdminGate()
   const { showSuccess, showError } = useToast()
-  const [products, setProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<AdminProduct[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const [keysProduct, setKeysProduct] = useState<Product | null>(null)
+  const [keysProduct, setKeysProduct] = useState<AdminProduct | null>(null)
 
   useEffect(() => {
     if (!isReady || !user) return
@@ -38,39 +81,7 @@ export default function AdminProductsPage() {
         throw new Error(errBody.error || `HTTP ${res.status}`)
       }
       const data = await res.json()
-      const mapped: Product[] = (data || []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        price: p.price,
-        originalPrice: p.originalPrice,
-        discount: p.discount,
-        image: p.image,
-        category: p.category,
-        platform: p.platform,
-        seller: p.seller
-          ? {
-              id: p.seller.id,
-              name: p.seller.name,
-              rating: p.seller.rating,
-              reviewCount: p.seller.reviewCount,
-              verified: p.seller.verified,
-              avatar: p.seller.avatar,
-            }
-          : {
-              id: 'seller-simexmafia',
-              name: 'SimexMafia',
-              rating: 5,
-              reviewCount: 0,
-              verified: true,
-            },
-        rating: p.rating || 0,
-        reviewCount: p.reviewCount || 0,
-        inStock: p.inStock ?? true,
-        stockCount: p.stockCount,
-        tags: p.tags || [],
-      }))
-      setProducts(mapped)
+      setProducts((data || []).map((p: Record<string, unknown>) => mapAdminProduct(p)))
     } catch (error) {
       console.error('Error loading products:', error)
       showError('Fehler beim Laden der Produkte')
@@ -81,17 +92,21 @@ export default function AdminProductsPage() {
   }
 
   const handleDelete = async (productId: string) => {
-    if (!confirm('Möchten Sie dieses Produkt wirklich löschen?')) {
+    if (!user || !confirm('Möchten Sie dieses Produkt wirklich löschen?')) {
       return
     }
 
     try {
-      await deleteProductAPI(productId)
-      setProducts(products.filter(p => p.id !== productId))
+      const res = await adminFetch(`/api/products/${productId}`, user, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Löschen fehlgeschlagen')
+      }
+      setProducts(products.filter((p) => p.id !== productId))
       showSuccess('Produkt erfolgreich gelöscht')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting product:', error)
-      showError(error.message || 'Fehler beim Löschen des Produkts')
+      showError(error instanceof Error ? error.message : 'Fehler beim Löschen des Produkts')
     }
   }
 
@@ -216,8 +231,16 @@ export default function AdminProductsPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-gray-300">
-                      {product.stockCount !== undefined ? (
+                    <td className="px-6 py-4 text-gray-300 text-sm">
+                      {(product.keysTotal ?? 0) > 0 ? (
+                        <div>
+                          <span className="text-green-400 font-medium">
+                            {product.keysAvailable ?? 0} verfügbar
+                          </span>
+                          <span className="text-gray-500 mx-1">/</span>
+                          <span className="text-blue-400">{product.keysUsed ?? 0} verkauft</span>
+                        </div>
+                      ) : product.stockCount !== undefined ? (
                         <span className="font-medium">{product.stockCount}</span>
                       ) : (
                         <span className="text-gray-500">—</span>
@@ -283,7 +306,13 @@ export default function AdminProductsPage() {
             setProducts((prev) =>
               prev.map((p) =>
                 p.id === keysProduct.id
-                  ? { ...p, stockCount, inStock: stockCount > 0 }
+                  ? {
+                      ...p,
+                      stockCount,
+                      keysAvailable: stockCount,
+                      keysTotal: stockCount + (p.keysUsed ?? 0),
+                      inStock: stockCount > 0,
+                    }
                   : p
               )
             )
@@ -299,47 +328,62 @@ export default function AdminProductsPage() {
             setShowModal(false)
             setEditingProduct(null)
           }}
+          onManageKeys={(p) => {
+            setShowModal(false)
+            setEditingProduct(null)
+            setKeysProduct(p)
+          }}
           onSave={async (product) => {
+            if (!user) return
             try {
+              const payload = {
+                name: product.name,
+                description: product.description,
+                price: product.price,
+                originalPrice: product.originalPrice,
+                discount: product.discount,
+                image: product.image,
+                category: product.category,
+                platform: product.platform,
+                tags: product.tags,
+                inStock: product.inStock,
+              }
+
               if (editingProduct) {
-                // Update existing product
-                const updated = await updateProductAPI(editingProduct.id, {
-                  name: product.name,
-                  description: product.description,
-                  price: product.price,
-                  originalPrice: product.originalPrice,
-                  discount: product.discount,
-                  image: product.image,
-                  category: product.category,
-                  platform: product.platform,
-                  tags: product.tags,
-                  inStock: product.inStock,
+                const res = await adminFetch(`/api/products/${editingProduct.id}`, user, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload),
                 })
-                setProducts(products.map(p => p.id === updated.id ? updated : p))
+                if (!res.ok) {
+                  const err = await res.json().catch(() => ({}))
+                  throw new Error(err.error || 'Update fehlgeschlagen')
+                }
+                const updated = mapAdminProduct(await res.json())
+                setProducts(products.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)))
                 showSuccess('Produkt erfolgreich aktualisiert')
               } else {
-                // Add new product
-                const newProduct = await createProductAPI({
-                  name: product.name,
-                  description: product.description,
-                  price: product.price,
-                  originalPrice: product.originalPrice,
-                  discount: product.discount,
-                  image: product.image,
-                  category: product.category,
-                  platform: product.platform,
-                  tags: product.tags,
-                  sellerId: product.seller.id,
-                  inStock: product.inStock,
+                const res = await adminFetch('/api/products', user, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    ...payload,
+                    sellerId: product.seller.id,
+                  }),
                 })
-                setProducts([...products, newProduct])
+                if (!res.ok) {
+                  const err = await res.json().catch(() => ({}))
+                  throw new Error(err.error || 'Erstellen fehlgeschlagen')
+                }
+                const created = mapAdminProduct(await res.json())
+                setProducts([created, ...products])
                 showSuccess('Produkt erfolgreich hinzugefügt')
               }
               setShowModal(false)
               setEditingProduct(null)
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('Error saving product:', error)
-              showError(error.message || 'Fehler beim Speichern des Produkts')
+              showError(error instanceof Error ? error.message : 'Fehler beim Speichern des Produkts')
             }
           }}
         />

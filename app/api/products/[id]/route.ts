@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin } from '@/lib/api-auth'
+import { invalidateStorefrontCache } from '@/lib/products/storefront-cache'
 import { loadStorefrontProduct } from '@/lib/products/load-storefront-product'
 
 const PRODUCT_CACHE_HEADERS = {
@@ -30,6 +32,11 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireAdmin(request)
+  if (!auth || auth.error) {
+    return auth?.error || NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   try {
     const body = await request.json()
     const {
@@ -70,6 +77,8 @@ export async function PUT(
       },
     })
 
+    invalidateStorefrontCache(params.id)
+
     return NextResponse.json(product)
   } catch (error: unknown) {
     console.error('Error updating product:', error)
@@ -79,9 +88,14 @@ export async function PUT(
 
 // DELETE /api/products/[id] - Produkt löschen (Admin only)
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireAdmin(request)
+  if (!auth || auth.error) {
+    return auth?.error || NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   try {
     if (!prisma) {
       return NextResponse.json({ error: 'Database not available' }, { status: 503 })
@@ -90,6 +104,8 @@ export async function DELETE(
     await prisma.product.delete({
       where: { id: params.id },
     })
+
+    invalidateStorefrontCache(params.id)
 
     return NextResponse.json({ message: 'Product deleted successfully' })
   } catch (error: unknown) {

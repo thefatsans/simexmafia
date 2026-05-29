@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin } from '@/lib/api-auth'
+import { invalidateStorefrontCache } from '@/lib/products/storefront-cache'
 import { finalizeProductsForStorefront } from '@/lib/promotions/finalize-products'
 import {
   applyProductQueryFilters,
@@ -55,6 +57,11 @@ export async function GET(request: NextRequest) {
 
 // POST /api/products - Neues Produkt erstellen (Admin only)
 export async function POST(request: NextRequest) {
+  const auth = await requireAdmin(request)
+  if (!auth || auth.error) {
+    return auth?.error || NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   try {
     const body = await request.json()
     const {
@@ -97,6 +104,8 @@ export async function POST(request: NextRequest) {
         seller: true,
       },
     })
+
+    invalidateStorefrontCache()
 
     return NextResponse.json(product, { status: 201 })
   } catch (error: unknown) {
