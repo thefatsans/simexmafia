@@ -7,6 +7,7 @@ import { isAdmin } from '@/data/admin'
 import { Plus, Trash2, Tag, Edit, X, RefreshCw, Search } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
 import AdminLoading from '@/components/admin/AdminLoading'
+import { adminFetch } from '@/lib/admin-fetch'
 
 interface AdminDiscountCode {
   id: string
@@ -92,10 +93,7 @@ export default function AdminDiscountCodesPage() {
     try {
       const params = new URLSearchParams()
       if (debouncedSearch) params.set('q', debouncedSearch)
-      const res = await fetch(`/api/admin/discount-codes?${params}`, {
-        credentials: 'include',
-        cache: 'no-store',
-      })
+      const res = await adminFetch(`/api/admin/discount-codes?${params}`, user)
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error || `Fehler ${res.status}`)

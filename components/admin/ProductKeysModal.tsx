@@ -77,7 +77,7 @@ export default function ProductKeysModal({
     } finally {
       setIsLoading(false)
     }
-  }, [product.id, user, statusFilter, page, showError])
+  }, [product.id, user, statusFilter, page])
 
   useEffect(() => {
     loadKeys()

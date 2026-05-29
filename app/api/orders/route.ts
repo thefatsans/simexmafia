@@ -4,6 +4,11 @@ import { getAuthenticatedUser, requireAdmin, requireSecureSession } from '@/lib/
 import { ensureUserInDatabase } from '@/lib/user-sync'
 import { completeOrder } from '@/lib/orders/complete-order'
 import { sendOrderConfirmationEmailServer } from '@/lib/email-server'
+import { ADMIN_ORDER_ITEM_SELECT } from '@/lib/admin/load-orders'
+
+const ADMIN_ORDERS_CACHE_HEADERS = {
+  'Cache-Control': 'private, max-age=10',
+}
 
 // Prüfe ob Prisma verfügbar ist
 function isPrismaAvailable(): boolean {
@@ -80,7 +85,24 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
         take: take ?? 6,
       })
-      return NextResponse.json(orders)
+      return NextResponse.json(orders, {
+        headers: user.isAdmin ? ADMIN_ORDERS_CACHE_HEADERS : undefined,
+      })
+    }
+
+    if (user.isAdmin) {
+      const orders = await prisma.order.findMany({
+        where,
+        include: {
+          items: {
+            select: ADMIN_ORDER_ITEM_SELECT,
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        ...(take ? { take } : {}),
+      })
+
+      return NextResponse.json(orders, { headers: ADMIN_ORDERS_CACHE_HEADERS })
     }
 
     const orders = await prisma.order.findMany({

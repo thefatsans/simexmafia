@@ -28,29 +28,67 @@ export async function fetchDashboardStats(since24h: Date, since7d: Date, since30
     throw new Error('Database not available')
   }
 
-  const [statsRows, recentOrders] = await Promise.all([
-    prisma.$queryRaw<DashboardStatsRow[]>(Prisma.sql`
+  const [
+    orderStatsRows,
+    userStatsRows,
+    sackStatsRows,
+    coinStatsRows,
+    productCount,
+    sellerCount,
+    pendingRedemptions,
+    pendingContactRequests,
+    recentOrders,
+  ] = await Promise.all([
+    prisma.$queryRaw<
+      Array<{
+        total_orders: number
+        pending_orders: number
+        completed_orders: number
+        orders_24h: number
+        orders_7d: number
+        orders_30d: number
+        revenue_total: number | null
+        revenue_30d: number | null
+      }>
+    >(Prisma.sql`
       SELECT
-        (SELECT COUNT(*)::int FROM "Order") AS total_orders,
-        (SELECT COUNT(*)::int FROM "Order" WHERE status = 'pending') AS pending_orders,
-        (SELECT COUNT(*)::int FROM "Order" WHERE status = 'completed') AS completed_orders,
-        (SELECT COUNT(*)::int FROM "Order" WHERE "createdAt" >= ${since24h}) AS orders_24h,
-        (SELECT COUNT(*)::int FROM "Order" WHERE "createdAt" >= ${since7d}) AS orders_7d,
-        (SELECT COUNT(*)::int FROM "Order" WHERE "createdAt" >= ${since30d}) AS orders_30d,
-        (SELECT COALESCE(SUM(total), 0)::float FROM "Order" WHERE status = 'completed') AS revenue_total,
-        (SELECT COALESCE(SUM(total), 0)::float FROM "Order" WHERE status = 'completed' AND "completedAt" >= ${since30d}) AS revenue_30d,
-        (SELECT COUNT(*)::int FROM "User" WHERE "createdAt" >= ${since24h}) AS users_24h,
-        (SELECT COUNT(*)::int FROM "User" WHERE "createdAt" >= ${since7d}) AS users_7d,
-        (SELECT COUNT(*)::int FROM "User" WHERE "createdAt" >= ${since30d}) AS users_30d,
-        (SELECT COUNT(*)::int FROM "SackOpen" WHERE "createdAt" >= ${since24h}) AS sack_opens_24h,
-        (SELECT COUNT(*)::int FROM "SackOpen" WHERE "createdAt" >= ${since7d}) AS sack_opens_7d,
-        (SELECT COUNT(*)::int FROM "CoinTransaction" WHERE "createdAt" >= ${since24h}) AS coin_txs_24h,
-        (SELECT COUNT(*)::int FROM "CoinTransaction" WHERE "createdAt" >= ${since7d}) AS coin_txs_7d,
-        (SELECT COUNT(*)::int FROM "Product" WHERE name NOT LIKE '[ARCHIV]%') AS product_count,
-        (SELECT COUNT(*)::int FROM "Seller") AS seller_count,
-        (SELECT COUNT(*)::int FROM "InventoryItem" WHERE source = 'sack' AND "isRedeemed" = true AND "redemptionStatus" = 'pending') AS pending_redemptions,
-        (SELECT COUNT(*)::int FROM "ContactRequest" WHERE status = 'pending') AS pending_contact_requests
+        COUNT(*)::int AS total_orders,
+        COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_orders,
+        COUNT(*) FILTER (WHERE status = 'completed')::int AS completed_orders,
+        COUNT(*) FILTER (WHERE "createdAt" >= ${since24h})::int AS orders_24h,
+        COUNT(*) FILTER (WHERE "createdAt" >= ${since7d})::int AS orders_7d,
+        COUNT(*) FILTER (WHERE "createdAt" >= ${since30d})::int AS orders_30d,
+        COALESCE(SUM(total) FILTER (WHERE status = 'completed'), 0)::float AS revenue_total,
+        COALESCE(SUM(total) FILTER (WHERE status = 'completed' AND "completedAt" >= ${since30d}), 0)::float AS revenue_30d
+      FROM "Order"
     `),
+    prisma.$queryRaw<
+      Array<{ users_24h: number; users_7d: number; users_30d: number }>
+    >(Prisma.sql`
+      SELECT
+        COUNT(*) FILTER (WHERE "createdAt" >= ${since24h})::int AS users_24h,
+        COUNT(*) FILTER (WHERE "createdAt" >= ${since7d})::int AS users_7d,
+        COUNT(*) FILTER (WHERE "createdAt" >= ${since30d})::int AS users_30d
+      FROM "User"
+    `),
+    prisma.$queryRaw<Array<{ sack_opens_24h: number; sack_opens_7d: number }>>(Prisma.sql`
+      SELECT
+        COUNT(*) FILTER (WHERE "createdAt" >= ${since24h})::int AS sack_opens_24h,
+        COUNT(*) FILTER (WHERE "createdAt" >= ${since7d})::int AS sack_opens_7d
+      FROM "SackOpen"
+    `),
+    prisma.$queryRaw<Array<{ coin_txs_24h: number; coin_txs_7d: number }>>(Prisma.sql`
+      SELECT
+        COUNT(*) FILTER (WHERE "createdAt" >= ${since24h})::int AS coin_txs_24h,
+        COUNT(*) FILTER (WHERE "createdAt" >= ${since7d})::int AS coin_txs_7d
+      FROM "CoinTransaction"
+    `),
+    prisma.product.count({ where: { NOT: { name: { startsWith: '[ARCHIV]' } } } }),
+    prisma.seller.count(),
+    prisma.inventoryItem.count({
+      where: { source: 'sack', isRedeemed: true, redemptionStatus: 'pending' },
+    }),
+    prisma.contactRequest.count({ where: { status: 'pending' } }),
     prisma.order.findMany({
       select: {
         id: true,
@@ -63,5 +101,16 @@ export async function fetchDashboardStats(since24h: Date, since7d: Date, since30
     }),
   ])
 
-  return { stats: statsRows[0], recentOrders }
+  const stats: DashboardStatsRow = {
+    ...orderStatsRows[0],
+    ...userStatsRows[0],
+    ...sackStatsRows[0],
+    ...coinStatsRows[0],
+    product_count: productCount,
+    seller_count: sellerCount,
+    pending_redemptions: pendingRedemptions,
+    pending_contact_requests: pendingContactRequests,
+  }
+
+  return { stats, recentOrders }
 }

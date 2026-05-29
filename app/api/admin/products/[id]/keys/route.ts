@@ -11,6 +11,10 @@ import {
 import { ensureProductStockKeyTable } from '@/lib/product-keys/ensure-table'
 import { invalidateStorefrontCache } from '@/lib/products/storefront-cache'
 
+const ADMIN_KEYS_CACHE_HEADERS = {
+  'Cache-Control': 'private, max-age=10',
+}
+
 function parseCodesFromBody(body: {
   keys?: string
   codes?: string[]
@@ -56,35 +60,46 @@ export async function GET(
   }
 
   await ensureProductStockKeyTable()
-  const stats = await getKeyInventoryStats(params.id)
 
   const searchParams = request.nextUrl.searchParams
   if (searchParams.get('list') !== '1') {
-    return NextResponse.json({
-      available: stats.available,
-      used: stats.used,
-      total: stats.total,
-    })
+    const stats = await getKeyInventoryStats(params.id)
+    return NextResponse.json(
+      {
+        available: stats.available,
+        used: stats.used,
+        total: stats.total,
+      },
+      { headers: ADMIN_KEYS_CACHE_HEADERS }
+    )
   }
 
   const status = parseKeyStatus(searchParams.get('status'))
   const page = parseInt(searchParams.get('page') || '1', 10)
   const limit = parseInt(searchParams.get('limit') || '50', 10)
-  const { keys, total } = await listProductKeys(params.id, { status, page, limit })
 
-  return NextResponse.json({
-    stats: {
-      available: stats.available,
-      used: stats.used,
-      total: stats.total,
+  const [stats, listResult] = await Promise.all([
+    getKeyInventoryStats(params.id),
+    listProductKeys(params.id, { status, page, limit }),
+  ])
+  const { keys, total } = listResult
+
+  return NextResponse.json(
+    {
+      stats: {
+        available: stats.available,
+        used: stats.used,
+        total: stats.total,
+      },
+      keys,
+      pagination: {
+        page: Math.max(page, 1),
+        limit: Math.min(Math.max(limit, 1), 100),
+        total,
+      },
     },
-    keys,
-    pagination: {
-      page: Math.max(page, 1),
-      limit: Math.min(Math.max(limit, 1), 100),
-      total,
-    },
-  })
+    { headers: ADMIN_KEYS_CACHE_HEADERS }
+  )
 }
 
 export async function POST(

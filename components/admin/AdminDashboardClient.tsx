@@ -67,7 +67,11 @@ export default function AdminDashboardClient({
     }
   }, [isReady, user, initialData])
 
-  if (gateLoading || (isReady && isLoading && !data && !error)) {
+  if (gateLoading && !initialData) {
+    return <AdminLoading label="Dashboard wird geladen..." />
+  }
+
+  if (isReady && isLoading && !data && !error) {
     return <AdminLoading label="Dashboard wird geladen..." />
   }
 

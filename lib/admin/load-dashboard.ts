@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import { fetchDashboardStats } from '@/lib/admin/dashboard-stats'
 
 export interface AdminDashboardData {
@@ -32,9 +33,6 @@ export interface AdminDashboardData {
   }
 }
 
-const DASHBOARD_CACHE_MS = 30_000
-let dashboardCache: { data: AdminDashboardData; ts: number } | null = null
-
 function startOf(daysAgo: number): Date {
   const d = new Date()
   d.setUTCHours(0, 0, 0, 0)
@@ -42,18 +40,14 @@ function startOf(daysAgo: number): Date {
   return d
 }
 
-export async function loadAdminDashboardData(): Promise<AdminDashboardData> {
-  if (dashboardCache && Date.now() - dashboardCache.ts < DASHBOARD_CACHE_MS) {
-    return dashboardCache.data
-  }
-
+async function buildAdminDashboardData(): Promise<AdminDashboardData> {
   const since24h = startOf(1)
   const since7d = startOf(7)
   const since30d = startOf(30)
 
   const { stats, recentOrders } = await fetchDashboardStats(since24h, since7d, since30d)
 
-  const payload: AdminDashboardData = {
+  return {
     generatedAt: new Date().toISOString(),
     orders: {
       total: stats.total_orders,
@@ -105,7 +99,10 @@ export async function loadAdminDashboardData(): Promise<AdminDashboardData> {
       discordInvite: Boolean(process.env.DISCORD_INVITE_URL),
     },
   }
-
-  dashboardCache = { data: payload, ts: Date.now() }
-  return payload
 }
+
+export const loadAdminDashboardData = unstable_cache(
+  buildAdminDashboardData,
+  ['admin-dashboard-v2'],
+  { revalidate: 30 }
+)

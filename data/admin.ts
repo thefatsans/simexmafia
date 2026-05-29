@@ -20,18 +20,15 @@ export const adminUsers: AdminUser[] = [
 // Check if user is admin (simple check - in production, this would be more secure)
 export const isAdmin = (email: string | undefined): boolean => {
   if (!email) return false
-  
+
   const emailLower = email.toLowerCase()
-  console.log('Checking admin access for:', emailLower)
-  
-  // For demo: Allow admin@simexmafia.de or any email containing 'admin' or 'test'
-  const isAdminUser = adminUsers.some(admin => admin.email.toLowerCase() === emailLower) || 
-         emailLower.includes('admin') ||
-         emailLower === 'admin@simexmafia.de' ||
-         emailLower === 'test@example.com' // Also allow the test user for demo
-  
-  console.log('Admin check result:', isAdminUser)
-  return isAdminUser
+
+  return (
+    adminUsers.some((admin) => admin.email.toLowerCase() === emailLower) ||
+    emailLower.includes('admin') ||
+    emailLower === 'admin@simexmafia.de' ||
+    emailLower === 'test@example.com'
+  )
 }
 
 // Get admin user by email

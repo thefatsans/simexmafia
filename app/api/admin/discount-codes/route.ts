@@ -79,10 +79,13 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({
-      codes: codes.map(serializeCode),
-      total: codes.length,
-    })
+    return NextResponse.json(
+      {
+        codes: codes.map(serializeCode),
+        total: codes.length,
+      },
+      { headers: { 'Cache-Control': 'private, max-age=15' } }
+    )
   } catch (error) {
     console.error('[Admin DiscountCodes GET]', error)
     return NextResponse.json({ error: 'Failed to fetch discount codes' }, { status: 500 })

@@ -10,15 +10,34 @@ export function adminApiUrl(path: string, user: Pick<User, 'id' | 'email'>): str
   return url.pathname + url.search
 }
 
+const inflightGetRequests = new Map<string, Promise<Response>>()
+
 export function adminFetch(
   path: string,
   user: Pick<User, 'id' | 'email'>,
   init?: RequestInit
 ): Promise<Response> {
   const method = (init?.method ?? 'GET').toUpperCase()
-  return fetch(adminApiUrl(path, user), {
+  const url = adminApiUrl(path, user)
+
+  if (method === 'GET') {
+    const existing = inflightGetRequests.get(url)
+    if (existing) return existing
+  }
+
+  const request = fetch(url, {
     ...init,
     credentials: 'include',
     cache: method === 'GET' ? 'default' : 'no-store',
+  }).finally(() => {
+    if (method === 'GET') {
+      inflightGetRequests.delete(url)
+    }
   })
+
+  if (method === 'GET') {
+    inflightGetRequests.set(url, request)
+  }
+
+  return request
 }
