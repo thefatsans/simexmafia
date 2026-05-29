@@ -53,7 +53,13 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json(reviews.map(mapReviewFromDb))
+    return NextResponse.json(reviews.map(mapReviewFromDb), {
+      headers: {
+        'Cache-Control': productId
+          ? 'public, s-maxage=60, stale-while-revalidate=120'
+          : 'private, no-store',
+      },
+    })
   } catch (error: unknown) {
     console.error('Error fetching reviews:', error)
     return NextResponse.json({ error: 'Failed to fetch reviews' }, { status: 500 })

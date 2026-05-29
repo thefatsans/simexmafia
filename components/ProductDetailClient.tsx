@@ -36,9 +36,11 @@ function recommendationCatalog(product: Product): Product[] {
 export default function ProductDetailClient({
   productId,
   initialProduct,
+  initialReviews = [],
 }: {
   productId: string
   initialProduct: Product
+  initialReviews?: Review[]
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -48,8 +50,8 @@ export default function ProductDetailClient({
   const { addProduct } = useRecentlyViewed()
   const { isAuthenticated } = useAuth()
   const [product, setProduct] = useState<Product>(initialProduct)
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [reviewsLoading, setReviewsLoading] = useState(true)
+  const [reviews, setReviews] = useState<Review[]>(initialReviews)
+  const [reviewsLoading, setReviewsLoading] = useState(initialReviews.length === 0)
   const [showReviewSuccess, setShowReviewSuccess] = useState(false)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [similarProducts, setSimilarProducts] = useState<Product[]>([])
@@ -69,12 +71,16 @@ export default function ProductDetailClient({
     addProduct(initialProduct)
 
     const loadExtras = async () => {
-      setReviewsLoading(true)
+      if (initialReviews.length === 0) {
+        setReviewsLoading(true)
+      }
       try {
-        const productReviews = await getProductReviewsFromAPI(productId)
-        if (cancelled) return
+        if (initialReviews.length === 0) {
+          const productReviews = await getProductReviewsFromAPI(productId)
+          if (cancelled) return
+          setReviews(productReviews)
+        }
 
-        setReviews(productReviews)
         const catalog = recommendationCatalog(initialProduct)
         const [similar, alsoBought] = await Promise.all([
           getSimilarProducts(initialProduct, 4, productId, catalog),
@@ -95,7 +101,7 @@ export default function ProductDetailClient({
     return () => {
       cancelled = true
     }
-  }, [productId, initialProduct, addProduct])
+  }, [productId, initialProduct, initialReviews, addProduct])
 
   // Handle review submission success
   useEffect(() => {

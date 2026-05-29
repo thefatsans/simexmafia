@@ -32,8 +32,7 @@ function mapReview(r: Record<string, unknown>): Review {
 export async function getProductReviewsFromAPI(productId: string): Promise<Review[]> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/reviews?productId=${encodeURIComponent(productId)}`,
-      { cache: 'no-store' }
+      `${API_BASE_URL}/api/reviews?productId=${encodeURIComponent(productId)}`
     )
 
     if (!response.ok) {

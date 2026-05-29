@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useMemo, useEffect, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef, ReactNode } from 'react'
 import { Product, CartItem } from '@/types'
 import type { User } from '@/types/user'
 import { useAuth } from '@/contexts/AuthContext'
@@ -37,6 +37,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [useAPI, setUseAPI] = useState(false)
+  const loadedForUserRef = useRef<string | null>(null)
   const profile = useMemo(
     () => (user ? getCartProfile(user) : undefined),
     [user?.id, user?.email, user?.firstName, user?.lastName]
@@ -48,14 +49,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    const userKey = user?.id ?? 'guest'
+    if (loadedForUserRef.current === userKey) return
+
+    let cancelled = false
+
     const loadCart = async () => {
       try {
         if (user?.id) {
           try {
             const apiCart = await getCartFromAPI(user.id, profile)
-            setCartItems(apiCart)
+            if (cancelled) return
+
+            let mergedCart = apiCart
+            const localCart = localStorage.getItem('simexmafia-cart')
+            if (localCart) {
+              try {
+                const parsed = JSON.parse(localCart)
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  for (const item of parsed) {
+                    try {
+                      await addToCartAPI(user.id, item.product, item.quantity, profile)
+                    } catch {
+                      // Ignore if already exists
+                    }
+                  }
+                  mergedCart = await getCartFromAPI(user.id, profile)
+                  localStorage.removeItem('simexmafia-cart')
+                }
+              } catch {
+                // Ignore invalid local cart
+              }
+            }
+
+            if (cancelled) return
+            setCartItems(mergedCart)
             setUseAPI(true)
-            setIsLoaded(true)
+            loadedForUserRef.current = userKey
             return
           } catch (error) {
             console.warn('API not available, using localStorage:', error)
@@ -70,6 +100,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             setCartItems(parsed)
           }
         }
+        loadedForUserRef.current = userKey
       } catch (error) {
         console.error('Error loading cart:', error)
         try {
@@ -78,50 +109,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
           // Ignore
         }
       } finally {
-        setIsLoaded(true)
+        if (!cancelled) setIsLoaded(true)
       }
     }
 
     loadCart()
-  }, [user?.id, profile])
 
-  useEffect(() => {
-    if (user?.id && isLoaded) {
-      const loadCartFromAPI = async () => {
-        try {
-          const apiCart = await getCartFromAPI(user.id, profile)
-          setCartItems(apiCart)
-          setUseAPI(true)
-          const localCart = localStorage.getItem('simexmafia-cart')
-          if (localCart) {
-            try {
-              const parsed = JSON.parse(localCart)
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                for (const item of parsed) {
-                  try {
-                    await addToCartAPI(user.id, item.product, item.quantity, profile)
-                  } catch {
-                    // Ignore if already exists
-                  }
-                }
-                const updatedCart = await getCartFromAPI(user.id, profile)
-                setCartItems(updatedCart)
-                localStorage.removeItem('simexmafia-cart')
-              }
-            } catch {
-              // Ignore
-            }
-          }
-        } catch (error) {
-          console.warn('API not available, using localStorage:', error)
-          setUseAPI(false)
-        }
-      }
-      loadCartFromAPI()
-    } else if (!user && isLoaded) {
-      setUseAPI(false)
+    return () => {
+      cancelled = true
     }
-  }, [user?.id, isLoaded, profile])
+  }, [user?.id, profile])
 
   useEffect(() => {
     if (!isLoaded || typeof window === 'undefined' || useAPI) return

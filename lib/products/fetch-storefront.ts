@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { enrichProductsWithStock } from '@/lib/product-keys/stock'
 import {
@@ -20,20 +21,46 @@ import {
 } from '@/lib/products/storefront-ids'
 
 function normalizeDbProduct(product: Record<string, unknown>) {
-  const reviews = product.reviews as Array<{ rating: number }> | undefined
-  const avgRating =
-    reviews && reviews.length > 0
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-      : (product.rating as number)
-
   return {
     ...product,
-    rating: avgRating,
-    reviewCount: reviews?.length ?? (product.reviewCount as number),
     originalPrice: product.originalPrice ?? undefined,
-    reviews: undefined,
   }
 }
+
+async function queryStorefrontProductsFromDatabase() {
+  if (!process.env.DATABASE_URL || !prisma) {
+    return getStorefrontFallbackCatalog()
+  }
+
+  const products = await prisma.product.findMany({
+    where: {
+      OR: [
+        { id: { in: [...STOREFRONT_PRODUCT_IDS] } },
+        {
+          AND: [
+            { name: { contains: 'simex', mode: 'insensitive' } },
+            { name: { contains: 'discord', mode: 'insensitive' } },
+          ],
+        },
+      ],
+    },
+    include: { seller: true },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  let list = filterStorefrontCatalog(
+    products.map((p) => normalizeDbProduct(p as Record<string, unknown>)) as any
+  )
+  list = await ensureSimexDiscordServerInCatalog(list as any)
+  list = applySimexMafiaSellerToDiscordProducts(list as any)
+  return enrichProductsWithStock(list as any)
+}
+
+const getCachedStorefrontDbProducts = unstable_cache(
+  queryStorefrontProductsFromDatabase,
+  ['storefront-catalog-v2'],
+  { revalidate: 60 }
+)
 
 export async function fetchStorefrontProductsFromDatabase() {
   const cached = getCachedStorefrontProducts<ReturnType<typeof getStorefrontFallbackCatalog>>()
@@ -41,39 +68,8 @@ export async function fetchStorefrontProductsFromDatabase() {
     return cached
   }
 
-  if (!process.env.DATABASE_URL || !prisma) {
-    return getStorefrontFallbackCatalog()
-  }
-
   try {
-    const products = await prisma.product.findMany({
-      where: {
-        OR: [
-          { id: { in: [...STOREFRONT_PRODUCT_IDS] } },
-          {
-            AND: [
-              { name: { contains: 'simex', mode: 'insensitive' } },
-              { name: { contains: 'discord', mode: 'insensitive' } },
-            ],
-          },
-        ],
-      },
-      include: {
-        seller: true,
-        reviews: {
-          select: { rating: true },
-          take: 20,
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-
-    let list = filterStorefrontCatalog(
-      products.map((p) => normalizeDbProduct(p as Record<string, unknown>)) as any
-    )
-    list = await ensureSimexDiscordServerInCatalog(list as any)
-    list = applySimexMafiaSellerToDiscordProducts(list as any)
-    return setCachedStorefrontProducts(await enrichProductsWithStock(list as any))
+    return setCachedStorefrontProducts(await getCachedStorefrontDbProducts())
   } catch (error) {
     console.warn('[Storefront] DB fetch failed, using seed catalog:', error)
     return getStorefrontFallbackCatalog()
@@ -84,6 +80,14 @@ export async function fetchStorefrontProductByIdFromDatabase(id: string) {
   const decodedId = decodeURIComponent(id).trim()
   if (!decodedId) return null
 
+  const catalogCached = getCachedStorefrontProducts<Array<{ id: string }>>()
+  if (catalogCached) {
+    const fromCatalog = catalogCached.find((p) => p.id === decodedId)
+    if (fromCatalog) {
+      return fromCatalog
+    }
+  }
+
   const cached = getCachedStorefrontProduct<ReturnType<typeof getStorefrontFallbackCatalog>[number]>(decodedId)
   if (cached) {
     return cached
@@ -91,27 +95,19 @@ export async function fetchStorefrontProductByIdFromDatabase(id: string) {
 
   if (!process.env.DATABASE_URL || !prisma) {
     const { resolveProductFromCatalog } = await import('@/lib/products/resolve-product')
-    return resolveProductFromCatalog(getStorefrontFallbackCatalog() as any, decodedId)
+    return resolveProductFromCatalog(getStorefrontFallbackCatalog() as Parameters<typeof resolveProductFromCatalog>[0], decodedId)
   }
 
   try {
     const product = await prisma.product.findUnique({
       where: { id: decodedId },
-      include: {
-        seller: true,
-        reviews: {
-          select: { rating: true },
-          take: 30,
-          orderBy: { createdAt: 'desc' },
-        },
-      },
+      include: { seller: true },
     })
 
     if (product) {
-      return setCachedStorefrontProduct(
-        decodedId,
-        normalizeDbProduct(product as Record<string, unknown>)
-      )
+      const normalized = normalizeDbProduct(product as Record<string, unknown>)
+      const [withStock] = await enrichProductsWithStock([normalized as any])
+      return setCachedStorefrontProduct(decodedId, withStock)
     }
 
     if (
@@ -126,5 +122,5 @@ export async function fetchStorefrontProductByIdFromDatabase(id: string) {
   }
 
   const { resolveProductFromCatalog } = await import('@/lib/products/resolve-product')
-  return resolveProductFromCatalog(getStorefrontFallbackCatalog() as any, decodedId)
+  return resolveProductFromCatalog(getStorefrontFallbackCatalog() as Parameters<typeof resolveProductFromCatalog>[0], decodedId)
 }

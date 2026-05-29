@@ -146,19 +146,14 @@ export default function SearchAutocomplete({
         const requestId = ++searchRequestIdRef.current
 
         try {
-          const fromApi = await getProductsFromAPI({ search: trimmed })
-
-          if (requestId !== searchRequestIdRef.current) {
-            return
-          }
-
+          const catalog = await getCatalogFromCacheOrAPI()
           const matched =
-            fromApi.length > 0
-              ? fromApi.slice(0, MAX_SUGGESTIONS)
-              : searchProducts(await getCatalogFromCacheOrAPI(), trimmed, {
+            catalog.length > 0
+              ? searchProducts(catalog, trimmed, {
                   minScore: 45,
                   maxResults: MAX_SUGGESTIONS,
                 })
+              : (await getProductsFromAPI({ search: trimmed })).slice(0, MAX_SUGGESTIONS)
 
           if (requestId !== searchRequestIdRef.current) {
             return

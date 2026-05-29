@@ -370,13 +370,6 @@ export async function enrichProductsWithStock<T extends { id: string; inStock?: 
   }
 
   try {
-    const legacyKeyProducts = await productsWithKeyInventory(
-      products.map((p) => p.id).filter((id) => !KEY_INVENTORY_PRODUCT_IDS.has(id))
-    )
-    for (const id of legacyKeyProducts) {
-      idsToCount.add(id)
-    }
-
     const stockMap = await countAvailableKeysForProducts([...idsToCount])
 
     return products.map((p) => enrichProductWithStock(p, stockMap))

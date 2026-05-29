@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import { Product } from '@/types'
 import type { User } from '@/types/user'
 import { useAuth } from '@/contexts/AuthContext'
@@ -36,24 +36,54 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   const [wishlist, setWishlist] = useState<Product[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [useAPI, setUseAPI] = useState(false)
+  const loadedForUserRef = useRef<string | null>(null)
   const profile = user ? getWishlistProfile(user) : undefined
 
-  // Load wishlist on mount
   useEffect(() => {
     if (typeof window === 'undefined') {
       setIsLoaded(true)
       return
     }
 
+    const userKey = user?.id ?? 'guest'
+    if (loadedForUserRef.current === userKey) return
+
+    let cancelled = false
+
     const loadWishlist = async () => {
       try {
-        // Wenn User eingeloggt ist, versuche API zu verwenden
         if (user?.id) {
           try {
-            const apiWishlist = await getWishlistFromAPI(user.id, profile)
-            setWishlist(apiWishlist.map(item => item.product))
+            let apiWishlist = await getWishlistFromAPI(user.id, profile)
+            if (cancelled) return
+
+            const localWishlist = localStorage.getItem(STORAGE_KEY)
+            if (localWishlist) {
+              try {
+                const parsed = JSON.parse(localWishlist)
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  const validProducts = parsed.filter((p: unknown) =>
+                    p && typeof p === 'object' && 'id' in p && 'name' in p && 'price' in p
+                  ) as Product[]
+                  for (const product of validProducts) {
+                    try {
+                      await addToWishlistAPI(user.id, product, profile)
+                    } catch {
+                      // Ignore if already exists
+                    }
+                  }
+                  apiWishlist = await getWishlistFromAPI(user.id, profile)
+                  localStorage.removeItem(STORAGE_KEY)
+                }
+              } catch {
+                // Ignore invalid local wishlist
+              }
+            }
+
+            if (cancelled) return
+            setWishlist(apiWishlist.map((item) => item.product))
             setUseAPI(true)
-            setIsLoaded(true)
+            loadedForUserRef.current = userKey
             return
           } catch (error) {
             console.warn('API not available, using localStorage:', error)
@@ -61,86 +91,42 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Fallback: localStorage
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) {
           const parsed = JSON.parse(stored)
           if (Array.isArray(parsed)) {
-            // Check if it's old format (array of IDs) or new format (array of Products)
             if (parsed.length > 0 && typeof parsed[0] === 'string') {
-              // Old format: array of product IDs - migrate to new format
               const { mockProducts } = await import('@/data/products')
               const migratedProducts = parsed
-                .map((id: string) => mockProducts.find(p => p.id === id))
+                .map((id: string) => mockProducts.find((p) => p.id === id))
                 .filter((p): p is Product => p !== undefined)
-              setWishlist(migratedProducts)
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedProducts))
+              if (!cancelled) {
+                setWishlist(migratedProducts)
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedProducts))
+              }
             } else {
-              // New format: array of Products
-              const validProducts = parsed.filter((p: any) => 
-                p && typeof p === 'object' && p.id && p.name && p.price !== undefined
-              )
-              setWishlist(validProducts)
+              const validProducts = parsed.filter((p: unknown) =>
+                p && typeof p === 'object' && 'id' in p && 'name' in p && 'price' in p
+              ) as Product[]
+              if (!cancelled) setWishlist(validProducts)
             }
           }
         }
+        loadedForUserRef.current = userKey
       } catch (error) {
         console.error('Error loading wishlist:', error)
       } finally {
-        setIsLoaded(true)
+        if (!cancelled) setIsLoaded(true)
       }
     }
 
     loadWishlist()
+
+    return () => {
+      cancelled = true
+    }
   }, [user?.id, profile])
 
-  // Wenn User sich einloggt, lade Wishlist von API
-  useEffect(() => {
-    if (user?.id && isLoaded) {
-      const loadWishlistFromAPI = async () => {
-        try {
-          const apiWishlist = await getWishlistFromAPI(user.id, profile)
-          setWishlist(apiWishlist.map(item => item.product))
-          setUseAPI(true)
-          // Merge mit localStorage Wishlist falls vorhanden
-          const localWishlist = localStorage.getItem(STORAGE_KEY)
-          if (localWishlist) {
-            try {
-              const parsed = JSON.parse(localWishlist)
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                const validProducts = parsed.filter((p: any) => 
-                  p && typeof p === 'object' && p.id && p.name && p.price !== undefined
-                )
-                // Füge localStorage Items zur API hinzu
-                for (const product of validProducts) {
-                  try {
-                    await addToWishlistAPI(user.id, product, profile)
-                  } catch (e) {
-                    // Ignore if already exists
-                  }
-                }
-                // Lade erneut von API
-                const updatedWishlist = await getWishlistFromAPI(user.id, profile)
-                setWishlist(updatedWishlist.map(item => item.product))
-                // Lösche localStorage
-                localStorage.removeItem(STORAGE_KEY)
-              }
-            } catch (e) {
-              // Ignore
-            }
-          }
-        } catch (error) {
-          console.warn('API not available, using localStorage:', error)
-          setUseAPI(false)
-        }
-      }
-      loadWishlistFromAPI()
-    } else if (!user && isLoaded) {
-      setUseAPI(false)
-    }
-  }, [user?.id, isLoaded, profile])
-
-  // Save wishlist to localStorage wenn nicht API (Fallback)
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (!isLoaded || useAPI) return
@@ -157,7 +143,6 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   }, [wishlist])
 
   const addToWishlist = useCallback(async (product: Product) => {
-    // Wenn API verfügbar und User eingeloggt
     if (useAPI && user?.id) {
       try {
         await addToWishlistAPI(user.id, product, profile)
@@ -168,9 +153,8 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
           return [...prev, product]
         })
         return
-      } catch (error: any) {
-        if (error.message?.includes('already in wishlist')) {
-          // Item already exists, just update local state
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message?.includes('already in wishlist')) {
           setWishlist(prev => {
             if (prev.some(p => p.id === product.id)) {
               return prev
@@ -184,7 +168,6 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Fallback: localStorage
     setWishlist(prev => {
       if (prev.some(p => p.id === product.id)) {
         return prev
@@ -194,7 +177,6 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   }, [useAPI, user?.id, profile])
 
   const removeFromWishlist = useCallback(async (productId: string) => {
-    // Wenn API verfügbar und User eingeloggt
     if (useAPI && user?.id) {
       try {
         await removeFromWishlistAPI(user.id, productId, profile)
@@ -206,7 +188,6 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Fallback: localStorage
     setWishlist(prev => prev.filter(p => p.id !== productId))
   }, [useAPI, user?.id, profile])
 
@@ -246,4 +227,3 @@ export function useWishlist() {
   }
   return context
 }
-

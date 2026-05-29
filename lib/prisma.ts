@@ -35,9 +35,7 @@ let adapter: PrismaPg | undefined
 if (databaseUrl) {
   try {
     const dbUrl = databaseUrl
-    const hostMatch = dbUrl.match(/@([^/]+)/)
-    console.log('[Prisma] Connecting to:', hostMatch?.[1] || 'unknown')
-    console.log('[Prisma] Runtime:', process.env.VERCEL ? 'vercel-serverless' : 'local')
+    const isDev = process.env.NODE_ENV === 'development'
 
     const pool = new Pool({
       connectionString: dbUrl,
@@ -54,16 +52,13 @@ if (databaseUrl) {
       keepAliveInitialDelayMillis: 10000,
     })
     
-    pool.on('connect', () => {
-      console.log('[Prisma] Database connection established')
-    })
-    
-    pool.on('error', (err) => {
-      console.error('[Prisma] Pool error:', err.message)
-    })
+    if (isDev) {
+      pool.on('error', (err) => {
+        console.error('[Prisma] Pool error:', err.message)
+      })
+    }
     
     adapter = new PrismaPg(pool)
-    console.log('[Prisma] Connection pool and adapter created successfully')
   } catch (error: any) {
     console.error('[Prisma] Error creating Prisma adapter:', error.message)
     console.warn('[Prisma] Will try without adapter (this may fail with Prisma 7)')
@@ -75,19 +70,16 @@ export const prisma: PrismaClient | null =
   globalForPrisma.prisma ??
   (databaseUrl
     ? (() => {
-        console.log('[Prisma] Creating Prisma Client with adapter')
         try {
           if (!adapter) {
             throw new Error('Adapter not available - cannot create Prisma Client')
           }
-          const client = new PrismaClient({
+          return new PrismaClient({
             adapter: adapter,
-            log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+            log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
           })
-          console.log('[Prisma] Prisma Client created successfully with adapter')
-          return client
-        } catch (error: any) {
-          console.error('[Prisma] Error creating Prisma Client:', error.message)
+        } catch (error: unknown) {
+          console.error('[Prisma] Error creating Prisma Client:', error instanceof Error ? error.message : error)
           return null
         }
       })()

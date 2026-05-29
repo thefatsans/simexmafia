@@ -15,9 +15,10 @@ export function adminFetch(
   user: Pick<User, 'id' | 'email'>,
   init?: RequestInit
 ): Promise<Response> {
+  const method = (init?.method ?? 'GET').toUpperCase()
   return fetch(adminApiUrl(path, user), {
     ...init,
     credentials: 'include',
-    cache: 'no-store',
+    cache: method === 'GET' ? 'default' : 'no-store',
   })
 }

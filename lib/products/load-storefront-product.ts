@@ -23,16 +23,15 @@ export async function loadStorefrontProduct(id: string): Promise<Product | null>
 
   if (!foundProduct) return null
 
+  const productRecord = foundProduct as Product
   const { getCompleteProductImage } = await import('@/prisma/complete-product-images')
   const correctImage =
-    getCompleteProductImage((foundProduct as { name: string }).name) ||
-    (foundProduct as { image?: string }).image
+    getCompleteProductImage(productRecord.name) || productRecord.image
 
   const seller =
-    (foundProduct as { seller?: Product['seller'] }).seller ??
-    resolveSeller((foundProduct as { sellerId?: string }).sellerId)
+    productRecord.seller ?? resolveSeller((foundProduct as { sellerId?: string }).sellerId)
 
-  const base = foundProduct as Product
+  const base = productRecord
   const payload = finalizeProductForStorefront({
     ...base,
     image: correctImage ?? base.image,
@@ -42,6 +41,10 @@ export async function loadStorefrontProduct(id: string): Promise<Product | null>
   const [withSeller] = applySimexMafiaSellerToDiscordProducts([payload])
   if (!isProductAllowedInStorefront(withSeller)) {
     return null
+  }
+
+  if (typeof (withSeller as Product).stockCount === 'number') {
+    return withSeller as Product
   }
 
   const [withStock] = await enrichProductsWithStock([withSeller])

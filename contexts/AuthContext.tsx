@@ -83,46 +83,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cancelled || !localUser?.email) return
 
       const lastSync = sessionStorage.getItem('simexmafia-user-sync-at')
-      const syncFresh = lastSync && Date.now() - Number(lastSync) < 5 * 60 * 1000
+      const syncFresh = lastSync && Date.now() - Number(lastSync) < 30 * 60 * 1000
 
-      if (!syncFresh) {
-        fetch('/api/auth/sync-session', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: localUser.id, email: localUser.email }),
-        }).catch(() => {})
+      const runBackgroundSync = () => {
+        if (cancelled) return
+
+        if (!syncFresh) {
+          fetch('/api/auth/sync-session', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: localUser!.id, email: localUser!.email }),
+          }).catch(() => {})
+        }
+
+        if (syncFresh) return
+
+        void (async () => {
+          try {
+            const { getUserFromAPI } = await import('@/lib/api/users')
+            const dbUser = await getUserFromAPI(localUser!.id, {
+              email: localUser!.email,
+              firstName: localUser!.firstName,
+              lastName: localUser!.lastName,
+            })
+            if (cancelled || !dbUser || dbUser.error) return
+
+            const synced: User = {
+              id: dbUser.id,
+              email: dbUser.email,
+              firstName: dbUser.firstName,
+              lastName: dbUser.lastName,
+              goofyCoins: dbUser.goofyCoins ?? localUser!.goofyCoins ?? 0,
+              totalSpent: dbUser.totalSpent ?? localUser!.totalSpent ?? 0,
+              tier: dbUser.tier || localUser!.tier || 'Bronze',
+              joinDate: dbUser.joinDate
+                ? new Date(dbUser.joinDate).toISOString().split('T')[0]
+                : localUser!.joinDate,
+              avatar: dbUser.avatar ?? localUser!.avatar,
+            }
+            setUser(synced)
+            persistUserSession(synced)
+            sessionStorage.setItem('simexmafia-user-sync-at', String(Date.now()))
+          } catch (error) {
+            console.error('Error syncing user from database:', error)
+          }
+        })()
       }
 
-      if (syncFresh) return
-
-      try {
-        const { getUserFromAPI } = await import('@/lib/api/users')
-        const dbUser = await getUserFromAPI(localUser.id, {
-          email: localUser.email,
-          firstName: localUser.firstName,
-          lastName: localUser.lastName,
-        })
-        if (cancelled || !dbUser || dbUser.error) return
-
-        const synced: User = {
-          id: dbUser.id,
-          email: dbUser.email,
-          firstName: dbUser.firstName,
-          lastName: dbUser.lastName,
-          goofyCoins: dbUser.goofyCoins ?? localUser.goofyCoins ?? 0,
-          totalSpent: dbUser.totalSpent ?? localUser.totalSpent ?? 0,
-          tier: dbUser.tier || localUser.tier || 'Bronze',
-          joinDate: dbUser.joinDate
-            ? new Date(dbUser.joinDate).toISOString().split('T')[0]
-            : localUser.joinDate,
-          avatar: dbUser.avatar ?? localUser.avatar,
-        }
-        setUser(synced)
-        persistUserSession(synced)
-        sessionStorage.setItem('simexmafia-user-sync-at', String(Date.now()))
-      } catch (error) {
-        console.error('Error syncing user from database:', error)
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(runBackgroundSync, { timeout: 3000 })
+      } else {
+        setTimeout(runBackgroundSync, 0)
       }
     }
 
