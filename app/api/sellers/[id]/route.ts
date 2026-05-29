@@ -7,6 +7,7 @@ import {
   removeNonSimexMafiaSellers,
 } from '@/lib/sellers/ensure-simexmafia-seller'
 import { syncSellerRatingFromReviews } from '@/lib/sellers/sync-seller-rating'
+import { getStorefrontProductCountForSeller } from '@/lib/sellers/storefront-product-count'
 
 // GET /api/sellers/[id]
 export async function GET(
@@ -29,14 +30,13 @@ export async function GET(
 
     const seller = await prisma.seller.findUnique({
       where: { id: params.id },
-      include: {
-        _count: { select: { products: true } },
-      },
     })
 
     if (!seller) {
       return NextResponse.json({ error: 'Seller not found' }, { status: 404 })
     }
+
+    const productCount = await getStorefrontProductCountForSeller(params.id)
 
     return NextResponse.json({
       id: seller.id,
@@ -45,7 +45,7 @@ export async function GET(
       reviewCount: seller.reviewCount,
       verified: seller.verified,
       avatar: seller.avatar ?? undefined,
-      productCount: seller._count.products,
+      productCount,
     })
   } catch (error: unknown) {
     console.error('Error fetching seller:', error)

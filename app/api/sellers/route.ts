@@ -7,16 +7,19 @@ import {
   removeNonSimexMafiaSellers,
 } from '@/lib/sellers/ensure-simexmafia-seller'
 import { syncSellerRatingFromReviews } from '@/lib/sellers/sync-seller-rating'
+import { getStorefrontProductCountForSeller } from '@/lib/sellers/storefront-product-count'
 
-function mapSeller(seller: {
-  id: string
-  name: string
-  rating: number
-  reviewCount: number
-  verified: boolean
-  avatar: string | null
-  _count: { products: number }
-}) {
+function mapSeller(
+  seller: {
+    id: string
+    name: string
+    rating: number
+    reviewCount: number
+    verified: boolean
+    avatar: string | null
+  },
+  productCount: number
+) {
   return {
     id: seller.id,
     name: seller.name,
@@ -24,7 +27,7 @@ function mapSeller(seller: {
     reviewCount: seller.reviewCount,
     verified: seller.verified,
     avatar: seller.avatar ?? undefined,
-    productCount: seller._count.products,
+    productCount,
   }
 }
 
@@ -42,16 +45,15 @@ export async function GET() {
 
     const seller = await prisma.seller.findUnique({
       where: { id: SIMEXMAFIA_SELLER_ID },
-      include: {
-        _count: { select: { products: true } },
-      },
     })
 
     if (!seller) {
       return NextResponse.json([])
     }
 
-    return NextResponse.json([mapSeller(seller)])
+    const productCount = await getStorefrontProductCountForSeller(SIMEXMAFIA_SELLER_ID)
+
+    return NextResponse.json([mapSeller(seller, productCount)])
   } catch (error: unknown) {
     console.error('Error fetching sellers:', error)
     return NextResponse.json({ error: 'Failed to fetch sellers' }, { status: 500 })
