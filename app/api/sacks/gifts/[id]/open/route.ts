@@ -4,6 +4,7 @@ import { requireSecureSession } from '@/lib/api-auth'
 import { openSack, sackTypes } from '@/data/sacks'
 import { assertSackOpenAllowed } from '@/lib/sack-limits'
 import { applySackRewardToUser } from '@/lib/sacks/apply-sack-reward'
+import { serializeSackReward } from '@/lib/sacks/serialize-reward'
 
 export async function POST(
   request: NextRequest,
@@ -90,7 +91,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      reward,
+      reward: serializeSackReward(reward),
       sackType: sack.type,
       newBalance,
       senderGift: true,

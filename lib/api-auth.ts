@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ensureUserInDatabase, type AuthUserProfile } from '@/lib/user-sync'
 import { readSessionPayload } from '@/lib/api-session'
+import type { SessionPayload } from '@/lib/session-token'
 import { publicUserSelect } from '@/lib/auth-user'
 import { isAdmin as isAdminByEmail } from '@/data/admin'
 
@@ -119,6 +120,25 @@ export async function getAuthenticatedUser(
       error: NextResponse.json({ error: 'Authentication failed' }, { status: 500 }),
     }
   }
+}
+
+/**
+ * Session-Cookie ohne DB-Lookup — für read-only Routen, die userId aus dem Cookie reicht.
+ */
+export function requireSessionPayload(
+  request: NextRequest
+): { payload: SessionPayload; error?: NextResponse } | { payload: null; error: NextResponse } {
+  const payload = readSessionPayload(request)
+  if (!payload) {
+    return {
+      payload: null,
+      error: NextResponse.json(
+        { error: 'Authentifizierung erforderlich. Bitte erneut anmelden.', code: 'SESSION_MISSING' },
+        { status: 401 }
+      ),
+    }
+  }
+  return { payload }
 }
 
 /**

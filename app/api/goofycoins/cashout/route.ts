@@ -1,59 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSecureSession } from '@/lib/api-auth'
+import { requireSessionPayload, requireSecureSession } from '@/lib/api-auth'
 import {
   CASHOUT_VARIANTS,
   eurToCoins,
   normalizeCashoutVariant,
   validateCashoutAmount,
 } from '@/lib/goofycoins/cashout'
+import { mapCashoutForUser } from '@/lib/goofycoins/map-cashout'
 
-function mapCashout(row: {
-  id: string
-  variant: string
-  coinsAmount: number
-  euroAmount: number
-  status: string
-  fullName: string
-  email: string
-  phone: string | null
-  iban: string | null
-  address: string | null
-  notes: string | null
-  adminNotes: string | null
-  processedAt: Date | null
-  createdAt: Date
-}) {
-  const variantInfo = CASHOUT_VARIANTS[row.variant as keyof typeof CASHOUT_VARIANTS]
-  return {
-    id: row.id,
-    variant: row.variant,
-    variantLabel: variantInfo?.label ?? row.variant,
-    coinsAmount: row.coinsAmount,
-    euroAmount: row.euroAmount,
-    status: row.status,
-    fullName: row.fullName,
-    email: row.email,
-    phone: row.phone,
-    iban: row.iban ? maskIban(row.iban) : null,
-    address: row.address,
-    notes: row.notes,
-    adminNotes: row.adminNotes,
-    processedAt: row.processedAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
-  }
-}
+export const dynamic = 'force-dynamic'
 
-function maskIban(iban: string): string {
-  const clean = iban.replace(/\s/g, '')
-  if (clean.length <= 8) return clean
-  return `${clean.slice(0, 4)}****${clean.slice(-4)}`
+const USER_CASHOUT_CACHE = {
+  'Cache-Control': 'private, max-age=15, stale-while-revalidate=30',
 }
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireSecureSession(request)
-  if (!authResult || authResult.error) {
-    return authResult?.error || NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const session = requireSessionPayload(request)
+  if (!session.payload) {
+    return session.error!
   }
 
   if (!prisma) {
@@ -62,14 +27,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const items = await prisma.goofyCoinCashout.findMany({
-      where: { userId: authResult.user.id },
+      where: { userId: session.payload.userId },
       orderBy: { createdAt: 'desc' },
       take: 50,
     })
 
-    return NextResponse.json({
-      items: items.map(mapCashout),
-    })
+    return NextResponse.json(
+      { items: items.map(mapCashoutForUser) },
+      { headers: USER_CASHOUT_CACHE }
+    )
   } catch (error) {
     console.error('[GoofyCoin Cashout GET]', error)
     return NextResponse.json({ error: 'Anfragen konnten nicht geladen werden' }, { status: 500 })
@@ -186,7 +152,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      cashout: mapCashout(result.cashout),
+      cashout: mapCashoutForUser(result.cashout),
       newBalance: result.newBalance,
     })
   } catch (error) {

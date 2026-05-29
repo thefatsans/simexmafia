@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   getDailyRewardData,
-  claimDailyReward,
+  saveDailyRewardData,
   canClaimReward,
   isStreakBroken,
   getNextReward,
@@ -32,13 +32,48 @@ export default function DailyRewardsPage() {
   const userCoins = user?.goofyCoins || 0
 
   // Define functions before using them in useEffect
-  const loadData = () => {
+  const loadData = async () => {
     if (!isAuthenticated || !user) return
-    
+
+    try {
+      const res = await fetch('/api/daily-rewards/status', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const status = await res.json()
+        if (status.canClaim && !status.lastClaimDate) {
+          saveDailyRewardData(
+            { lastClaimDate: null, currentStreak: 0, totalClaims: status.totalClaims ?? 0 },
+            user.id
+          )
+        } else if (!status.canClaim && status.lastClaimDate) {
+          saveDailyRewardData(
+            {
+              lastClaimDate: status.lastClaimDate,
+              currentStreak: status.nextStreak,
+              totalClaims: status.totalClaims ?? 0,
+            },
+            user.id
+          )
+        } else if (status.canClaim && status.lastClaimDate) {
+          saveDailyRewardData(
+            {
+              lastClaimDate: status.lastClaimDate,
+              currentStreak: status.currentStreak,
+              totalClaims: status.totalClaims ?? 0,
+            },
+            user.id
+          )
+        }
+      }
+    } catch {
+      // fallback to localStorage
+    }
+
     const data = getDailyRewardData(user.id)
     setRewardData(data)
-    
-    // Prüfe ob Belohnung geholt werden kann
+
     if (canClaimReward(user.id) && !showClaimModal && !claimedReward) {
       setShowClaimModal(true)
     }
@@ -123,9 +158,17 @@ export default function DailyRewardsPage() {
 
       // Update user balance from server response
       if (data.newBalance !== undefined) {
-        // Synchronisiere User-Balance mit Server
         await syncUserFromDatabase()
       }
+
+      saveDailyRewardData(
+        {
+          lastClaimDate: new Date().toISOString(),
+          currentStreak: data.newStreak,
+          totalClaims: (getDailyRewardData(user.id).totalClaims || 0) + 1,
+        },
+        user.id
+      )
 
       setClaimedReward({ reward: data.reward, totalCoins: data.totalCoins })
       setShowClaimModal(false)

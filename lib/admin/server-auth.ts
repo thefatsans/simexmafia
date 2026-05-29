@@ -11,3 +11,8 @@ export function getServerAdminSession() {
   }
   return payload
 }
+
+export function getServerUserSession() {
+  const token = cookies().get(SESSION_COOKIE_NAME)?.value
+  return verifySession(token)
+}

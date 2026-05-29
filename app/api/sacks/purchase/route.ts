@@ -4,6 +4,7 @@ import { requireSecureSession } from '@/lib/api-auth'
 import { sackTypes, openSack } from '@/data/sacks'
 import { recordSackOpenInDatabase } from '@/lib/leaderboard/record-sack-open'
 import { assertSackOpenAllowed, recordSackOpenDayCount } from '@/lib/sack-limits'
+import { serializeSackReward } from '@/lib/sacks/serialize-reward'
 
 export async function POST(request: NextRequest) {
   try {
@@ -163,12 +164,17 @@ export async function POST(request: NextRequest) {
 
     // Create coin transaction for purchase
     if (purchaseMethod === 'coins') {
+      const balanceAfterPurchase = await prisma.user.findUnique({
+        where: { id: authenticatedUser.id },
+        select: { goofyCoins: true },
+      })
+
       await prisma.coinTransaction.create({
         data: {
           userId: authenticatedUser.id,
           type: 'spent',
           amount: -sack.priceCoins,
-          balance: dbUser.goofyCoins - sack.priceCoins,
+          balance: balanceAfterPurchase?.goofyCoins ?? 0,
           description: `Sack purchase: ${sack.name}`,
         },
       })
@@ -209,7 +215,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       userId: authenticatedUser.id,
-      reward,
+      reward: serializeSackReward(reward),
       newBalance: purchaseMethod === 'coins' 
         ? (await prisma.user.findUnique({ where: { id: authenticatedUser.id }, select: { goofyCoins: true } }))?.goofyCoins || 0
         : dbUser.goofyCoins,

@@ -15,6 +15,7 @@ import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
 import SackGiftsPanel from '@/components/sacks/SackGiftsPanel'
 import { fetchPendingSackGifts, openSackGift, sendSackGift, type SackGiftItem } from '@/lib/api/sack-gifts'
+import { getRewardRarity } from '@/lib/sacks/reward-rarity'
 import type { SackType } from '@/data/sacks'
 
 export default function SacksPage() {
@@ -24,6 +25,7 @@ export default function SacksPage() {
   // All hooks must be called before any conditional returns
   const [selectedSack, setSelectedSack] = useState<Sack | null>(null)
   const [isOpening, setIsOpening] = useState(false)
+  const [isPurchasing, setIsPurchasing] = useState(false)
   const [reward, setReward] = useState<SackReward | null>(null)
   const [showReward, setShowReward] = useState(false)
   const [purchaseMethod, setPurchaseMethod] = useState<'coins' | 'money'>('coins')
@@ -100,23 +102,7 @@ export default function SacksPage() {
     )
 
     if (finalIndex === -1) {
-      const rarity =
-        result.type === 'nothing'
-          ? 'common'
-          : result.type === 'coins' && result.coins! < 50
-          ? 'common'
-          : result.type === 'coins' && result.coins! < 200
-          ? 'uncommon'
-          : result.type === 'coins' && result.coins! < 500
-          ? 'rare'
-          : result.type === 'product' && result.product!.price < 20
-          ? 'uncommon'
-          : result.type === 'product' && result.product!.price < 50
-          ? 'rare'
-          : result.type === 'product' && result.product!.price < 100
-          ? 'epic'
-          : 'legendary'
-      rewards.push({ reward: result, rarity })
+      rewards.push({ reward: result, rarity: getRewardRarity(result) })
       finalIndex = rewards.length - 1
     }
 
@@ -348,9 +334,8 @@ export default function SacksPage() {
 
     // WICHTIG: Serverseitige Validierung für Coin-Käufe
     if (purchaseMethod === 'coins') {
+      setIsPurchasing(true)
       try {
-        setIsOpening(true)
-        
         const response = await fetch('/api/sacks/purchase', {
           method: 'POST',
           credentials: 'include',
@@ -363,10 +348,16 @@ export default function SacksPage() {
           }),
         })
 
-        const data = await response.json()
+        let data: { success?: boolean; error?: string; reward?: SackReward; newBalance?: number; userId?: string }
+        try {
+          data = await response.json()
+        } catch {
+          showError('Ungültige Server-Antwort beim Sack-Kauf')
+          if (user?.id) await syncUserFromDatabase()
+          return
+        }
 
-        if (!response.ok || !data.success) {
-          setIsOpening(false)
+        if (!response.ok || !data.success || !data.reward) {
           showError(data.error || 'Fehler beim Kauf des Sacks')
           if (user?.id) {
             await syncUserFromDatabase()
@@ -378,17 +369,26 @@ export default function SacksPage() {
           updateUser({ id: data.userId })
         }
 
-        // Server hat Coins abgezogen und Belohnung generiert
-        const result = data.reward
-        const newBalance = data.newBalance
-        startRevealAnimation(selectedSack, result, newBalance, 'coins')
-        return
-      } catch (error: any) {
+        try {
+          startRevealAnimation(selectedSack, data.reward, data.newBalance, 'coins')
+        } catch (animError) {
+          console.error('[Sacks] Animation error after purchase:', animError)
+          if (data.newBalance !== undefined) {
+            updateUser({ goofyCoins: data.newBalance })
+          }
+          setReward(data.reward)
+          setShowReward(true)
+          clearLeaderboardCache()
+          showSuccess('Sack gekauft! Belohnung erhalten.')
+        }
+      } catch (error: unknown) {
         console.error('[Sacks] Error purchasing sack:', error)
-        setIsOpening(false)
         showError('Fehler beim Kauf des Sacks. Bitte versuchen Sie es erneut.')
-        return
+        if (user?.id) await syncUserFromDatabase()
+      } finally {
+        setIsPurchasing(false)
       }
+      return
     }
 
     // Fallback für den Fall, dass purchaseMethod nicht 'coins' ist (sollte nicht passieren)
@@ -435,14 +435,7 @@ export default function SacksPage() {
     )
     
     if (finalIndex === -1) {
-      const rarity = result.type === 'nothing' ? 'common' : 
-                     result.type === 'coins' && result.coins! < 50 ? 'common' :
-                     result.type === 'coins' && result.coins! < 200 ? 'uncommon' :
-                     result.type === 'coins' && result.coins! < 500 ? 'rare' :
-                     result.type === 'product' && result.product!.price < 20 ? 'uncommon' :
-                     result.type === 'product' && result.product!.price < 50 ? 'rare' :
-                     result.type === 'product' && result.product!.price < 100 ? 'epic' : 'legendary'
-      rewards.push({ reward: result, rarity })
+      rewards.push({ reward: result, rarity: getRewardRarity(result) })
       finalIndex = rewards.length - 1
     }
     
@@ -982,18 +975,18 @@ export default function SacksPage() {
                   )}
                 </button>
               ) : (
-              /* Open Button */
+              <>
               <button
                 onClick={handleOpenSack}
-                disabled={isOpening || (purchaseMethod === 'coins' && userCoins < selectedSack.priceCoins)}
+                disabled={isPurchasing || isOpening || (purchaseMethod === 'coins' && userCoins < selectedSack.priceCoins)}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-4 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
                 style={{
-                  background: isOpening
+                  background: isPurchasing || isOpening
                     ? `linear-gradient(to right, ${selectedSack.color}, ${selectedSack.color}dd)`
                     : undefined,
                 }}
               >
-                {isOpening ? (
+                {isPurchasing || isOpening ? (
                   <>
                     <Sparkles className="w-5 h-5 animate-pulse" />
                     <span>Öffne Sack...</span>
@@ -1005,6 +998,7 @@ export default function SacksPage() {
                   </>
                 )}
               </button>
+              </>
               )}
             </div>
           </div>
