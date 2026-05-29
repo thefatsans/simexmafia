@@ -10,9 +10,12 @@ import { addToInventoryAsync } from '@/data/inventory'
 import { OrderItem } from '@/data/payments'
 import PaymentCheckout from '@/components/PaymentCheckout'
 import { useToast } from '@/contexts/ToastContext'
-import { ShoppingCart, Coins, Sparkles, Gift, X, History } from 'lucide-react'
+import { ShoppingCart, Coins, Sparkles, Gift, X, History, Send } from 'lucide-react'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
+import SackGiftsPanel from '@/components/sacks/SackGiftsPanel'
+import { fetchPendingSackGifts, openSackGift, sendSackGift, type SackGiftItem } from '@/lib/api/sack-gifts'
+import type { SackType } from '@/data/sacks'
 
 export default function SacksPage() {
   const router = useRouter()
@@ -25,6 +28,13 @@ export default function SacksPage() {
   const [showReward, setShowReward] = useState(false)
   const [purchaseMethod, setPurchaseMethod] = useState<'coins' | 'money'>('coins')
   const [showPaymentCheckout, setShowPaymentCheckout] = useState(false)
+  const [giftMode, setGiftMode] = useState(false)
+  const [recipientEmail, setRecipientEmail] = useState('')
+  const [giftMessage, setGiftMessage] = useState('')
+  const [pendingGifts, setPendingGifts] = useState<SackGiftItem[]>([])
+  const [giftsLoading, setGiftsLoading] = useState(false)
+  const [openingGiftId, setOpeningGiftId] = useState<string | null>(null)
+  const [sendingGift, setSendingGift] = useState(false)
   const { showSuccess, showError, showInfo } = useToast()
   
   // CS:GO Case Animation State
@@ -58,6 +68,159 @@ export default function SacksPage() {
       syncUserFromDatabase().catch(() => {})
     }
   }, [authLoading, isAuthenticated, user?.email, syncUserFromDatabase])
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user?.id) {
+      setGiftsLoading(true)
+      fetchPendingSackGifts()
+        .then(setPendingGifts)
+        .finally(() => setGiftsLoading(false))
+    }
+  }, [authLoading, isAuthenticated, user?.id])
+
+  const startRevealAnimation = (
+    sack: Sack,
+    result: SackReward,
+    newBalance: number | undefined,
+    method: 'coins' | 'money'
+  ) => {
+    resultRef.current = result
+    selectedSackRef.current = sack
+    coinsSubtractedRef.current = method === 'coins'
+    purchaseMethodRef.current = method
+    coinsAddedRef.current = result.type === 'coins' && result.coins ? true : false
+
+    const rewards = generatePossibleRewards(sack)
+
+    let finalIndex = rewards.findIndex(
+      (r) =>
+        r.reward.type === result.type &&
+        (result.type === 'coins' ? r.reward.coins === result.coins : true) &&
+        (result.type === 'product' ? r.reward.product?.id === result.product?.id : true)
+    )
+
+    if (finalIndex === -1) {
+      const rarity =
+        result.type === 'nothing'
+          ? 'common'
+          : result.type === 'coins' && result.coins! < 50
+          ? 'common'
+          : result.type === 'coins' && result.coins! < 200
+          ? 'uncommon'
+          : result.type === 'coins' && result.coins! < 500
+          ? 'rare'
+          : result.type === 'product' && result.product!.price < 20
+          ? 'uncommon'
+          : result.type === 'product' && result.product!.price < 50
+          ? 'rare'
+          : result.type === 'product' && result.product!.price < 100
+          ? 'epic'
+          : 'legendary'
+      rewards.push({ reward: result, rarity })
+      finalIndex = rewards.length - 1
+    }
+
+    setPossibleRewards(rewards)
+    setShowReward(false)
+    setReward(null)
+    setCurrentIndex(0)
+    setIsSpinning(true)
+    setIsOpening(true)
+    currentIndexRef.current = 0
+    finalIndexRef.current = finalIndex
+    startTimeRef.current = Date.now()
+
+    const totalDuration = 4000
+    const spinCycles = 3
+    const totalCards = rewards.length
+    const targetPosition = spinCycles * totalCards + finalIndex
+
+    const animate = () => {
+      const now = Date.now()
+      const elapsed = now - (startTimeRef.current || 0)
+
+      if (elapsed >= totalDuration) {
+        setCurrentIndex(targetPosition)
+        setIsSpinning(false)
+
+        setTimeout(() => {
+          const finalResult = resultRef.current
+          const finalSack = selectedSackRef.current
+          if (!finalResult || !finalSack) return
+
+          setReward(finalResult)
+
+          setTimeout(async () => {
+            setIsOpening(false)
+            setShowReward(true)
+
+            if (newBalance !== undefined && user) {
+              updateUser({ goofyCoins: newBalance })
+            }
+
+            syncUserFromDatabase().catch((err) => {
+              console.error('[Sacks] Error syncing user:', err)
+            })
+
+            saveSackHistory(
+              {
+                sackId: finalSack.id,
+                sackType: finalSack.type,
+                sackName: finalSack.name,
+                sackIcon: finalSack.icon,
+                sackColor: finalSack.color,
+                reward: finalResult,
+                purchaseMethod: purchaseMethodRef.current,
+                pricePaid:
+                  purchaseMethodRef.current === 'coins'
+                    ? finalSack.priceCoins
+                    : finalSack.priceMoney,
+              },
+              user?.id
+            )
+
+            clearLeaderboardCache()
+
+            if (finalResult.type === 'product' && finalResult.product && user?.id) {
+              try {
+                await addToInventoryAsync(
+                  finalResult.product,
+                  'sack',
+                  finalSack.id,
+                  finalSack.name,
+                  user.id
+                )
+                setTimeout(() => {
+                  showSuccess(`Produkt gewonnen: ${finalResult.product?.name}!`, 5000)
+                }, 500)
+              } catch (err) {
+                console.error('[Sacks] Error adding product to inventory:', err)
+              }
+            }
+
+            if (finalResult.type === 'coins' && finalResult.coins) {
+              setTimeout(() => {
+                showSuccess(`GoofyCoins gewonnen: +${finalResult.coins}!`, 5000)
+              }, 500)
+            }
+          }, 2000)
+        }, 500)
+
+        return
+      }
+
+      const progress = elapsed / totalDuration
+      const easedProgress = 1 - Math.pow(1 - progress, 3)
+      const currentPosition = Math.floor(easedProgress * targetPosition)
+
+      setCurrentIndex(currentPosition)
+      currentIndexRef.current = currentPosition
+
+      animationFrameRef.current = requestAnimationFrame(animate)
+    }
+
+    animationFrameRef.current = requestAnimationFrame(animate)
+  }
 
   // Cleanup animation on unmount
   useEffect(() => {
@@ -95,6 +258,71 @@ export default function SacksPage() {
 
   const handlePurchase = (sack: Sack) => {
     setSelectedSack(sack)
+    setGiftMode(false)
+    setRecipientEmail('')
+    setGiftMessage('')
+  }
+
+  const handleSendGift = async () => {
+    if (!selectedSack) return
+    const email = recipientEmail.trim().toLowerCase()
+    if (!email || !email.includes('@')) {
+      showError('Bitte gib die E-Mail-Adresse des Empfängers an')
+      return
+    }
+
+    setSendingGift(true)
+    try {
+      const result = await sendSackGift({
+        sackType: selectedSack.type,
+        recipientEmail: email,
+        message: giftMessage.trim() || undefined,
+      })
+
+      if (!result.success) {
+        showError(result.error || 'Geschenk fehlgeschlagen')
+        return
+      }
+
+      if (result.newBalance !== undefined) {
+        updateUser({ goofyCoins: result.newBalance })
+      }
+
+      showSuccess(`${selectedSack.name} wurde an ${email} verschenkt!`)
+      setSelectedSack(null)
+      setGiftMode(false)
+      setRecipientEmail('')
+      setGiftMessage('')
+      await syncUserFromDatabase()
+    } finally {
+      setSendingGift(false)
+    }
+  }
+
+  const handleOpenGift = async (gift: SackGiftItem) => {
+    const sack = getSackByType(gift.sackType as SackType)
+    if (!sack || !user?.id) return
+
+    setOpeningGiftId(gift.id)
+    try {
+      const result = await openSackGift(gift.id)
+      if (!result.success || !result.reward) {
+        showError(result.error || 'Geschenk konnte nicht geöffnet werden')
+        if (user?.id) await syncUserFromDatabase()
+        return
+      }
+
+      setPendingGifts((prev) => prev.filter((g) => g.id !== gift.id))
+      setSelectedSack(sack)
+      startRevealAnimation(
+        sack,
+        result.reward as SackReward,
+        result.newBalance,
+        'coins'
+      )
+    } finally {
+      setOpeningGiftId(null)
+    }
   }
 
   const handleOpenSack = async () => {
@@ -152,151 +380,8 @@ export default function SacksPage() {
 
         // Server hat Coins abgezogen und Belohnung generiert
         const result = data.reward
-        resultRef.current = result
-        selectedSackRef.current = selectedSack
-        coinsSubtractedRef.current = true
-        purchaseMethodRef.current = purchaseMethod
-        coinsAddedRef.current = result.type === 'coins' && result.coins ? true : false
-
-        // WICHTIG: Balance-Update verzögern, um Überraschungseffekt zu bewahren
-        // Die Balance wird erst nach der Animation aktualisiert
         const newBalance = data.newBalance
-
-        // Generiere mögliche Belohnungen für Animation
-        const rewards = generatePossibleRewards(selectedSack)
-        
-        // Finde die Belohnung in der Liste oder füge sie hinzu
-        let finalIndex = rewards.findIndex(r => 
-          r.reward.type === result.type &&
-          (result.type === 'coins' ? r.reward.coins === result.coins : true) &&
-          (result.type === 'product' ? r.reward.product?.id === result.product?.id : true)
-        )
-        
-        if (finalIndex === -1) {
-          // Belohnung nicht in Liste, füge sie hinzu
-          const rarity = result.type === 'nothing' ? 'common' : 
-                         result.type === 'coins' && result.coins! < 50 ? 'common' :
-                         result.type === 'coins' && result.coins! < 200 ? 'uncommon' :
-                         result.type === 'coins' && result.coins! < 500 ? 'rare' :
-                         result.type === 'product' && result.product!.price < 20 ? 'uncommon' :
-                         result.type === 'product' && result.product!.price < 50 ? 'rare' :
-                         result.type === 'product' && result.product!.price < 100 ? 'epic' : 'legendary'
-          rewards.push({ reward: result, rarity })
-          finalIndex = rewards.length - 1
-        }
-        
-        // Setze State
-        setPossibleRewards(rewards)
-        setShowReward(false)
-        setReward(null)
-        setCurrentIndex(0)
-        setIsSpinning(true)
-        currentIndexRef.current = 0
-        finalIndexRef.current = finalIndex
-        startTimeRef.current = Date.now()
-        
-        // Gleichmäßige Animation mit kontinuierlicher Position
-        const totalDuration = 4000 // 4 Sekunden total
-        const spinCycles = 3 // Mindestens 3 volle Runden
-        
-        // Berechne wie viele Karten wir durchlaufen müssen
-        const totalCards = rewards.length
-        // Starte bei 0, gehe durch spinCycles Runden, dann zur finalen Position
-        const targetPosition = spinCycles * totalCards + finalIndex
-        
-        const animate = () => {
-          const now = Date.now()
-          const elapsed = now - (startTimeRef.current || 0)
-          
-          if (elapsed >= totalDuration) {
-            // Finale Position erreichen
-            const finalAbsoluteIndex = targetPosition
-            setCurrentIndex(finalAbsoluteIndex)
-            setIsSpinning(false)
-            
-            // Kurze Pause, damit der Benutzer die Belohnung sehen kann
-            setTimeout(() => {
-              const finalResult = resultRef.current
-              const finalSack = selectedSackRef.current
-              if (!finalResult || !finalSack) return
-              
-              setReward(finalResult)
-              
-              // Warte weitere 2 Sekunden, damit die Belohnung sichtbar bleibt
-              setTimeout(async () => {
-                setIsOpening(false)
-                setShowReward(true)
-                
-                // JETZT erst die Balance aktualisieren - nach der Animation
-                // Dies verhindert, dass der Benutzer das Ergebnis vorher sieht
-                if (newBalance !== undefined && user) {
-                  updateUser({ goofyCoins: newBalance })
-                }
-                
-                // Synchronisiere vollständig mit Datenbank für Konsistenz
-                syncUserFromDatabase().catch(err => {
-                  console.error('[Sacks] Error syncing user:', err)
-                })
-                
-                saveSackHistory({
-                  sackId: finalSack.id,
-                  sackType: finalSack.type,
-                  sackName: finalSack.name,
-                  sackIcon: finalSack.icon,
-                  sackColor: finalSack.color,
-                  reward: finalResult,
-                  purchaseMethod: purchaseMethodRef.current,
-                  pricePaid: purchaseMethodRef.current === 'coins' ? finalSack.priceCoins : finalSack.priceMoney,
-                }, user?.id)
-                
-                // Debug: Log für gespeicherte Historie
-                console.log('[Sacks] Saved sack history with userId:', user?.id, 'sackId:', finalSack.id)
-                
-                // Clear leaderboard cache for real-time updates
-                clearLeaderboardCache()
-              
-                if (finalResult.type === 'product' && finalResult.product && user?.id) {
-                  try {
-                    await addToInventoryAsync(
-                      finalResult.product,
-                      'sack',
-                      finalSack.id,
-                      finalSack.name,
-                      user.id
-                    )
-                    setTimeout(() => {
-                      showSuccess(`Produkt gewonnen: ${finalResult.product?.name}!`, 5000)
-                    }, 500)
-                  } catch (err) {
-                    console.error('[Sacks] Error adding product to inventory:', err)
-                  }
-                }
-                
-                // Coins wurden bereits vom Server hinzugefügt, nur UI-Update nötig
-                if (finalResult.type === 'coins' && finalResult.coins) {
-                  setTimeout(() => {
-                    showSuccess(`GoofyCoins gewonnen: +${finalResult.coins}!`, 5000)
-                  }, 500)
-                }
-              }, 2000)
-            }, 500)
-            
-            return
-          }
-          
-          // Berechne aktuelle Position basierend auf elapsed time
-          const progress = elapsed / totalDuration
-          // Ease-out Funktion für natürlichere Animation
-          const easedProgress = 1 - Math.pow(1 - progress, 3)
-          const currentPosition = Math.floor(easedProgress * targetPosition)
-          
-          setCurrentIndex(currentPosition)
-          currentIndexRef.current = currentPosition
-          
-          animationFrameRef.current = requestAnimationFrame(animate)
-        }
-        
-        animationFrameRef.current = requestAnimationFrame(animate)
+        startRevealAnimation(selectedSack, result, newBalance, 'coins')
         return
       } catch (error: any) {
         console.error('[Sacks] Error purchasing sack:', error)
@@ -519,6 +604,13 @@ export default function SacksPage() {
           </div>
         </div>
 
+        <SackGiftsPanel
+          gifts={pendingGifts}
+          loading={giftsLoading}
+          openingId={openingGiftId}
+          onOpen={handleOpenGift}
+        />
+
         {/* Sack Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {sackTypes.map((sack) => (
@@ -575,6 +667,17 @@ export default function SacksPage() {
                   }}
                 >
                   {selectedSack?.id === sack.id ? 'Ausgewählt' : 'Kaufen & Öffnen'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSack(sack)
+                    setGiftMode(true)
+                  }}
+                  className="w-full mt-2 bg-fortnite-darker border border-pink-500/40 hover:border-pink-500/70 text-pink-300 hover:text-pink-200 font-semibold px-4 py-2.5 rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <Send className="w-4 h-4" />
+                  Verschenken
                 </button>
               </div>
             </div>
@@ -752,7 +855,61 @@ export default function SacksPage() {
                 <p className="text-gray-400">{selectedSack.description}</p>
               </div>
 
+              <div className="flex gap-2 mb-6 p-1 bg-fortnite-darker rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setGiftMode(false)}
+                  className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${
+                    !giftMode ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Für mich öffnen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGiftMode(true)
+                    setPurchaseMethod('coins')
+                  }}
+                  className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${
+                    giftMode ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Verschenken
+                </button>
+              </div>
+
+              {giftMode && (
+                <div className="mb-6 space-y-3">
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">E-Mail des Empfängers</label>
+                    <input
+                      type="email"
+                      value={recipientEmail}
+                      onChange={(e) => setRecipientEmail(e.target.value)}
+                      placeholder="kunde@example.com"
+                      className="w-full px-3 py-2 bg-fortnite-darker border border-pink-500/30 rounded-lg text-white placeholder-gray-500"
+                    />
+                    <p className="text-gray-500 text-xs mt-1">
+                      Der Empfänger muss ein SimexMafia-Konto haben und kann den Sack selbst öffnen.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Nachricht (optional)</label>
+                    <input
+                      type="text"
+                      value={giftMessage}
+                      onChange={(e) => setGiftMessage(e.target.value)}
+                      placeholder="Viel Glück!"
+                      maxLength={200}
+                      className="w-full px-3 py-2 bg-fortnite-darker border border-pink-500/30 rounded-lg text-white placeholder-gray-500"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Purchase Method Selection */}
+              {!giftMode && (
               <div className="mb-6">
                 <label className="block text-white font-semibold mb-3">Zahlungsmethode wählen:</label>
                 <div className="grid grid-cols-2 gap-4">
@@ -798,8 +955,34 @@ export default function SacksPage() {
                   </button>
                 </div>
               </div>
+              )}
 
-              {/* Open Button */}
+              {giftMode ? (
+                <button
+                  onClick={handleSendGift}
+                  disabled={
+                    sendingGift ||
+                    userCoins < selectedSack.priceCoins ||
+                    !recipientEmail.trim()
+                  }
+                  className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-6 py-4 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+                >
+                  {sendingGift ? (
+                    <>
+                      <Sparkles className="w-5 h-5 animate-pulse" />
+                      <span>Wird verschenkt...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      <span>
+                        Für {selectedSack.priceCoins} Coins verschenken
+                      </span>
+                    </>
+                  )}
+                </button>
+              ) : (
+              /* Open Button */
               <button
                 onClick={handleOpenSack}
                 disabled={isOpening || (purchaseMethod === 'coins' && userCoins < selectedSack.priceCoins)}
@@ -822,6 +1005,7 @@ export default function SacksPage() {
                   </>
                 )}
               </button>
+              )}
             </div>
           </div>
         )}

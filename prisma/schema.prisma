@@ -45,6 +45,8 @@ model User {
   priceAlerts   PriceAlert[]
   sackOpens     SackOpen[]
   goofyCoinCashouts GoofyCoinCashout[]
+  sackGiftsSent     SackGift[] @relation("SackGiftsSent")
+  sackGiftsReceived SackGift[] @relation("SackGiftsReceived")
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -74,6 +76,27 @@ model SackOpen {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model SackGift {
+  id             String   @id @default(cuid())
+  senderId       String
+  sender         User     @relation("SackGiftsSent", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId    String
+  recipient      User     @relation("SackGiftsReceived", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  sackType       String
+  sackName       String
+  purchaseMethod String   @default("coins")
+  pricePaid      Float
+  message        String?
+  status         String   @default("pending") // pending, opened
+
+  openedAt       DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([recipientId, status])
+  @@index([senderId])
 }
 
 model Seller {
