@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { getProductFromAPI, getProductsFromAPI } from '@/lib/api/products'
+import { getProductFromAPI } from '@/lib/api/products'
 import { getProductReviewsFromAPI } from '@/lib/api/reviews'
 import { Review } from '@/data/reviews'
 import { Product } from '@/types'
@@ -16,6 +16,7 @@ import { useCompare } from '@/contexts/CompareContext'
 import { useToast } from '@/contexts/ToastContext'
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed'
 import { getSimilarProducts, getCustomersAlsoBought } from '@/data/recommendations'
+import { getStorefrontFallbackCatalog } from '@/lib/products/storefront-seeds'
 import StructuredData from '@/components/StructuredData'
 import SocialShare from '@/components/SocialShare'
 import PriceAlertButton from '@/components/PriceAlertButton'
@@ -24,6 +25,14 @@ import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { getStockDetailLabel, isProductOutOfStock } from '@/lib/products/stock-display'
 import { isKeyInventoryProduct } from '@/lib/products/key-inventory-catalog'
+
+function recommendationCatalog(product: Product): Product[] {
+  const catalog = getStorefrontFallbackCatalog()
+  if (catalog.some((item) => item.id === product.id)) {
+    return catalog.map((item) => (item.id === product.id ? product : item))
+  }
+  return [...catalog, product]
+}
 
 export default function ProductDetailClient({
   productId,
@@ -63,13 +72,11 @@ export default function ProductDetailClient({
     const loadExtras = async () => {
       setReviewsLoading(true)
       try {
-        const [productReviews, catalog] = await Promise.all([
-          getProductReviewsFromAPI(productId),
-          getProductsFromAPI(),
-        ])
+        const productReviews = await getProductReviewsFromAPI(productId)
         if (cancelled) return
 
         setReviews(productReviews)
+        const catalog = recommendationCatalog(initialProduct)
         const [similar, alsoBought] = await Promise.all([
           getSimilarProducts(initialProduct, 4, productId, catalog),
           getCustomersAlsoBought(productId, 4, catalog),

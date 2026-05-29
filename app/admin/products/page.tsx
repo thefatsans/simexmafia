@@ -277,6 +277,7 @@ export default function AdminProductsPage() {
       {keysProduct && (
         <ProductKeysModal
           product={keysProduct}
+          user={user}
           onClose={() => setKeysProduct(null)}
           onSaved={(stockCount) => {
             setProducts((prev) =>

@@ -7,6 +7,12 @@ import {
 import { filterStorefrontCatalog } from '@/lib/products/storefront-catalog'
 import { getStorefrontFallbackCatalog } from '@/lib/products/storefront-seeds'
 import {
+  getCachedStorefrontProduct,
+  getCachedStorefrontProducts,
+  setCachedStorefrontProduct,
+  setCachedStorefrontProducts,
+} from '@/lib/products/storefront-cache'
+import {
   PSN_10_DE_PRODUCT_ID,
   ROBLOX_800_PRODUCT_ID,
   SIMEX_DISCORD_SERVER_ID,
@@ -30,6 +36,11 @@ function normalizeDbProduct(product: Record<string, unknown>) {
 }
 
 export async function fetchStorefrontProductsFromDatabase() {
+  const cached = getCachedStorefrontProducts<ReturnType<typeof getStorefrontFallbackCatalog>>()
+  if (cached) {
+    return cached
+  }
+
   if (!process.env.DATABASE_URL || !prisma) {
     return getStorefrontFallbackCatalog()
   }
@@ -62,7 +73,7 @@ export async function fetchStorefrontProductsFromDatabase() {
     )
     list = await ensureSimexDiscordServerInCatalog(list as any)
     list = applySimexMafiaSellerToDiscordProducts(list as any)
-    return await enrichProductsWithStock(list as any)
+    return setCachedStorefrontProducts(await enrichProductsWithStock(list as any))
   } catch (error) {
     console.warn('[Storefront] DB fetch failed, using seed catalog:', error)
     return getStorefrontFallbackCatalog()
@@ -72,6 +83,11 @@ export async function fetchStorefrontProductsFromDatabase() {
 export async function fetchStorefrontProductByIdFromDatabase(id: string) {
   const decodedId = decodeURIComponent(id).trim()
   if (!decodedId) return null
+
+  const cached = getCachedStorefrontProduct<ReturnType<typeof getStorefrontFallbackCatalog>[number]>(decodedId)
+  if (cached) {
+    return cached
+  }
 
   if (!process.env.DATABASE_URL || !prisma) {
     const { resolveProductFromCatalog } = await import('@/lib/products/resolve-product')
@@ -92,7 +108,10 @@ export async function fetchStorefrontProductByIdFromDatabase(id: string) {
     })
 
     if (product) {
-      return normalizeDbProduct(product as Record<string, unknown>)
+      return setCachedStorefrontProduct(
+        decodedId,
+        normalizeDbProduct(product as Record<string, unknown>)
+      )
     }
 
     if (

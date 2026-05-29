@@ -5,6 +5,7 @@ import {
   addProductKeys,
   getKeyInventoryStats,
 } from '@/lib/product-keys/stock'
+import { invalidateStorefrontCache } from '@/lib/products/storefront-cache'
 
 function parseCodesFromBody(body: {
   keys?: string
@@ -81,6 +82,7 @@ export async function POST(
 
     const result = await addProductKeys(params.id, codes)
     const stats = await getKeyInventoryStats(params.id)
+    invalidateStorefrontCache(params.id)
 
     return NextResponse.json({
       added: result.added,
@@ -91,6 +93,15 @@ export async function POST(
     })
   } catch (error) {
     console.error('[admin/products/keys] POST failed:', error)
-    return NextResponse.json({ error: 'Failed to add keys' }, { status: 500 })
+    const code = (error as { code?: string })?.code
+    const message = error instanceof Error ? error.message : 'Failed to add keys'
+    const hint =
+      code === 'P2021' || message.includes('ProductStockKey')
+        ? 'Datenbank-Tabelle ProductStockKey fehlt. Bitte Migration ausführen: npx prisma migrate deploy'
+        : undefined
+    return NextResponse.json(
+      { error: hint || message, details: message },
+      { status: 500 }
+    )
   }
 }

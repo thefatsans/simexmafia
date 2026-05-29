@@ -4,15 +4,19 @@ import { useEffect, useState } from 'react'
 import { Product } from '@/types'
 import { X, Key, Loader2 } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
+import { User } from '@/types/user'
+import { adminFetch } from '@/lib/admin-fetch'
 
 interface ProductKeysModalProps {
   product: Product
+  user: Pick<User, 'id' | 'email'>
   onClose: () => void
   onSaved: (stockCount: number) => void
 }
 
 export default function ProductKeysModal({
   product,
+  user,
   onClose,
   onSaved,
 }: ProductKeysModalProps) {
@@ -28,10 +32,7 @@ export default function ProductKeysModal({
     const loadStats = async () => {
       setIsLoading(true)
       try {
-        const res = await fetch(`/api/admin/products/${product.id}/keys`, {
-          credentials: 'include',
-          cache: 'no-store',
-        })
+        const res = await adminFetch(`/api/admin/products/${product.id}/keys`, user)
         if (!res.ok) {
           throw new Error('Stats konnten nicht geladen werden')
         }
@@ -47,7 +48,7 @@ export default function ProductKeysModal({
       }
     }
     loadStats()
-  }, [product.id, showError])
+  }, [product.id, user, showError])
 
   const handleSave = async () => {
     if (!keysText.trim()) {
@@ -57,9 +58,8 @@ export default function ProductKeysModal({
 
     setIsSaving(true)
     try {
-      const res = await fetch(`/api/admin/products/${product.id}/keys`, {
+      const res = await adminFetch(`/api/admin/products/${product.id}/keys`, user, {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys: keysText }),
       })
