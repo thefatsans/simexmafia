@@ -1,16 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   getLeaderboardAsync,
   getUserRankAsync,
-  clearLeaderboardCache,
   type LeaderboardEntry,
 } from '@/data/leaderboard'
 import { Trophy, Medal, Award, Crown, Gift, Coins, TrendingUp, Package, Star, Flame } from 'lucide-react'
 import { getSackByType } from '@/data/sacks'
 import { useAuth } from '@/contexts/AuthContext'
+import LoadingSpinner, { LoadingPage } from '@/components/LoadingSpinner'
 
 export default function LeaderboardPage() {
   const router = useRouter()
@@ -24,16 +24,16 @@ export default function LeaderboardPage() {
 
   const { user } = useAuth()
 
-  const loadLeaderboard = async () => {
+  const loadLeaderboard = useCallback(async () => {
     if (!user) return
 
     setIsLoadingBoard(true)
-    clearLeaderboardCache()
 
     try {
       const entries = await getLeaderboardAsync(selectedCategory)
+      const rank = await getUserRankAsync(user.id, selectedCategory)
       setLeaderboard(entries)
-      setUserRank(await getUserRankAsync(user.id, selectedCategory))
+      setUserRank(rank)
     } catch (error) {
       console.error('[Leaderboard Page] Load error:', error)
       setLeaderboard([])
@@ -41,7 +41,7 @@ export default function LeaderboardPage() {
     } finally {
       setIsLoadingBoard(false)
     }
-  }
+  }, [user, selectedCategory])
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -53,25 +53,14 @@ export default function LeaderboardPage() {
   useEffect(() => {
     if (isAuthenticated && user) {
       void loadLeaderboard()
-      const interval = setInterval(() => {
-        void loadLeaderboard()
-      }, 5000)
-      return () => clearInterval(interval)
     }
-  }, [selectedCategory, isAuthenticated, user?.id])
-  
-  // Clear cache when component unmounts or user changes
-  useEffect(() => {
-    return () => {
-      // Cache wird automatisch nach CACHE_DURATION geleert
-    }
-  }, [user])
+  }, [isAuthenticated, user, loadLeaderboard])
 
   // Show loading state while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-white">Laden...</div>
+      <div className="min-h-screen">
+        <LoadingPage label="Leaderboard wird geladen..." />
       </div>
     )
   }
@@ -239,9 +228,7 @@ export default function LeaderboardPage() {
 
         {/* Leaderboard */}
         {isLoadingBoard ? (
-          <div className="text-center py-20">
-            <p className="text-gray-400">Leaderboard wird geladen…</p>
-          </div>
+          <LoadingSpinner size="lg" centered label="Leaderboard wird geladen..." />
         ) : leaderboard.length > 0 ? (
           <div className="space-y-4">
             {/* Top 3 Podium - nur wenn mindestens 3 Einträge vorhanden */}
