@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { getSackHistory, clearSackHistory, getSackStatistics, SackHistoryEntry } from '@/data/sackHistory'
-import { Trash2, Trophy, TrendingUp, Coins, Package, XCircle, Calendar, DollarSign, X } from 'lucide-react'
+import { Trash2, Trophy, TrendingUp, Package, XCircle, Calendar, DollarSign, X } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import Image from 'next/image'
 
 export default function SackHistoryPage() {
@@ -152,7 +153,7 @@ export default function SackHistoryPage() {
             <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
-                  <Coins className="w-5 h-5 text-yellow-400" />
+                  <GoofyCoinIcon className="w-5 h-5 text-yellow-400" />
                   <span className="text-white font-semibold">GoofyCoins</span>
                 </div>
                 <div className="text-right">
@@ -274,7 +275,7 @@ export default function SackHistoryPage() {
                           </div>
                         ) : entry.reward.type === 'coins' ? (
                           <div className="flex items-center space-x-2 text-yellow-400">
-                            <Coins className="w-5 h-5" />
+                            <GoofyCoinIcon className="w-5 h-5" />
                             <span className="font-semibold">+{entry.reward.coins} GoofyCoins</span>
                           </div>
                         ) : entry.reward.type === 'product' && entry.reward.product ? (

@@ -7,10 +7,10 @@ import {
   ArrowLeft,
   Banknote,
   Building2,
-  Coins,
   Loader2,
   Wallet,
 } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import {
@@ -184,7 +184,7 @@ export default function GoofyCoinsCashoutClient({
         <div className="bg-gradient-to-br from-purple-900/40 to-green-900/30 border border-purple-500/30 rounded-lg p-6 mb-8">
           <p className="text-gray-400 text-sm mb-1">Dein Guthaben</p>
           <p className="text-3xl font-bold text-white flex items-center gap-2">
-            <Coins className="w-8 h-8 text-yellow-400" />
+            <GoofyCoinIcon className="w-8 h-8" />
             {(user.goofyCoins ?? 0).toLocaleString()} Coins
             <span className="text-lg text-gray-400 font-normal">
               (≈ {((user.goofyCoins ?? 0) / GOOFYCOINS_PER_EUR).toFixed(2)}€)

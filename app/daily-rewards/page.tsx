@@ -14,7 +14,8 @@ import {
 } from '@/data/dailyRewards'
 import { mockUser } from '@/data/user'
 import { useToast } from '@/contexts/ToastContext'
-import { Coins, Calendar, Flame, Gift, Check, Clock, X, Sparkles } from 'lucide-react'
+import { Calendar, Flame, Gift, Check, Clock, X, Sparkles } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function DailyRewardsPage() {
@@ -205,7 +206,7 @@ export default function DailyRewardsPage() {
           <div className="flex items-center justify-center space-x-6">
             <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg px-6 py-3">
               <div className="flex items-center space-x-2">
-                <Coins className="w-6 h-6 text-yellow-400" />
+                <GoofyCoinIcon className="w-6 h-6 text-yellow-400" />
                 <span className="text-yellow-400 font-semibold text-xl">{userCoins}</span>
                 <span className="text-gray-400">GoofyCoins</span>
               </div>
@@ -307,7 +308,7 @@ export default function DailyRewardsPage() {
                   {/* Coins */}
                   <div className="mb-2">
                     <div className="flex items-center justify-center space-x-1">
-                      <Coins className="w-4 h-4 text-yellow-400" />
+                      <GoofyCoinIcon className="w-4 h-4 text-yellow-400" />
                       <span className={`font-bold ${isClaimed ? 'text-green-400' : 'text-yellow-400'}`}>
                         {reward.coins}
                       </span>
@@ -379,7 +380,7 @@ export default function DailyRewardsPage() {
           </div>
           <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6">
             <div className="flex items-center space-x-3 mb-2">
-              <Coins className="w-6 h-6 text-yellow-400" />
+              <GoofyCoinIcon className="w-6 h-6 text-yellow-400" />
               <h3 className="text-gray-400 text-sm">Nächste Belohnung</h3>
             </div>
             <div className="text-3xl font-bold text-yellow-400">
@@ -399,7 +400,7 @@ export default function DailyRewardsPage() {
 
                 <div className="bg-fortnite-darker rounded-lg p-6 mb-6">
                   <div className="flex items-center justify-center space-x-2 mb-2">
-                    <Coins className="w-8 h-8 text-yellow-400" />
+                    <GoofyCoinIcon className="w-8 h-8 text-yellow-400" />
                     <span className="text-4xl font-bold text-yellow-400">{nextReward.coins}</span>
                     <span className="text-gray-400 text-xl">GoofyCoins</span>
                   </div>
@@ -442,7 +443,7 @@ export default function DailyRewardsPage() {
                 <p className="text-gray-400 mb-6">{claimedReward.reward.description}</p>
                 <div className="bg-fortnite-darker rounded-lg p-4 mb-6">
                   <div className="flex items-center justify-center space-x-2">
-                    <Coins className="w-6 h-6 text-yellow-400" />
+                    <GoofyCoinIcon className="w-6 h-6 text-yellow-400" />
                     <span className="text-yellow-400 font-semibold text-xl">+{claimedReward.totalCoins}</span>
                     <span className="text-gray-400">GoofyCoins</span>
                   </div>

@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
-import { Copy, Gift, Users, Coins, ArrowLeft } from 'lucide-react'
+import { Copy, Gift, Users, ArrowLeft } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import { LoadingPage } from '@/components/LoadingSpinner'
 
 interface ReferralStats {
@@ -111,7 +112,7 @@ export default function ReferralPage() {
           </div>
           <div className="bg-fortnite-dark border border-purple-500/20 rounded-xl p-5">
             <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-              <Coins className="w-4 h-4" /> Verdient
+              <GoofyCoinIcon className="w-4 h-4" /> Verdient
             </div>
             <div className="text-3xl font-bold text-white">
               {loading ? '…' : `${stats?.earnedCoins ?? 0} Coins`}

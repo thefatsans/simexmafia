@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Package, ArrowLeft, Download, CheckCircle, Star, Gift, Coins, Filter, X, CreditCard, Wallet, TrendingUp, Key, Copy, Eye } from 'lucide-react'
+import { Package, ArrowLeft, Download, CheckCircle, Star, Gift, Filter, X, CreditCard, Wallet, TrendingUp, Key, Copy, Eye } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import { getProductFromAPI } from '@/lib/api/products'
 import { getUserReviewsFromAPI } from '@/lib/api/reviews'
 import { mockUser } from '@/data/user'
@@ -666,7 +667,7 @@ export default function OrdersPage() {
             </div>
             <div className="bg-fortnite-dark border border-yellow-500/20 rounded-lg p-6">
               <div className="flex items-center space-x-3 mb-2">
-                <Coins className="w-6 h-6 text-yellow-400" />
+                <GoofyCoinIcon className="w-6 h-6" />
                 <h3 className="text-gray-400 text-sm">Coins verdient</h3>
               </div>
               <div className="text-3xl font-bold text-yellow-400">{statistics.totalCoinsEarned}</div>

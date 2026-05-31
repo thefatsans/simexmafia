@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { CreditCard, Lock, Shield, CheckCircle, ArrowLeft, Coins, Banknote, Wallet } from 'lucide-react'
+import { CreditCard, Lock, Shield, CheckCircle, ArrowLeft, Banknote, Wallet } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import Link from 'next/link'
 import { mockUser } from '@/data/user'
 import { calculateCoinsEarned, TIER_INFO } from '@/types/user'
@@ -826,7 +827,7 @@ export default function CheckoutPage() {
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <Coins className={`w-5 h-5 ${paymentMethod === 'goofycoins' ? 'text-yellow-400' : canPayWithGoofyCoins ? 'text-yellow-400' : 'text-gray-500'}`} />
+                      <GoofyCoinIcon className={`w-5 h-5 ${!canPayWithGoofyCoins ? 'opacity-40 grayscale' : ''}`} />
                       <div className="text-left">
                         <div className={`font-semibold ${paymentMethod === 'goofycoins' ? 'text-white' : canPayWithGoofyCoins ? 'text-gray-300' : 'text-gray-500'}`}>
                           GoofyCoins
@@ -1020,7 +1021,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mt-4">
                   <div className="flex items-center space-x-2 text-yellow-400">
-                    <Coins className="w-5 h-5" />
+                    <GoofyCoinIcon className="w-5 h-5" />
                     <span className="text-sm font-semibold">
                       Sie erhalten {coinsEarned} GoofyCoins
                     </span>

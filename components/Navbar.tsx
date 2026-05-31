@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ShoppingCart, Search, User, Menu, Coins, Heart, LogIn, LogOut, Settings, GitCompare, Sun, Moon } from 'lucide-react'
+import { ShoppingCart, Search, User, Menu, Heart, LogIn, LogOut, Settings, GitCompare, Sun, Moon } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import { isAdmin } from '@/data/admin'
 import { useState, FormEvent, useEffect } from 'react'
 import Logo from './Logo'
@@ -144,7 +145,7 @@ export default function Navbar() {
                 className="hidden lg:flex items-center space-x-2 px-3 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 rounded-lg transition-colors group pointer-events-auto relative z-[10003] cursor-pointer"
                 title="GoofyCoins verwalten"
               >
-                <Coins className="w-5 h-5 text-yellow-400 group-hover:scale-110 transition-transform" />
+                <GoofyCoinIcon className="w-5 h-5 text-yellow-400 group-hover:scale-110 transition-transform" />
                 <span className="text-yellow-400 font-semibold text-sm">{user?.goofyCoins ?? 0}</span>
               </Link>
             ) : null}
@@ -385,7 +386,7 @@ export default function Navbar() {
                     onClick={closeMobileMenu}
                     className="flex items-center space-x-2 px-3 py-3 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 rounded-lg transition-colors group pointer-events-auto relative z-[10004] cursor-pointer touch-manipulation"
                   >
-                    <Coins className="w-6 h-6 text-yellow-400 group-hover:scale-110 transition-transform" />
+                    <GoofyCoinIcon className="w-6 h-6 text-yellow-400 group-hover:scale-110 transition-transform" />
                     <span className="text-yellow-400 font-bold text-base">{user?.goofyCoins ?? 0} GoofyCoins</span>
                   </Link>
                   {user && isAdmin(user.email) && (

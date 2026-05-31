@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
-import { User, Edit2, Save, X, LogOut, Coins, ShoppingBag, Calendar, Award, Gift, Trophy, Sparkles } from 'lucide-react'
+import { User, Edit2, Save, X, LogOut, ShoppingBag, Calendar, Award, Gift, Trophy, Sparkles } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import ReferralBanner from '@/components/ReferralBanner'
 import { TIER_INFO, calculateTier } from '@/types/user'
 import { loadAccountStats } from '@/lib/api/account-stats'
@@ -217,7 +218,7 @@ export default function AccountPage() {
                 </div>
                 <div className="bg-fortnite-darker rounded-lg p-4">
                   <div className="flex items-center space-x-2 mb-2">
-                    <Coins className="w-5 h-5 text-yellow-400" />
+                    <GoofyCoinIcon className="w-5 h-5 text-yellow-400" />
                     <span className="text-gray-400 text-sm">Ausgegeben</span>
                   </div>
                   <p className="text-2xl font-bold text-white">€{stats.totalSpent.toFixed(2)}</p>
@@ -295,7 +296,7 @@ export default function AccountPage() {
                   }}
                   className="block w-full bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 px-4 py-3 rounded-lg transition-colors text-center flex items-center justify-center space-x-2"
                 >
-                  <Coins className="w-4 h-4" />
+                  <GoofyCoinIcon className="w-4 h-4" />
                   <span>GoofyCoins verwalten</span>
                 </a>
                 <a

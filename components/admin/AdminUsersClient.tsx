@@ -16,10 +16,10 @@ import {
   X,
   Eye,
   ChevronRight,
-  Coins,
   ShoppingCart,
   Star,
 } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import AdminLoading from '@/components/admin/AdminLoading'
 import { adminFetch } from '@/lib/admin-fetch'
 import { useToast } from '@/contexts/ToastContext'
@@ -396,7 +396,7 @@ export default function AdminUsersClient({
                     <div className="text-xs text-gray-400">Bestellungen</div>
                   </div>
                   <div className="bg-fortnite-darker rounded-lg p-3 text-center">
-                    <Coins className="w-5 h-5 text-yellow-400 mx-auto mb-1" />
+                    <GoofyCoinIcon className="w-5 h-5 mx-auto mb-1" />
                     <div className="text-xl font-bold text-white">{selectedUser.goofyCoins.toLocaleString()}</div>
                     <div className="text-xs text-gray-400">GoofyCoins</div>
                   </div>

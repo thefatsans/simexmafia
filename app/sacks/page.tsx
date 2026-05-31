@@ -10,7 +10,8 @@ import { addToInventoryAsync } from '@/data/inventory'
 import { OrderItem } from '@/data/payments'
 import PaymentCheckout from '@/components/PaymentCheckout'
 import { useToast } from '@/contexts/ToastContext'
-import { ShoppingCart, Coins, Sparkles, Gift, X, History, Send } from 'lucide-react'
+import { ShoppingCart, Sparkles, Gift, X, History, Send } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
 import SackGiftsPanel from '@/components/sacks/SackGiftsPanel'
@@ -589,7 +590,7 @@ export default function SacksPage() {
           <div className="flex items-center justify-center space-x-4">
             <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg px-6 py-3">
               <div className="flex items-center space-x-2">
-                <Coins className="w-6 h-6 text-yellow-400" />
+                <GoofyCoinIcon className="w-6 h-6 text-yellow-400" />
                 <span className="text-yellow-400 font-semibold text-xl">{userCoins}</span>
                 <span className="text-gray-400">GoofyCoins</span>
               </div>
@@ -635,7 +636,7 @@ export default function SacksPage() {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between bg-fortnite-darker rounded-lg p-2">
                     <div className="flex items-center space-x-2">
-                      <Coins className="w-4 h-4 text-yellow-400" />
+                      <GoofyCoinIcon className="w-4 h-4 text-yellow-400" />
                       <span className="text-gray-300 text-sm">GoofyCoins</span>
                     </div>
                     <span className="text-white font-semibold">{sack.priceCoins}</span>
@@ -795,7 +796,7 @@ export default function SacksPage() {
                             ) : item.reward.type === 'coins' && item.reward.coins ? (
                               <>
                                 <div className="w-48 h-48 mx-auto mb-6 rounded-full bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 flex items-center justify-center shadow-2xl border-4 border-yellow-300/50">
-                                  <Coins className="w-24 h-24 text-white drop-shadow-lg" />
+                                  <GoofyCoinIcon className="w-24 h-24 text-white drop-shadow-lg" />
                                 </div>
                                 <h3 className="text-2xl font-bold text-white mb-2">{item.reward.coins.toLocaleString()} GoofyCoins</h3>
                                 <p className="text-yellow-400 font-bold text-xl">€{(item.reward.coins / 100).toFixed(2)}</p>
@@ -914,7 +915,7 @@ export default function SacksPage() {
                         : 'border-purple-500/30 bg-fortnite-darker'
                     }`}
                   >
-                    <Coins className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                    <GoofyCoinIcon className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
                     <div className="text-white font-semibold">{selectedSack.priceCoins}</div>
                     <div className="text-gray-400 text-sm">GoofyCoins</div>
                     {userCoins < selectedSack.priceCoins && (

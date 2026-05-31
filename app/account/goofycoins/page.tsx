@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Coins, Award, Gift, ArrowLeft, TrendingUp, Wallet } from 'lucide-react'
+import { Award, Gift, ArrowLeft, TrendingUp, Wallet } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import { mockRedemptionItems } from '@/data/user'
 import { getCoinTransactionsFromAPI } from '@/lib/api/goofycoins'
 import { CoinTransaction } from '@/types/user'
@@ -93,7 +94,7 @@ export default function GoofyCoinsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center">
-                <Coins className="w-8 h-8 text-white" />
+                <GoofyCoinIcon className="w-8 h-8 text-white" />
               </div>
               <div>
                 <h1 className="text-4xl font-bold text-white mb-2">GoofyCoins</h1>
@@ -109,7 +110,7 @@ export default function GoofyCoinsPage() {
               }}
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-lg transition-all transform hover:scale-105 flex items-center space-x-2"
             >
-              <Coins className="w-5 h-5" />
+              <GoofyCoinIcon className="w-5 h-5" />
               <span>GoofyCoins kaufen</span>
             </a>
             <Link
@@ -292,7 +293,7 @@ export default function GoofyCoinsPage() {
               </div>
             ) : transactions.length === 0 ? (
               <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-8 text-center">
-                <Coins className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                <GoofyCoinIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                 <p className="text-white font-medium mb-2">Noch keine Transaktionen</p>
                 <p className="text-gray-400 text-sm">
                   Sobald du GoofyCoins verdienst, ausgibst oder einlöst, erscheinen sie hier.
@@ -316,7 +317,7 @@ export default function GoofyCoinsPage() {
                             : 'bg-purple-500/20'
                         }`}
                       >
-                        <Coins
+                        <GoofyCoinIcon
                           className={`w-5 h-5 ${
                             tx.type === 'earned'
                               ? 'text-green-400'
@@ -389,7 +390,7 @@ export default function GoofyCoinsPage() {
                       <p className="text-gray-400 text-sm mb-4">{item.description || ''}</p>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <Coins className="w-5 h-5 text-yellow-400" />
+                          <GoofyCoinIcon className="w-5 h-5 text-yellow-400" />
                           <span className="text-white font-bold">{itemCost.toLocaleString()}</span>
                         </div>
                         <button

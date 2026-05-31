@@ -7,7 +7,8 @@ import { mockUser } from '@/data/user'
 import { OrderItem, createOrder, processPayment, PaymentDetails } from '@/data/payments'
 import PaymentCheckout from '@/components/PaymentCheckout'
 import { useToast } from '@/contexts/ToastContext'
-import { Coins, ShoppingCart, Check, Sparkles, CreditCard, Zap, X } from 'lucide-react'
+import { ShoppingCart, Check, Sparkles, CreditCard, Zap, X } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function BuyGoofyCoinsPage() {
@@ -84,7 +85,7 @@ export default function BuyGoofyCoinsPage() {
           <div className="flex items-center justify-center space-x-4">
             <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg px-6 py-3">
               <div className="flex items-center space-x-2">
-                <Coins className="w-6 h-6 text-yellow-400" />
+                <GoofyCoinIcon className="w-6 h-6 text-yellow-400" />
                 <span className="text-yellow-400 font-semibold text-xl">{userCoins}</span>
                 <span className="text-gray-400">GoofyCoins</span>
               </div>
@@ -148,7 +149,7 @@ export default function BuyGoofyCoinsPage() {
                   {/* Coins */}
                   <div className="bg-fortnite-darker rounded-lg p-4 mb-4">
                     <div className="flex items-center justify-center space-x-2 mb-2">
-                      <Coins className="w-6 h-6 text-yellow-400" />
+                      <GoofyCoinIcon className="w-6 h-6 text-yellow-400" />
                       <span className="text-3xl font-bold text-yellow-400">{pkg.coins}</span>
                       <span className="text-gray-400">GoofyCoins</span>
                     </div>
@@ -322,7 +323,7 @@ export default function BuyGoofyCoinsPage() {
                 </p>
                 <div className="bg-fortnite-darker rounded-lg p-4 mb-6">
                   <div className="flex items-center justify-center space-x-2">
-                    <Coins className="w-6 h-6 text-yellow-400" />
+                    <GoofyCoinIcon className="w-6 h-6 text-yellow-400" />
                     <span className="text-yellow-400 font-semibold text-xl">{userCoins}</span>
                     <span className="text-gray-400">GoofyCoins</span>
                   </div>

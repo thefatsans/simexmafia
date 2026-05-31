@@ -7,7 +7,8 @@ import {
   getUserRankAsync,
   type LeaderboardEntry,
 } from '@/data/leaderboard'
-import { Trophy, Medal, Award, Crown, Gift, Coins, TrendingUp, Package, Star, Flame } from 'lucide-react'
+import { Trophy, Medal, Award, Crown, Gift, TrendingUp, Package, Star, Flame } from 'lucide-react'
+import GoofyCoinIcon from '@/components/GoofyCoinIcon'
 import { getSackByType } from '@/data/sacks'
 import { useAuth } from '@/contexts/AuthContext'
 import LoadingSpinner, { LoadingPage } from '@/components/LoadingSpinner'
@@ -96,7 +97,7 @@ export default function LeaderboardPage() {
       case 'products':
         return <Package className="w-6 h-6" />
       case 'coins':
-        return <Coins className="w-6 h-6" />
+        return <GoofyCoinIcon className="w-6 h-6" />
       case 'success':
         return <Star className="w-6 h-6" />
       default:
@@ -202,7 +203,7 @@ export default function LeaderboardPage() {
                 : 'bg-fortnite-dark border border-purple-500/20 text-gray-300 hover:border-purple-500/50'
             }`}
           >
-            <Coins className="w-5 h-5" />
+            <GoofyCoinIcon className="w-5 h-5" />
             <span>Meiste Coins</span>
           </button>
           <button
