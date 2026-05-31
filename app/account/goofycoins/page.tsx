@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Award, Gift, ArrowLeft, TrendingUp, Wallet } from 'lucide-react'
 import GoofyCoinIcon from '@/components/GoofyCoinIcon'
+import GoofyCoinPreview from '@/components/goofycoins/GoofyCoinPreview'
 import { mockRedemptionItems } from '@/data/user'
 import { getCoinTransactionsFromAPI } from '@/lib/api/goofycoins'
 import { CoinTransaction } from '@/types/user'
@@ -185,6 +186,8 @@ export default function GoofyCoinsPage() {
                 </p>
               </div>
             </div>
+
+            <GoofyCoinPreview />
 
             {/* How It Works */}
             <div className="bg-fortnite-dark border border-purple-500/20 rounded-lg p-6">
