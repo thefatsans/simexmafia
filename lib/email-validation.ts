@@ -1,34 +1,7 @@
+import { isDisposableEmailDomain } from '@/lib/disposable-email-domains'
+
 const EMAIL_REGEX =
   /^[a-z0-9](?:[a-z0-9._%+-]*[a-z0-9])?@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i
-
-/** Bekannte Wegwerf-/Alias-Domains (keine echten Postfächer) */
-const DISPOSABLE_DOMAINS = new Set([
-  'mailinator.com',
-  'guerrillamail.com',
-  'guerrillamail.de',
-  'guerrillamail.net',
-  '10minutemail.com',
-  'tempmail.com',
-  'temp-mail.org',
-  'throwaway.email',
-  'yopmail.com',
-  'trashmail.com',
-  'getnada.com',
-  'sharklasers.com',
-  'dispostable.com',
-  'maildrop.cc',
-  'fakeinbox.com',
-  'mintemail.com',
-  'emailondeck.com',
-  'tempail.com',
-  'mailnesia.com',
-  'spamgourmet.com',
-  'mytemp.email',
-  'tmpmail.net',
-  'tmpmail.org',
-  'moakt.com',
-  'inboxkitten.com',
-])
 
 export type EmailValidationResult =
   | { valid: true; email: string }
@@ -54,10 +27,11 @@ export function validateEmailForRegistration(email: string): EmailValidationResu
     return { valid: false, error: 'Ungültige E-Mail-Domain.' }
   }
 
-  if (DISPOSABLE_DOMAINS.has(domain)) {
+  if (isDisposableEmailDomain(domain)) {
     return {
       valid: false,
-      error: 'Wegwerf-E-Mail-Adressen sind nicht erlaubt. Bitte nutze eine echte E-Mail.',
+      error:
+        'Temporäre und Wegwerf-E-Mail-Adressen (z. B. 10-Minuten-Mail) sind nicht erlaubt. Bitte nutze eine echte E-Mail.',
     }
   }
 

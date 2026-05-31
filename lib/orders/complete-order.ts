@@ -2,6 +2,11 @@ import { prisma } from '@/lib/prisma'
 import { isSimexDiscordServerProduct } from '@/lib/products/simex-discord-server'
 import { sendOrderDeliveryEmailServer } from '@/lib/email-server'
 import { rewardReferral } from '@/lib/referral'
+import { resolveGoofyCoinsPackageCredit } from '@/lib/goofycoins/order-rewards'
+import {
+  VIRTUAL_GOOFYCOINS_PRODUCT_ID,
+  VIRTUAL_SACK_PRODUCT_ID,
+} from '@/lib/orders/virtual-product'
 import {
   productUsesKeyInventory,
   reserveKeysForOrderItem,
@@ -146,6 +151,9 @@ export async function completeOrder(
     for (const item of order.items) {
       const productId = item.productId
       if (!productId) continue
+      if (productId === VIRTUAL_SACK_PRODUCT_ID || productId === VIRTUAL_GOOFYCOINS_PRODUCT_ID) {
+        continue
+      }
       const exists = await tx.inventoryItem.findFirst({
         where: { userId: order.userId, productId, orderId: order.id },
         select: { id: true },
@@ -187,6 +195,40 @@ export async function completeOrder(
             amount: order.coinsEarned,
             balance: updatedUser.goofyCoins,
             description: `Order ${order.id} completed`,
+            orderId: order.id,
+          },
+        })
+      }
+    }
+
+    let packageCoinsTotal = 0
+    for (const item of order.items) {
+      if (item.type !== 'goofycoins') continue
+      packageCoinsTotal += resolveGoofyCoinsPackageCredit(item.metadata)
+    }
+
+    if (packageCoinsTotal > 0) {
+      const alreadyPackageCredit = await tx.coinTransaction.findFirst({
+        where: {
+          orderId: order.id,
+          type: 'earned',
+          description: { contains: 'GoofyCoins package purchase' },
+        },
+        select: { id: true },
+      })
+      if (!alreadyPackageCredit) {
+        const updatedUser = await tx.user.update({
+          where: { id: order.userId },
+          data: { goofyCoins: { increment: packageCoinsTotal } },
+          select: { goofyCoins: true },
+        })
+        await tx.coinTransaction.create({
+          data: {
+            userId: order.userId,
+            type: 'earned',
+            amount: packageCoinsTotal,
+            balance: updatedUser.goofyCoins,
+            description: `GoofyCoins package purchase (Order ${order.id})`,
             orderId: order.id,
           },
         })

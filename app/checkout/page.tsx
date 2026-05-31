@@ -879,7 +879,6 @@ export default function CheckoutPage() {
                     Bestellung <span className="text-purple-400">{stripeOrderId}</span> – Kartendaten eingeben:
                   </p>
                   <StripeCheckoutSection
-                    amount={finalTotal}
                     orderId={stripeOrderId}
                     onSuccess={handleStripePaymentSuccess}
                     onError={(msg) => showError(msg)}

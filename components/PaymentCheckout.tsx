@@ -261,7 +261,6 @@ export default function PaymentCheckout({
               eingeben:
             </p>
             <StripeCheckoutSection
-              amount={finalTotal}
               orderId={stripeOrder.id}
               onSuccess={handleStripeSuccess}
               onError={(msg) => showError(msg)}

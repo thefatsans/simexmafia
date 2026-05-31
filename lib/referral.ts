@@ -80,55 +80,50 @@ export async function rewardReferral(
   inviteeReward: number
 ): Promise<void> {
   if (!prisma) return
-  const user = await prisma.user.findUnique({
-    where: { id: newUserId },
-    select: {
-      id: true,
-      referredById: true,
-      referralRewardGiven: true,
-    },
-  })
-  if (!user || !user.referredById || user.referralRewardGiven) return
 
-  const inviter = await prisma.user.findUnique({
-    where: { id: user.referredById },
-    select: { id: true, goofyCoins: true },
-  })
-  if (!inviter) return
+  await prisma.$transaction(async (tx) => {
+    const claim = await tx.user.updateMany({
+      where: {
+        id: newUserId,
+        referredById: { not: null },
+        referralRewardGiven: false,
+      },
+      data: { referralRewardGiven: true, goofyCoins: { increment: inviteeReward } },
+    })
 
-  const newInviterBalance = inviter.goofyCoins + inviterReward
-  const inviteeAfter = await prisma.user.update({
-    where: { id: newUserId },
-    data: {
-      goofyCoins: { increment: inviteeReward },
-      referralRewardGiven: true,
-    },
-    select: { goofyCoins: true },
-  })
+    if (claim.count === 0) return
 
-  await prisma.user.update({
-    where: { id: inviter.id },
-    data: { goofyCoins: newInviterBalance },
-  })
+    const user = await tx.user.findUnique({
+      where: { id: newUserId },
+      select: { referredById: true, goofyCoins: true },
+    })
+    if (!user?.referredById) return
 
-  await prisma.coinTransaction.create({
-    data: {
-      userId: inviter.id,
-      type: 'earned',
-      amount: inviterReward,
-      balance: newInviterBalance,
-      description: `Referral-Bonus für eingeladenen Nutzer ${newUserId}`,
-    },
-  })
+    const inviter = await tx.user.update({
+      where: { id: user.referredById },
+      data: { goofyCoins: { increment: inviterReward } },
+      select: { goofyCoins: true },
+    })
 
-  await prisma.coinTransaction.create({
-    data: {
-      userId: newUserId,
-      type: 'earned',
-      amount: inviteeReward,
-      balance: inviteeAfter.goofyCoins,
-      description: 'Referral-Bonus (Einladungscode verwendet)',
-    },
+    await tx.coinTransaction.create({
+      data: {
+        userId: user.referredById,
+        type: 'earned',
+        amount: inviterReward,
+        balance: inviter.goofyCoins,
+        description: `Referral-Bonus für eingeladenen Nutzer ${newUserId}`,
+      },
+    })
+
+    await tx.coinTransaction.create({
+      data: {
+        userId: newUserId,
+        type: 'earned',
+        amount: inviteeReward,
+        balance: user.goofyCoins,
+        description: 'Referral-Bonus (Einladungscode verwendet)',
+      },
+    })
   })
 }
 

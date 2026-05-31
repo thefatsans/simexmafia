@@ -240,3 +240,170 @@ export async function sendSackRedemptionFulfilledEmail(
     html,
   })
 }
+
+function emailShell(title: string, bodyHtml: string, gradient = 'linear-gradient(135deg,#7c3aed 0%,#ec4899 100%)') {
+  const siteUrl = getSiteUrl()
+  return `
+    <!DOCTYPE html>
+    <html><head><meta charset="utf-8"></head>
+    <body style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;background:#0b1020">
+      <div style="background:${gradient};padding:20px;text-align:center;border-radius:10px 10px 0 0">
+        <h1 style="color:white;margin:0;font-size:22px">${title}</h1>
+      </div>
+      <div style="background:#111827;padding:24px;border-radius:0 0 10px 10px;color:#e5e7eb">
+        ${bodyHtml}
+        <p style="font-size:12px;color:#9ca3af;margin-top:24px">Fragen? <a href="mailto:${SUPPORT_EMAIL}" style="color:#a5b4fc">${SUPPORT_EMAIL}</a></p>
+      </div>
+      <p style="text-align:center;font-size:11px;color:#6b7280;margin-top:12px"><a href="${siteUrl}" style="color:#a5b4fc">${siteUrl}</a></p>
+    </body></html>
+  `
+}
+
+export async function sendSackGiftReceivedEmail(options: {
+  recipientEmail: string
+  recipientName: string
+  senderName: string
+  sackName: string
+  message?: string | null
+}) {
+  const messageBlock = options.message
+    ? `<p style="background:#0f172a;border-left:3px solid #a855f7;padding:12px 16px;border-radius:4px;color:#d1d5db"><em>„${options.message}“</em></p>`
+    : ''
+
+  const html = emailShell(
+    '🎁 Du hast einen Sack geschenkt bekommen!',
+    `
+      <p>Hallo ${options.recipientName || 'Spieler'},</p>
+      <p><strong>${options.senderName}</strong> hat dir einen <strong>${options.sackName}</strong> geschenkt!</p>
+      ${messageBlock}
+      <p>Öffne dein Geschenk auf der Säcke-Seite und finde heraus, was drin ist.</p>
+      <p style="text-align:center;margin-top:20px">
+        <a href="${sitePath('/sacks')}" style="background:#7c3aed;color:white;padding:12px 22px;text-decoration:none;border-radius:6px;font-weight:bold">Geschenk öffnen</a>
+      </p>
+    `
+  )
+
+  return sendEmailViaResend({
+    to: options.recipientEmail,
+    subject: `🎁 ${options.senderName} hat dir einen ${options.sackName} geschenkt!`,
+    html,
+  })
+}
+
+export async function sendCashoutSubmittedEmail(options: {
+  email: string
+  firstName: string
+  euroAmount: number
+  coinsAmount: number
+  variantLabel: string
+}) {
+  const html = emailShell(
+    'Umtausch-Anfrage eingegangen',
+    `
+      <p>Hallo ${options.firstName || 'Spieler'},</p>
+      <p>wir haben deine Umtausch-Anfrage erhalten:</p>
+      <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px;margin:16px 0">
+        <p style="margin:0"><strong>${options.euroAmount.toFixed(2)}€</strong> · ${options.variantLabel}</p>
+        <p style="margin:8px 0 0;color:#9ca3af;font-size:14px">${options.coinsAmount.toLocaleString('de-DE')} GoofyCoins wurden reserviert</p>
+      </div>
+      <p>Wir bearbeiten deine Anfrage so schnell wie möglich. Du erhältst eine E-Mail, sobald die Auszahlung abgeschlossen ist.</p>
+      <p style="text-align:center;margin-top:20px">
+        <a href="${sitePath('/goofycoins/cashout')}" style="background:#10b981;color:white;padding:12px 22px;text-decoration:none;border-radius:6px;font-weight:bold">Anfragen ansehen</a>
+      </p>
+    `,
+    'linear-gradient(135deg,#10b981 0%,#059669 100%)'
+  )
+
+  return sendEmailViaResend({
+    to: options.email,
+    subject: `Umtausch-Anfrage über ${options.euroAmount.toFixed(2)}€ eingegangen`,
+    html,
+  })
+}
+
+export async function sendCashoutCompletedEmail(options: {
+  email: string
+  firstName: string
+  euroAmount: number
+  variantLabel: string
+}) {
+  const html = emailShell(
+    'Auszahlung abgeschlossen ✅',
+    `
+      <p>Hallo ${options.firstName || 'Spieler'},</p>
+      <p>deine Umtausch-Anfrage über <strong>${options.euroAmount.toFixed(2)}€</strong> (${options.variantLabel}) wurde erfolgreich bearbeitet.</p>
+      <p>Je nach Auszahlungsart kann es noch 1–3 Werktage dauern, bis der Betrag bei dir ankommt.</p>
+    `,
+    'linear-gradient(135deg,#10b981 0%,#059669 100%)'
+  )
+
+  return sendEmailViaResend({
+    to: options.email,
+    subject: `✅ Auszahlung über ${options.euroAmount.toFixed(2)}€ abgeschlossen`,
+    html,
+  })
+}
+
+export async function sendCashoutRejectedEmail(options: {
+  email: string
+  firstName: string
+  euroAmount: number
+  coinsAmount: number
+  adminNotes?: string | null
+}) {
+  const notesBlock = options.adminNotes
+    ? `<p style="color:#9ca3af;font-size:14px">Hinweis: ${options.adminNotes}</p>`
+    : ''
+
+  const html = emailShell(
+    'Umtausch abgelehnt',
+    `
+      <p>Hallo ${options.firstName || 'Spieler'},</p>
+      <p>deine Umtausch-Anfrage über <strong>${options.euroAmount.toFixed(2)}€</strong> konnte leider nicht bearbeitet werden.</p>
+      ${notesBlock}
+      <p>Die <strong>${options.coinsAmount.toLocaleString('de-DE')} GoofyCoins</strong> wurden deinem Konto wieder gutgeschrieben.</p>
+      <p style="text-align:center;margin-top:20px">
+        <a href="${sitePath('/goofycoins/cashout')}" style="background:#7c3aed;color:white;padding:12px 22px;text-decoration:none;border-radius:6px;font-weight:bold">Neue Anfrage stellen</a>
+      </p>
+    `,
+    'linear-gradient(135deg,#ef4444 0%,#b91c1c 100%)'
+  )
+
+  return sendEmailViaResend({
+    to: options.email,
+    subject: `Umtausch-Anfrage über ${options.euroAmount.toFixed(2)}€ abgelehnt – Coins zurückerstattet`,
+    html,
+  })
+}
+
+const ADMIN_NOTIFY_EMAIL =
+  process.env.ADMIN_NOTIFY_EMAIL?.trim() || 'admin@simexmafia.de'
+
+export async function sendCashoutAdminNotificationEmail(options: {
+  userName: string
+  userEmail: string
+  euroAmount: number
+  coinsAmount: number
+  variantLabel: string
+  cashoutId: string
+}) {
+  const html = emailShell(
+    'Neue Umtausch-Anfrage',
+    `
+      <p>Neue GoofyCoins-Umtausch-Anfrage von <strong>${options.userName}</strong> (${options.userEmail}):</p>
+      <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px;margin:16px 0">
+        <p style="margin:0"><strong>${options.euroAmount.toFixed(2)}€</strong> · ${options.variantLabel}</p>
+        <p style="margin:8px 0 0;color:#9ca3af;font-size:14px">${options.coinsAmount.toLocaleString('de-DE')} Coins · ID: ${options.cashoutId}</p>
+      </div>
+      <p style="text-align:center;margin-top:20px">
+        <a href="${sitePath('/admin/goofycoins-cashouts')}" style="background:#7c3aed;color:white;padding:12px 22px;text-decoration:none;border-radius:6px;font-weight:bold">Im Admin bearbeiten</a>
+      </p>
+    `
+  )
+
+  return sendEmailViaResend({
+    to: ADMIN_NOTIFY_EMAIL,
+    subject: `💰 Neue Umtausch-Anfrage: ${options.euroAmount.toFixed(2)}€ von ${options.userName}`,
+    html,
+  })
+}

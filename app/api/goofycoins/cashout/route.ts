@@ -8,6 +8,12 @@ import {
   validateCashoutAmount,
 } from '@/lib/goofycoins/cashout'
 import { mapCashoutForUser } from '@/lib/goofycoins/map-cashout'
+import {
+  sendCashoutAdminNotificationEmail,
+  sendCashoutSubmittedEmail,
+} from '@/lib/email-server'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { MAX_PENDING_CASHOUTS } from '@/lib/security/limits'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,6 +59,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const cashoutLimit = await checkRateLimit(
+      `cashout:user:${authResult.user.id}`,
+      3,
+      24 * 60 * 60 * 1000
+    )
+    if (!cashoutLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Zu viele Umtausch-Anfragen. Bitte morgen erneut versuchen.' },
+        { status: 429 }
+      )
+    }
+
     const body = await request.json()
     const euroAmount = Number(body.euroAmount)
     const variant = normalizeCashoutVariant(body.variant)
@@ -108,6 +126,13 @@ export async function POST(request: NextRequest) {
         throw new Error('EMAIL_NOT_VERIFIED')
       }
 
+      const pendingCount = await tx.goofyCoinCashout.count({
+        where: { userId: authResult.user.id, status: 'pending' },
+      })
+      if (pendingCount >= MAX_PENDING_CASHOUTS) {
+        throw new Error('TOO_MANY_PENDING')
+      }
+
       if (dbUser.goofyCoins < coinsAmount) {
         throw new Error('INSUFFICIENT_COINS')
       }
@@ -150,6 +175,23 @@ export async function POST(request: NextRequest) {
       return { cashout, newBalance: updatedUser.goofyCoins }
     })
 
+    sendCashoutSubmittedEmail({
+      email,
+      firstName: authResult.user.firstName || fullName.split(' ')[0] || 'Spieler',
+      euroAmount,
+      coinsAmount,
+      variantLabel,
+    }).catch((err) => console.error('[GoofyCoin Cashout] User email failed:', err))
+
+    sendCashoutAdminNotificationEmail({
+      userName: fullName,
+      userEmail: email,
+      euroAmount,
+      coinsAmount,
+      variantLabel,
+      cashoutId: result.cashout.id,
+    }).catch((err) => console.error('[GoofyCoin Cashout] Admin email failed:', err))
+
     return NextResponse.json({
       success: true,
       cashout: mapCashoutForUser(result.cashout),
@@ -171,6 +213,12 @@ export async function POST(request: NextRequest) {
     }
     if (message === 'INSUFFICIENT_COINS') {
       return NextResponse.json({ error: 'Nicht genügend GoofyCoins' }, { status: 400 })
+    }
+    if (message === 'TOO_MANY_PENDING') {
+      return NextResponse.json(
+        { error: `Maximal ${MAX_PENDING_CASHOUTS} offene Umtausch-Anfragen gleichzeitig.` },
+        { status: 400 }
+      )
     }
 
     console.error('[GoofyCoin Cashout POST]', error)

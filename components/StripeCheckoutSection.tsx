@@ -7,21 +7,18 @@ import { getStripe } from '@/lib/stripe'
 import StripePaymentForm from '@/components/StripePaymentForm'
 
 interface StripeCheckoutSectionProps {
-  amount: number
   orderId: string
-  metadata?: Record<string, string>
   onSuccess: (paymentIntentId: string) => void
   onError: (error: string) => void
 }
 
 export default function StripeCheckoutSection({
-  amount,
   orderId,
-  metadata = {},
   onSuccess,
   onError,
 }: StripeCheckoutSectionProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null)
+  const [displayAmount, setDisplayAmount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,11 +31,7 @@ export default function StripeCheckoutSection({
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount,
-            currency: 'eur',
-            metadata: { orderId, ...metadata },
-          }),
+          body: JSON.stringify({ orderId }),
         })
 
         const data = await response.json()
@@ -48,6 +41,9 @@ export default function StripeCheckoutSection({
 
         if (!cancelled) {
           setClientSecret(data.clientSecret)
+          if (typeof data.amount === 'number') {
+            setDisplayAmount(data.amount)
+          }
         }
       } catch (err: unknown) {
         const message =
@@ -68,7 +64,7 @@ export default function StripeCheckoutSection({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- metadata/onError intentionally omitted
-  }, [amount, orderId])
+  }, [orderId])
 
   if (loading) {
     return (
@@ -109,7 +105,7 @@ export default function StripeCheckoutSection({
     >
       <StripePaymentForm
         clientSecret={clientSecret}
-        amount={amount}
+        amount={displayAmount ?? 0}
         orderId={orderId}
         onSuccess={onSuccess}
         onError={onError}

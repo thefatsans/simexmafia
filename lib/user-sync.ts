@@ -91,7 +91,7 @@ export async function ensureUserInDatabase(
         firstName,
         lastName,
         avatar: profile.avatar || null,
-        goofyCoins: profile.goofyCoins ?? 0,
+        goofyCoins: 0,
         totalSpent: 0,
         tier: 'Bronze',
         isAdmin,

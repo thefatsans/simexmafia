@@ -5,6 +5,8 @@ import { dbUserToClientUser, publicUserSelect } from '@/lib/auth-user'
 import { isAdmin as isAdminByEmail } from '@/data/admin'
 import { setSessionCookie } from '@/lib/api-session'
 import { ensureReferralCode } from '@/lib/referral'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { getClientIp } from '@/lib/request-ip'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +18,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'E-Mail und Passwort sind erforderlich' },
         { status: 400 }
+      )
+    }
+
+    const ip = getClientIp(request)
+    const loginLimit = await checkRateLimit(`auth:login:ip:${ip}`, 15, 15 * 60 * 1000)
+    if (!loginLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Zu viele Anmeldeversuche. Bitte in 15 Minuten erneut versuchen.' },
+        { status: 429 }
       )
     }
 

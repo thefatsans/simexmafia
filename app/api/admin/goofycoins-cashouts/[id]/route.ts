@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/api-auth'
+import { CASHOUT_VARIANTS } from '@/lib/goofycoins/cashout'
+import {
+  sendCashoutCompletedEmail,
+  sendCashoutRejectedEmail,
+} from '@/lib/email-server'
 
 const VALID_ACTIONS = new Set(['complete', 'reject'])
 
@@ -29,6 +34,11 @@ export async function PATCH(
 
     const existing = await prisma.goofyCoinCashout.findUnique({
       where: { id },
+      include: {
+        user: {
+          select: { email: true, firstName: true, lastName: true },
+        },
+      },
     })
 
     if (!existing) {
@@ -48,6 +58,18 @@ export async function PATCH(
           processedAt: new Date(),
         },
       })
+
+      if (existing.user?.email) {
+        const variantLabel =
+          CASHOUT_VARIANTS[existing.variant as keyof typeof CASHOUT_VARIANTS]?.label ??
+          existing.variant
+        sendCashoutCompletedEmail({
+          email: existing.user.email,
+          firstName: existing.user.firstName || existing.fullName,
+          euroAmount: existing.euroAmount,
+          variantLabel,
+        }).catch((err) => console.error('[Cashout complete] Email failed:', err))
+      }
 
       return NextResponse.json({
         success: true,
@@ -85,6 +107,16 @@ export async function PATCH(
         },
       })
     })
+
+    if (existing.user?.email) {
+      sendCashoutRejectedEmail({
+        email: existing.user.email,
+        firstName: existing.user.firstName || existing.fullName,
+        euroAmount: existing.euroAmount,
+        coinsAmount: existing.coinsAmount,
+        adminNotes,
+      }).catch((err) => console.error('[Cashout reject] Email failed:', err))
+    }
 
     return NextResponse.json({
       success: true,

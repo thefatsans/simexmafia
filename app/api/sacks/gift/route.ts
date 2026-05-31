@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSecureSession } from '@/lib/api-auth'
 import { sackTypes } from '@/data/sacks'
+import { sendSackGiftReceivedEmail } from '@/lib/email-server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     const sender = await prisma.user.findUnique({
       where: { id: authResult.user.id },
-      select: { id: true, email: true, goofyCoins: true, emailVerified: true, firstName: true },
+      select: { id: true, email: true, goofyCoins: true, emailVerified: true, firstName: true, lastName: true },
     })
 
     if (!sender) {
@@ -119,6 +120,19 @@ export async function POST(request: NextRequest) {
 
       return { gift, newBalance: updatedSender.goofyCoins }
     })
+
+    const senderName =
+      `${sender.firstName || ''} ${sender.lastName || ''}`.trim() ||
+      sender.email.split('@')[0]
+    const recipientName = `${recipient.firstName} ${recipient.lastName}`.trim() || recipient.email.split('@')[0]
+
+    sendSackGiftReceivedEmail({
+      recipientEmail: recipient.email,
+      recipientName,
+      senderName,
+      sackName: sack.name,
+      message,
+    }).catch((err) => console.error('[Sacks Gift] Email failed:', err))
 
     return NextResponse.json({
       success: true,

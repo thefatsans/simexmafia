@@ -4,9 +4,9 @@ import { hashPassword, isDatabaseConnectionError } from '@/lib/password'
 import { isAdmin as isAdminByEmail } from '@/data/admin'
 import { validateEmailForRegistration } from '@/lib/email-validation'
 import { issueEmailVerificationCode } from '@/lib/auth-email'
-import { checkRateLimit } from '@/lib/rate-limit'
-import { getClientIp } from '@/lib/request-ip'
 import { isTurnstileEnabled, verifyTurnstile } from '@/lib/captcha'
+import { getClientIp } from '@/lib/request-ip'
+import { assertRegistrationAllowed } from '@/lib/security/limits'
 import {
   ensureReferralCode,
   redeemReferralCode,
@@ -63,13 +63,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const ipLimit = await checkRateLimit(`register:ip:${ip}`, 5, 60 * 60 * 1000)
-    if (!ipLimit.allowed) {
+    const registrationLimit = await assertRegistrationAllowed(request)
+    if (!registrationLimit.allowed) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Zu viele Registrierungen von dieser Verbindung. Bitte später erneut.',
-        },
+        { success: false, error: registrationLimit.error },
         { status: 429 }
       )
     }

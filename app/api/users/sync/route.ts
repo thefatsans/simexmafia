@@ -1,18 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ensureUserInDatabase } from '@/lib/user-sync'
+import { requireSecureSession } from '@/lib/api-auth'
 
 /**
- * POST /api/users/sync - Ensures a localStorage user exists in the database
+ * POST /api/users/sync - Ensures a session user exists in the database
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireSecureSession(request)
+    if (!authResult || authResult.error) {
+      return authResult?.error || NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     if (!prisma) {
       return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
 
     const body = await request.json()
-    const { userId, email, firstName, lastName, goofyCoins, avatar, passwordHash } = body
+    const { userId, email, firstName, lastName, avatar, passwordHash } = body
+
+    if (userId !== authResult.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     if (!userId || !email || !firstName || !lastName) {
       return NextResponse.json(
@@ -26,7 +36,6 @@ export async function POST(request: NextRequest) {
       email,
       firstName,
       lastName,
-      goofyCoins,
       avatar,
     })
 
@@ -34,7 +43,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to sync user' }, { status: 500 })
     }
 
-    // Legacy: Passwort aus localStorage in DB übernehmen, falls noch keines gesetzt
     if (passwordHash && prisma) {
       const existing = await prisma.user.findUnique({
         where: { id: user.id },

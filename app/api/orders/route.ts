@@ -5,6 +5,10 @@ import { ensureUserInDatabase } from '@/lib/user-sync'
 import { completeOrder } from '@/lib/orders/complete-order'
 import { sendOrderConfirmationEmailServer } from '@/lib/email-server'
 import { ADMIN_ORDER_ITEM_SELECT } from '@/lib/admin/load-orders'
+import { resolveOrderItems } from '@/lib/orders/resolve-order-items'
+import { calculateServerOrderCoinsEarned } from '@/lib/goofycoins/order-rewards'
+import type { Prisma } from '@prisma/client'
+import type { Tier } from '@/types/user'
 
 const ADMIN_ORDERS_CACHE_HEADERS = {
   'Cache-Control': 'private, max-age=10',
@@ -177,7 +181,6 @@ export async function POST(request: NextRequest) {
       discount,
       total,
       paymentMethod,
-      coinsEarned,
       discountCode,
     } = body
 
@@ -212,6 +215,7 @@ export async function POST(request: NextRequest) {
         email: true,
         firstName: true,
         lastName: true,
+        tier: true,
       },
     })
 
@@ -221,7 +225,6 @@ export async function POST(request: NextRequest) {
         email: authenticatedUser.email,
         firstName: authenticatedUser.firstName,
         lastName: authenticatedUser.lastName,
-        goofyCoins: authenticatedUser.goofyCoins,
       })
       if (!synced) {
         return NextResponse.json(
@@ -232,57 +235,25 @@ export async function POST(request: NextRequest) {
       dbUser = synced
     }
 
-    const orderItemsData = []
+    const resolved = await resolveOrderItems(db, items)
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: resolved.status })
+    }
+    const orderItemsData = resolved.items
 
-    for (const item of items) {
-      const productId = item.productId || item.id
-      const product = await db.product.findUnique({ where: { id: productId } })
-
-      if (!product) {
-        return NextResponse.json(
-          { error: `Product not found: ${productId}` },
-          { status: 404 }
-        )
-      }
-
-      const clientPrice = parseFloat(item.price || 0)
-      const dbPrice = parseFloat(product.price.toString())
-      const priceDifference = Math.abs(clientPrice - dbPrice)
-      const maxDifference = dbPrice * 0.01
-
-      if (priceDifference > maxDifference && priceDifference > 0.01) {
-        console.warn(
-          `[Orders API] Price mismatch for product ${productId}: client=${clientPrice}, db=${dbPrice}`
-        )
-      }
-
-      const quantity = parseInt(item.quantity || 1, 10)
-      const { productUsesKeyInventory, countAvailableKeys } = await import(
-        '@/lib/product-keys/stock'
+    const hasGoofyCoinsPurchase = orderItemsData.some((item) => item.type === 'goofycoins')
+    const hasSackPurchase = orderItemsData.some((item) => item.type === 'sack')
+    if (hasGoofyCoinsPurchase && paymentMethod === 'goofycoins') {
+      return NextResponse.json(
+        { error: 'GoofyCoins packages cannot be paid with GoofyCoins' },
+        { status: 400 }
       )
-      if (await productUsesKeyInventory(product.id)) {
-        const available = await countAvailableKeys(product.id)
-        if (quantity > available) {
-          return NextResponse.json(
-            {
-              error:
-                available === 0
-                  ? `${product.name} ist derzeit ausverkauft.`
-                  : `Nur noch ${available} Stück von „${product.name}“ verfügbar.`,
-            },
-            { status: 400 }
-          )
-        }
-      }
-
-      orderItemsData.push({
-        productId: product.id,
-        type: item.type || 'product',
-        name: product.name,
-        price: dbPrice,
-        quantity,
-        metadata: item.metadata || null,
-      })
+    }
+    if ((hasGoofyCoinsPurchase || hasSackPurchase) && paymentMethod === 'cash') {
+      return NextResponse.json(
+        { error: 'This payment method is not available for this order type' },
+        { status: 400 }
+      )
     }
 
     // WICHTIG: Berechne Total serverseitig neu mit validierten Preisen
@@ -320,6 +291,12 @@ export async function POST(request: NextRequest) {
     }
 
     const validatedTotal = Math.max(0, validatedSubtotal + validatedServiceFee - validatedDiscount)
+    const serverPaymentMethod = paymentMethod || 'credit-card'
+    const serverCoinsEarned = calculateServerOrderCoinsEarned(
+      validatedTotal,
+      (dbUser.tier as Tier) || 'Bronze',
+      serverPaymentMethod
+    )
 
     // Prüfe ob berechneter Total mit Client-Total übereinstimmt (mit Toleranz)
     const clientTotal = parseFloat(total)
@@ -329,51 +306,97 @@ export async function POST(request: NextRequest) {
       // Verwende validierten Total
     }
 
-    // WICHTIG: Für GoofyCoins-Zahlung: Validiere Balance serverseitig (aber ziehe erst nach Order-Erstellung ab)
-    let requiredCoins = 0
-    if (paymentMethod === 'goofycoins') {
-      requiredCoins = Math.ceil(validatedTotal * 100) // 1 EUR = 100 Coins
-      
-      if (dbUser.goofyCoins < requiredCoins) {
-        return NextResponse.json(
-          { error: 'Insufficient GoofyCoins', currentBalance: dbUser.goofyCoins, required: requiredCoins },
-          { status: 400 }
-        )
-      }
-    }
+    // WICHTIG: Für GoofyCoins-Zahlung: atomar prüfen und abbuchen
+    const requiredCoins =
+      serverPaymentMethod === 'goofycoins' ? Math.ceil(validatedTotal * 100) : 0
 
-    // Erstelle Bestellung mit Items (verwende validierte Werte)
-    const order = await prisma.order.create({
-      data: {
-        userId,
-        subtotal: validatedSubtotal,
-        serviceFee: validatedServiceFee,
-        discount: validatedDiscount,
-        total: validatedTotal, // Verwende validierten Total
-        paymentMethod: paymentMethod || 'credit-card',
-        coinsEarned: coinsEarned ? parseInt(coinsEarned) : 0,
-        discountCode: serverDiscountCode,
-        status: 'pending',
-        items: {
-          create: orderItemsData,
-        },
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
+    const order = await db.$transaction(async (tx) => {
+      if (serverPaymentMethod === 'goofycoins') {
+        const payResult = await tx.user.updateMany({
+          where: { id: userId, goofyCoins: { gte: requiredCoins } },
+          data: { goofyCoins: { decrement: requiredCoins } },
+        })
+        if (payResult.count === 0) {
+          throw new Error('INSUFFICIENT_GOOFYCOINS')
+        }
+      }
+
+      const created = await tx.order.create({
+        data: {
+          userId,
+          subtotal: validatedSubtotal,
+          serviceFee: validatedServiceFee,
+          discount: validatedDiscount,
+          total: validatedTotal,
+          paymentMethod: serverPaymentMethod,
+          coinsEarned: serverCoinsEarned,
+          discountCode: serverDiscountCode,
+          status: 'pending',
+          items: {
+            create: orderItemsData.map(
+              (item): Prisma.OrderItemUncheckedCreateWithoutOrderInput => ({
+                productId: item.productId,
+                type: item.type,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                metadata: item.metadata as Prisma.InputJsonValue | undefined,
+              })
+            ),
           },
         },
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
           },
         },
-      },
+      })
+
+      if (serverPaymentMethod === 'goofycoins') {
+        const userAfter = await tx.user.findUnique({
+          where: { id: userId },
+          select: { goofyCoins: true },
+        })
+        await tx.coinTransaction.create({
+          data: {
+            userId,
+            type: 'spent',
+            amount: -requiredCoins,
+            balance: userAfter?.goofyCoins ?? 0,
+            description: `Order ${created.id} (GoofyCoins payment)`,
+            orderId: created.id,
+          },
+        })
+      }
+
+      return created
+    }).catch((err: Error) => {
+      if (err.message === 'INSUFFICIENT_GOOFYCOINS') {
+        return null
+      }
+      throw err
     })
+
+    if (!order) {
+      return NextResponse.json(
+        {
+          error: 'Insufficient GoofyCoins',
+          currentBalance: dbUser.goofyCoins,
+          required: requiredCoins,
+        },
+        { status: 400 }
+      )
+    }
 
     // Rabattcode-Nutzung hochzählen
     if (serverDiscountCode && prisma) {
@@ -383,58 +406,11 @@ export async function POST(request: NextRequest) {
       }).catch((err) => console.error('[Orders API] Failed to increment discount usage:', err))
     }
 
-    if (paymentMethod === 'goofycoins') {
+    if (serverPaymentMethod === 'goofycoins') {
       try {
-        await db.user.update({
-          where: { id: userId },
-          data: { goofyCoins: { decrement: requiredCoins } },
-        })
-        const userAfter = await db.user.findUnique({
-          where: { id: userId },
-          select: { goofyCoins: true },
-        })
-        await db.coinTransaction.create({
-          data: {
-            userId,
-            type: 'spent',
-            amount: -requiredCoins,
-            balance: userAfter?.goofyCoins ?? 0,
-            description: `Order ${order.id} (GoofyCoins payment)`,
-            orderId: order.id,
-          },
-        })
         await completeOrder(order.id, 'goofycoins')
       } catch (err) {
         console.error('[Orders API] GoofyCoins completion error:', err)
-      }
-    }
-
-    if (coinsEarned > 0) {
-      await db.user.update({
-        where: { id: userId },
-        data: {
-          goofyCoins: {
-            increment: coinsEarned,
-          },
-          totalSpent: {
-            increment: parseFloat(total),
-          },
-        },
-      })
-
-      // Erstelle Coin Transaction
-      const user = await db.user.findUnique({ where: { id: userId } })
-      if (user) {
-        await db.coinTransaction.create({
-          data: {
-            userId,
-            type: 'earned',
-            amount: coinsEarned,
-            balance: user.goofyCoins + coinsEarned,
-            description: `Earned from order ${order.id}`,
-            orderId: order.id,
-          },
-        })
       }
     }
 

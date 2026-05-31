@@ -21,12 +21,10 @@ export async function POST(
     }
 
     const { id } = await params
+    const userId = authResult.user.id
 
-    const gift = await prisma.sackGift.findUnique({
-      where: { id },
-    })
-
-    if (!gift || gift.recipientId !== authResult.user.id) {
+    const gift = await prisma.sackGift.findUnique({ where: { id } })
+    if (!gift || gift.recipientId !== userId) {
       return NextResponse.json({ success: false, error: 'Geschenk nicht gefunden' }, { status: 404 })
     }
 
@@ -35,7 +33,7 @@ export async function POST(
     }
 
     const recipient = await prisma.user.findUnique({
-      where: { id: authResult.user.id },
+      where: { id: userId },
       select: { id: true, emailVerified: true },
     })
 
@@ -69,8 +67,16 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Ungültiger Sack-Typ' }, { status: 400 })
     }
 
-    const reward = openSack(sack)
+    const claim = await prisma.sackGift.updateMany({
+      where: { id, recipientId: userId, status: 'pending' },
+      data: { status: 'opened', openedAt: new Date() },
+    })
 
+    if (claim.count === 0) {
+      return NextResponse.json({ success: false, error: 'Dieses Geschenk wurde bereits geöffnet' }, { status: 400 })
+    }
+
+    const reward = openSack(sack)
     const newBalance = await applySackRewardToUser(
       recipient.id,
       {
@@ -83,11 +89,6 @@ export async function POST(
       gift.purchaseMethod as 'coins' | 'money',
       gift.pricePaid
     )
-
-    await prisma.sackGift.update({
-      where: { id: gift.id },
-      data: { status: 'opened', openedAt: new Date() },
-    })
 
     return NextResponse.json({
       success: true,

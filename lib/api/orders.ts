@@ -111,6 +111,7 @@ export async function createOrderAPI(orderData: {
     const url = API_BASE_URL ? `${API_BASE_URL}/api/orders` : `/api/orders`
     const response = await fetch(url, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },

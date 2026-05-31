@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { dbUserToClientUser, publicUserSelect } from '@/lib/auth-user'
 import { isAdmin as isAdminByEmail } from '@/data/admin'
 import { setSessionCookie } from '@/lib/api-session'
+import { validateEmailForRegistration } from '@/lib/email-validation'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { getClientIp } from '@/lib/request-ip'
+import { assertRegistrationAllowed } from '@/lib/security/limits'
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,12 +15,21 @@ export async function POST(request: NextRequest) {
     const name = (body.name as string | undefined)?.trim() || 'User'
     const picture = body.picture as string | undefined
 
-    if (!email) {
+    const emailCheck = validateEmailForRegistration(email || '')
+    if (!emailCheck.valid) {
+      return NextResponse.json({ success: false, error: emailCheck.error }, { status: 400 })
+    }
+
+    const ip = getClientIp(request)
+    const loginLimit = await checkRateLimit(`auth:google:ip:${ip}`, 20, 60 * 60 * 1000)
+    if (!loginLimit.allowed) {
       return NextResponse.json(
-        { success: false, error: 'E-Mail ist erforderlich' },
-        { status: 400 }
+        { success: false, error: 'Zu viele Anmeldeversuche. Bitte später erneut versuchen.' },
+        { status: 429 }
       )
     }
+
+    const normalizedEmail = emailCheck.email
 
     if (!prisma) {
       return NextResponse.json(
@@ -30,21 +43,26 @@ export async function POST(request: NextRequest) {
     const lastName = nameParts.slice(1).join(' ') || ''
 
     let user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       select: publicUserSelect,
     })
 
     if (!user) {
+      const registrationLimit = await assertRegistrationAllowed(request)
+      if (!registrationLimit.allowed) {
+        return NextResponse.json({ success: false, error: registrationLimit.error }, { status: 429 })
+      }
+
       user = await prisma.user.create({
         data: {
-          email,
+          email: normalizedEmail,
           firstName,
           lastName,
           avatar: picture || null,
           goofyCoins: 100,
           totalSpent: 0,
           tier: 'Bronze',
-          isAdmin: isAdminByEmail(email),
+          isAdmin: isAdminByEmail(normalizedEmail),
           emailVerified: true,
         },
         select: publicUserSelect,
