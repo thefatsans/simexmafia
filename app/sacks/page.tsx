@@ -44,7 +44,8 @@ export default function SacksPage() {
   const [possibleRewards, setPossibleRewards] = useState<Array<{ reward: SackReward; rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' }>>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isSpinning, setIsSpinning] = useState(false)
-  const [cardWidth, setCardWidth] = useState(304)
+  const [cardMetrics, setCardMetrics] = useState({ width: 304, gap: 12 })
+  const carouselRef = useRef<HTMLDivElement>(null)
   const animationFrameRef = useRef<number | null>(null)
   const startTimeRef = useRef<number | null>(null)
   const currentIndexRef = useRef(0)
@@ -218,16 +219,37 @@ export default function SacksPage() {
     }
   }, [])
 
-  // Responsive card width for the opening animation (mobile vs desktop)
+  // Carousel metrics from viewport (fullscreen opening animation)
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const updateCardWidth = () => {
-      setCardWidth(window.innerWidth < 640 ? 220 : 304)
+    if (!isOpening) return
+
+    const el = carouselRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+
+    const updateMetrics = () => {
+      const { width } = el.getBoundingClientRect()
+      const isMobile = width < 640
+      const gap = isMobile ? 10 : 16
+      const cardWidth = isMobile
+        ? Math.max(240, Math.min(width - 24, width * 0.86))
+        : Math.max(280, Math.min(360, width * 0.3))
+
+      setCardMetrics({
+        width: Math.round(cardWidth),
+        gap,
+      })
     }
-    updateCardWidth()
-    window.addEventListener('resize', updateCardWidth)
-    return () => window.removeEventListener('resize', updateCardWidth)
-  }, [])
+
+    updateMetrics()
+    const observer = new ResizeObserver(updateMetrics)
+    observer.observe(el)
+    window.addEventListener('orientationchange', updateMetrics)
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('orientationchange', updateMetrics)
+    }
+  }, [isOpening])
 
   // Show loading state while checking auth
   if (authLoading) {
@@ -680,29 +702,34 @@ export default function SacksPage() {
 
         {/* CS:GO Case Opening Animation */}
         {isOpening && selectedSack && possibleRewards.length > 0 && (
-          <div className="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-            <div className="w-full max-w-6xl">
-              {/* Header */}
-              <div className="text-center mb-8">
-                <h2 className="text-4xl font-bold text-white mb-2">{selectedSack.name} wird geöffnet...</h2>
-                <p className="text-gray-400">Karten rotieren...</p>
-              </div>
+          <div
+            className="fixed inset-0 z-[100] flex flex-col bg-black"
+            style={{
+              height: '100dvh',
+              paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+              paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+            }}
+          >
+            <div className="shrink-0 px-4 pb-2 sm:pb-4 text-center">
+              <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold text-white mb-1 sm:mb-2">
+                {selectedSack.name} wird geöffnet…
+              </h2>
+              <p className="text-gray-400 text-sm sm:text-base">Karten rotieren…</p>
+            </div>
 
-              {/* Card Carousel */}
-              <div className="relative h-[380px] sm:h-[500px] overflow-hidden">
-                {/* Center Indicator Lines */}
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-1 h-full bg-gradient-to-b from-transparent via-white to-transparent opacity-30 z-20 pointer-events-none" />
-                
-                {/* Visible Cards Container */}
-                <div 
-                  className="flex h-full items-center"
+            <div ref={carouselRef} className="relative flex-1 min-h-0 w-full touch-none select-none">
+              <div className="absolute inset-y-0 left-0 w-6 sm:w-20 bg-gradient-to-r from-black via-black/80 to-transparent z-20 pointer-events-none" />
+              <div className="absolute inset-y-0 right-0 w-6 sm:w-20 bg-gradient-to-l from-black via-black/80 to-transparent z-20 pointer-events-none" />
+              <div className="absolute inset-y-3 sm:inset-y-6 left-1/2 -translate-x-1/2 w-0.5 bg-gradient-to-b from-transparent via-white/50 to-transparent z-20 pointer-events-none" />
+
+              <div className="h-full w-full overflow-hidden">
+                <div
+                  className="flex h-full items-center will-change-transform"
                   style={{
-                    transform: `translateX(calc(50% - ${(currentIndex % (possibleRewards.length * 15)) * cardWidth}px - ${cardWidth / 2}px))`,
-                    willChange: 'transform',
+                    transform: `translateX(calc(50% - ${(currentIndex % (possibleRewards.length * 15)) * (cardMetrics.width + cardMetrics.gap)}px - ${cardMetrics.width / 2}px))`,
                   }}
                 >
-                  {/* Rendere alle Karten mehrfach für seamless loop - KEINE Filterung */}
-                  {Array.from({ length: 15 }, (_, copyIndex) => 
+                  {Array.from({ length: 15 }, (_, copyIndex) =>
                     possibleRewards.map((item, index) => {
                       const absoluteIndex = copyIndex * possibleRewards.length + index
                       const rarity = item.rarity
@@ -721,111 +748,115 @@ export default function SacksPage() {
                         legendary: 'Legendär',
                       }
                       const color = rarityColors[rarity]
-                      
-                      // Berechne Distanz zur aktuellen Position (mit modulo für seamless loop)
+
                       const totalLength = possibleRewards.length * 15
                       const normalizedCurrent = ((currentIndex % totalLength) + totalLength) % totalLength
                       const normalizedAbsolute = ((absoluteIndex % totalLength) + totalLength) % totalLength
-                      
-                      // Finde minimale Distanz (berücksichtige wrap-around)
+
                       const dist1 = Math.abs(normalizedAbsolute - normalizedCurrent)
                       const dist2 = Math.abs(normalizedAbsolute - normalizedCurrent + totalLength)
                       const dist3 = Math.abs(normalizedAbsolute - normalizedCurrent - totalLength)
                       const distance = Math.min(dist1, dist2, dist3)
-                      
-                      // Bestimme welche Kopie aktiv ist
+
                       const isActive = distance < 0.5
-                      
-                      // Berechne Opacity und Scale - aber zeige IMMER die Karte
-                      const opacity = isActive ? 1 : Math.max(0.3, 1 - distance * 0.06)
-                      const scale = isActive ? 1 : Math.max(0.75, 1 - distance * 0.05)
-                      
+                      const opacity = isActive ? 1 : Math.max(0.35, 1 - distance * 0.08)
+                      const scale = isActive ? 1 : Math.max(0.82, 1 - distance * 0.04)
+
                       return (
-                      <div
-                        key={absoluteIndex}
-                        className="flex-shrink-0 flex items-center justify-center h-full"
-                        style={{
-                          width: `${cardWidth}px`,
-                          paddingLeft: '2px',
-                          paddingRight: '2px',
-                        }}
-                      >
                         <div
-                          className={`relative bg-gradient-to-br from-fortnite-dark to-fortnite-darker rounded-xl p-8 w-full max-w-sm transition-all ${
-                            isActive ? 'z-10 shadow-2xl' : ''
-                          }`}
+                          key={absoluteIndex}
+                          className="flex-shrink-0 flex items-center justify-center h-full"
                           style={{
-                            borderColor: isActive ? color : 'rgba(255,255,255,0.2)',
-                            borderWidth: isActive ? '3px' : '2px',
-                            borderStyle: 'solid',
-                            opacity: opacity,
-                            boxShadow: isActive 
-                              ? `0 0 40px ${color}CC, 0 0 80px ${color}80, 0 0 120px ${color}40, inset 0 0 40px ${color}20` 
-                              : 'none',
-                            transform: `scale(${scale}) translateY(${isActive ? 0 : 20}px)`,
+                            width: `${cardMetrics.width + cardMetrics.gap}px`,
+                            paddingLeft: `${cardMetrics.gap / 2}px`,
+                            paddingRight: `${cardMetrics.gap / 2}px`,
                           }}
                         >
-                          {/* Rarity Badge */}
                           <div
-                            className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-4 py-1.5 rounded-full text-sm font-bold shadow-lg"
-                            style={{ 
-                              backgroundColor: color, 
-                              color: 'white',
-                              boxShadow: `0 4px 12px ${color}80`,
+                            className={`relative flex h-full max-h-full w-full flex-col rounded-xl sm:rounded-2xl transition-all ${
+                              isActive ? 'z-10 shadow-2xl' : ''
+                            } bg-gradient-to-br from-fortnite-dark to-fortnite-darker p-3 sm:p-5 lg:p-6`}
+                            style={{
+                              borderColor: isActive ? color : 'rgba(255,255,255,0.2)',
+                              borderWidth: isActive ? '3px' : '2px',
+                              borderStyle: 'solid',
+                              opacity,
+                              boxShadow: isActive
+                                ? `0 0 40px ${color}CC, 0 0 80px ${color}80, 0 0 120px ${color}40, inset 0 0 40px ${color}20`
+                                : 'none',
+                              transform: `scale(${scale})`,
                             }}
                           >
-                            {rarityNames[rarity]}
-                          </div>
+                            <div className="shrink-0 flex justify-center pb-2 sm:pb-3">
+                              <div
+                                className="px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-lg"
+                                style={{
+                                  backgroundColor: color,
+                                  color: 'white',
+                                  boxShadow: `0 4px 12px ${color}80`,
+                                }}
+                              >
+                                {rarityNames[rarity]}
+                              </div>
+                            </div>
 
-                          {/* Reward Content */}
-                          <div className="text-center mt-6">
-                            {item.reward.type === 'product' && item.reward.product ? (
-                              <>
-                                <div className="relative w-48 h-48 mx-auto mb-6 rounded-xl overflow-hidden border-2 border-white/20 shadow-xl">
-                                  <Image
-                                    src={item.reward.product.image}
-                                    alt={item.reward.product.name}
-                                    fill
-                                    className="object-cover"
-                                  />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-white mb-2 line-clamp-2">{item.reward.product.name}</h3>
-                                <p className="text-purple-400 font-bold text-xl">€{item.reward.product.price.toFixed(2)}</p>
-                              </>
-                            ) : item.reward.type === 'coins' && item.reward.coins ? (
-                              <>
-                                <div className="w-48 h-48 mx-auto mb-6 rounded-full bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 flex items-center justify-center shadow-2xl border-4 border-yellow-300/50">
-                                  <GoofyCoinIcon className="w-24 h-24 text-white drop-shadow-lg" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-white mb-2">{item.reward.coins.toLocaleString()} GoofyCoins</h3>
-                                <p className="text-yellow-400 font-bold text-xl">€{(item.reward.coins / 100).toFixed(2)}</p>
-                              </>
-                            ) : (
-                              <>
-                                <div className="w-48 h-48 mx-auto mb-6 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center border-4 border-gray-600/50">
-                                  <X className="w-24 h-24 text-gray-400" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-gray-400 mb-2">Niete</h3>
-                                <p className="text-gray-500 text-lg">Keine Belohnung</p>
-                              </>
+                            <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
+                              {item.reward.type === 'product' && item.reward.product ? (
+                                <>
+                                  <div className="relative mb-3 sm:mb-4 aspect-square w-full max-h-[min(42dvh,14rem)] sm:max-h-[min(48dvh,16rem)] max-w-[min(100%,14rem)] sm:max-w-[16rem] overflow-hidden rounded-xl border-2 border-white/20 shadow-xl">
+                                    <Image
+                                      src={item.reward.product.image}
+                                      alt={item.reward.product.name}
+                                      fill
+                                      className="object-cover"
+                                      sizes="(max-width: 640px) 70vw, 16rem"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                  </div>
+                                  <h3 className="line-clamp-2 text-base sm:text-xl lg:text-2xl font-bold text-white mb-1 px-1">
+                                    {item.reward.product.name}
+                                  </h3>
+                                  <p className="text-purple-400 font-bold text-lg sm:text-xl">
+                                    €{item.reward.product.price.toFixed(2)}
+                                  </p>
+                                </>
+                              ) : item.reward.type === 'coins' && item.reward.coins ? (
+                                <>
+                                  <div className="mb-3 sm:mb-4 flex aspect-square w-full max-h-[min(42dvh,14rem)] sm:max-h-[min(48dvh,16rem)] max-w-[min(100%,14rem)] sm:max-w-[16rem] items-center justify-center rounded-full border-4 border-yellow-300/50 bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 shadow-2xl">
+                                    <GoofyCoinIcon className="h-[55%] w-[55%] drop-shadow-lg" />
+                                  </div>
+                                  <h3 className="text-base sm:text-xl lg:text-2xl font-bold text-white mb-1">
+                                    {item.reward.coins.toLocaleString()} GoofyCoins
+                                  </h3>
+                                  <p className="text-yellow-400 font-bold text-lg sm:text-xl">
+                                    €{(item.reward.coins / 100).toFixed(2)}
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="mb-3 sm:mb-4 flex aspect-square w-full max-h-[min(42dvh,14rem)] sm:max-h-[min(48dvh,16rem)] max-w-[min(100%,14rem)] sm:max-w-[16rem] items-center justify-center rounded-full border-4 border-gray-600/50 bg-gradient-to-br from-gray-700 to-gray-800">
+                                    <X className="h-[40%] w-[40%] text-gray-400" />
+                                  </div>
+                                  <h3 className="text-base sm:text-xl lg:text-2xl font-bold text-gray-400 mb-1">Niete</h3>
+                                  <p className="text-gray-500 text-sm sm:text-lg">Keine Belohnung</p>
+                                </>
+                              )}
+                            </div>
+
+                            {isActive && (
+                              <div
+                                className="absolute inset-0 rounded-xl sm:rounded-2xl pointer-events-none"
+                                style={{
+                                  background: `radial-gradient(circle at center, ${color}30 0%, transparent 70%)`,
+                                  animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                                }}
+                              />
                             )}
                           </div>
-
-                          {/* Glow Effect */}
-                          {isActive && (
-                            <div
-                              className="absolute inset-0 rounded-xl pointer-events-none"
-                              style={{
-                                background: `radial-gradient(circle at center, ${color}30 0%, transparent 70%)`,
-                                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                              }}
-                            />
-                          )}
                         </div>
-                      </div>
-                    )
-                  })).flat()}
+                      )
+                    })
+                  ).flat()}
                 </div>
               </div>
             </div>
